@@ -1,5 +1,7 @@
 # Sandstorm
 
+[![Build Status](https://travis-ci.org/ali-graham/sandstorm.png)](https://travis-ci.org/ali-graham/sandstorm)
+
 TODO: Write a gem description
 
 ## Installation
