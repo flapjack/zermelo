@@ -11,13 +11,21 @@ module Sandstorm
     protected
 
     def indexed_attributes
-      (Thread.current[self.object_id.to_s.to_sym] ||= {})[:indexed_attributes] ||= []
+      ret = nil
+      @lock.synchronize do
+        @indexed_attributes ||= []
+        ret = @indexed_attributes.dup
+      end
+      ret
     end
 
     # NB: key must be a string or boolean type, TODO validate this
     def index_by(*args)
       args.each do |arg|
-        indexed_attributes << arg.to_s
+        @lock.synchronize do
+          @indexed_attributes ||= []
+          @indexed_attributes << arg.to_s
+        end
         associate(::Sandstorm::Associations::Index, self, [arg])
       end
       nil

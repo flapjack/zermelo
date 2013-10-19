@@ -1,3 +1,5 @@
+require 'monitor'
+
 require 'active_support/concern'
 require 'active_support/core_ext/object/blank'
 require 'active_support/inflector'
@@ -35,6 +37,8 @@ module Sandstorm
       include ActiveModel::Dirty
       include ActiveModel::Validations
 
+      @lock = Monitor.new
+
       # # including classes can do this
       # include ActiveModel::Serializers::JSON
       # self.include_root_in_json = false
@@ -56,23 +60,23 @@ module Sandstorm
     module ClassMethods
 
       def count
-        Sandstorm.redis.card(ids.key)
+        Sandstorm.redis.card(ids_key)
       end
 
       def ids
-        Sandstorm.redis.smembers(ids.key)
+        Sandstorm.redis.smembers(ids_key)
       end
 
       def add_id(id)
-        Sandstorm.redis.sadd(ids.key, id.to_s)
+        Sandstorm.redis.sadd(ids_key, id.to_s)
       end
 
       def delete_id(id)
-        Sandstorm.redis.srem(ids.key, id.to_s)
+        Sandstorm.redis.srem(ids_key, id.to_s)
       end
 
       def exists?(id)
-        Sandstorm.redis.sismember(ids.key, id.to_s)
+        Sandstorm.redis.sismember(ids_key, id.to_s)
       end
 
       def all
@@ -87,15 +91,15 @@ module Sandstorm
       end
 
       def intersect(opts = {})
-        Sandstorm::Filter.new(ids, self).intersect(opts)
+        Sandstorm::Filter.new(Sandstorm::RedisKey.new(ids_key, :set), self).intersect(opts)
       end
 
       def union(opts = {})
-        Sandstorm::Filter.new(ids, self).union(opts)
+        Sandstorm::Filter.new(Sandstorm::RedisKey.new(ids_key, :set), self).union(opts)
       end
 
       def diff(opts = {})
-        Sandstorm::Filter.new(ids, self).diff(opts)
+        Sandstorm::Filter.new(Sandstorm::RedisKey.new(ids_key, :set), self).diff(opts)
       end
 
       def find_by_id(id)
@@ -104,7 +108,11 @@ module Sandstorm
       end
 
       def attribute_types
-        (Thread.current[self.object_id.to_s.to_sym] ||= {})[:attribute_types] ||= {}
+        ret = nil
+        @lock.synchronize do
+          ret = (@attribute_types ||= {}).dup
+        end
+        ret
       end
 
       protected
@@ -115,14 +123,15 @@ module Sandstorm
             Sandstorm::ALL_TYPES.include?(value)
           self.define_attribute_methods([key])
         end
-        attribute_types.update(options)
+        @lock.synchronize do
+          (@attribute_types ||= {}).update(options)
+        end
       end
 
       private
 
-      def ids
-        (Thread.current[self.object_id.to_s.to_sym] ||= {})[:ids] ||=
-          Sandstorm::RedisKey.new("#{class_key}::ids", :set)
+      def ids_key
+        "#{class_key}::ids"
       end
 
       def class_key
