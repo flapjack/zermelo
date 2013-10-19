@@ -84,10 +84,6 @@ module Sandstorm
         options = args.extract_options!
         name = args.first.to_s
 
-        p name
-        p options
-        p klass.name
-
         assoc_args = []
 
         if options[:class_name]
