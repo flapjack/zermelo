@@ -10,10 +10,6 @@ require 'sandstorm/filter'
 require 'sandstorm/redis_key'
 require 'sandstorm/type_validator'
 
-# TODO: cleanup redis-objects usage from associations, main class and folder
-# TODO: start porting tests over
-# TODO: class base name only
-
 # TODO escape ids and index_keys -- shouldn't allow bare : or space
 
 # TODO callbacks on before/after add/delete on association?
@@ -60,7 +56,7 @@ module Sandstorm
     module ClassMethods
 
       def count
-        Sandstorm.redis.card(ids_key)
+        Sandstorm.redis.scard(ids_key)
       end
 
       def ids
