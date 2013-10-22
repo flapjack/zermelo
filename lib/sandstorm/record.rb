@@ -16,9 +16,6 @@ require 'sandstorm/type_validator'
 
 # TODO optional sort via Redis SORT, first/last for has_many via those
 
-# TODO clean up the multiple condition case for filters, current union(A | B) case
-# should work as intersect(A | B) with the union applied first
-
 # TODO get DIFF working for exclusion case against ZSETs
 
 module Sandstorm
@@ -258,7 +255,7 @@ module Sandstorm
               when :list
                 Sandstorm.redis.rpush(redis_key.key, *value)
               when :set
-                Sandstorm.redis.sadd(redis_key.key, *value.to_a)
+                Sandstorm.redis.sadd(redis_key.key, value.to_a)
               when :hash
                 values = value.inject([]) do |memo, (k, v)|
                   memo += [k, v]

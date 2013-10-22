@@ -100,49 +100,46 @@ module Sandstorm
     # the temporary set once done
     # NB set case could use sunion/sinter for the last step, sorted set case can't
     # TODO break this up, it's too large
-    # TODO diff/diff_range
     def resolve_steps(&block)
       return block.call(@initial_set.key, false) if @steps.empty?
 
+      temp_set_name = proc { "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}" }
+
       source_set = @initial_set.key
-      dest_set   = "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
+      dest_set   = temp_set_name.call
 
       idx_attrs = @associated_class.send(:indexed_attributes)
 
       order_desc = nil
 
-      # hack hack hack
-      intersect_initial_with_union = false
-
       @steps.each_slice(2) do |step|
 
         order_desc = false
 
-        source_keys = []
-        if (source_set == dest_set) || [:intersect, :intersect_range, :diff].include?(step.first)
-          source_keys << source_set
-        else
-          intersect_initial_with_union = true
-        end
-
-        range_ids_set = nil
+        temp_sets  = []
+        source_keys = [source_set]
 
         if [:intersect, :union, :diff].include?(step.first)
 
           source_keys += step.last.inject([]) do |memo, (att, value)|
-            if idx_attrs.include?(att.to_s)
-              value = [value] unless value.is_a?(Enumerable)
-              value.each do |val|
-                att_index = @associated_class.send("#{att}_index", val)
-                memo << att_index.key
-              end
+            next memo unless idx_attrs.include?(att.to_s)
+
+            if value.is_a?(Enumerable)
+              conditions_set = temp_set_name.call
+              Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
+                @associated_class.send("#{att}_index", val).key
+              })
+              memo << conditions_set
+              temp_sets << conditions_set
+            else
+              memo << @associated_class.send("#{att}_index", value).key
             end
+
             memo
           end
 
         elsif [:intersect_range, :union_range].include?(step.first)
-
-          range_ids_set = "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
+          range_ids_set = temp_set_name.call
 
           options = step.last
 
@@ -188,6 +185,7 @@ module Sandstorm
             Sandstorm.redis.zadd(range_ids_set, range_ids_scores.map(&:reverse))
           end
           source_keys << range_ids_set
+          temp_sets << range_ids_set
         end
 
         case @initial_set.type
@@ -196,11 +194,6 @@ module Sandstorm
           case step.first
           when :union, :union_range
             Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
-            if intersect_initial_with_union
-              # FIXME -- this is a hack, there should be a cleaner way to do this
-              Sandstorm.redis.zinterstore(dest_set, [source_set, dest_set], :weights => [1.0, 0.0], :aggregate => 'max')
-              intersect_initial_with_union = false
-            end
           when :intersect, :intersect_range
             Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
           end
@@ -214,6 +207,10 @@ module Sandstorm
           when :diff
             Sandstorm.redis.sdiffstore(dest_set, *source_keys)
           end
+        end
+        unless temp_sets.empty?
+          Sandstorm.redis.del(temp_sets)
+          temp_sets.clear
         end
         source_set = dest_set
       end
