@@ -96,6 +96,25 @@ module Sandstorm
 
     # TODO possible candidate for moving to a stored Lua script in the redis server?
 
+    def temp_set_name
+      "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
+    end
+
+    # return
+    def indexed_step_to_set(att, value)
+      index = @associated_class.send("#{att}_index", value)
+
+      case index
+      when Sandstorm::Associations::UniqueIndex
+        idx_result = temp_set_name
+        Sandstorm.redis.sadd(idx_result,
+          Sandstorm.redis.hget(@associated_class.send("#{att}_index", value).key, value))
+        [idx_result, true]
+      when Sandstorm::Associations::Index
+        [index.key, false]
+      end
+    end
+
     # takes a block and passes the name of the temporary set to it; deletes
     # the temporary set once done
     # NB set case could use sunion/sinter for the last step, sorted set case can't
@@ -103,10 +122,8 @@ module Sandstorm
     def resolve_steps(&block)
       return block.call(@initial_set.key, false) if @steps.empty?
 
-      temp_set_name = proc { "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}" }
-
       source_set = @initial_set.key
-      dest_set   = temp_set_name.call
+      dest_set   = temp_set_name
 
       idx_attrs = @associated_class.send(:indexed_attributes)
 
@@ -125,21 +142,27 @@ module Sandstorm
             next memo unless idx_attrs.include?(att.to_s)
 
             if value.is_a?(Enumerable)
-              conditions_set = temp_set_name.call
+              conditions_set = temp_set_name
+              temp_idx_sets = []
               Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
-                @associated_class.send("#{att}_index", val).key
+                idx_set, clear = indexed_step_to_set(att, val)
+                temp_idx_sets << idx_set if clear
+                idx_set
               })
-              memo << conditions_set
+              Sandstorm.redis.del(temp_idx_sets) unless temp_idx_sets.empty?
               temp_sets << conditions_set
+              memo << conditions_set
             else
-              memo << @associated_class.send("#{att}_index", value).key
+              idx_set, clear = indexed_step_to_set(att, value)
+              temp_sets << idx_set if clear
+              memo << idx_set
             end
 
             memo
           end
 
         elsif [:intersect_range, :union_range].include?(step.first)
-          range_ids_set = temp_set_name.call
+          range_ids_set = temp_set_name
 
           options = step.last
 

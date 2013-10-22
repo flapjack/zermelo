@@ -3,6 +3,7 @@ require 'sandstorm/associations/has_many'
 require 'sandstorm/associations/has_one'
 require 'sandstorm/associations/has_sorted_set'
 require 'sandstorm/associations/index'
+require 'sandstorm/associations/unique_index'
 
 module Sandstorm
 
@@ -27,6 +28,17 @@ module Sandstorm
           @indexed_attributes << arg.to_s
         end
         associate(::Sandstorm::Associations::Index, self, [arg])
+      end
+      nil
+    end
+
+    def unique_index_by(*args)
+      args.each do |arg|
+        @lock.synchronize do
+          @indexed_attributes ||= []
+          @indexed_attributes << arg.to_s
+        end
+        associate(::Sandstorm::Associations::UniqueIndex, self, [arg])
       end
       nil
     end
@@ -57,7 +69,7 @@ module Sandstorm
     def associate(klass, parent, args)
       assoc = nil
       case klass.name
-      when ::Sandstorm::Associations::Index.name
+      when ::Sandstorm::Associations::Index.name, ::Sandstorm::Associations::UniqueIndex.name
         name = args.first
 
         # TODO check method_defined? ( which relative to instance_eval ?)

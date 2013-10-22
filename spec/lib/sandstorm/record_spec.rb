@@ -14,6 +14,7 @@ describe Sandstorm::Record, :redis => true do
       validates :name, :presence => true
 
       index_by :active
+      unique_index_by :name
     end
   end
 
@@ -23,6 +24,7 @@ describe Sandstorm::Record, :redis => true do
     redis.hmset("example:#{attrs[:id]}:attrs",
       {'name' => attrs[:name], 'email' => attrs[:email], 'active' => attrs[:active]}.flatten)
     redis.sadd("example::by_active:#{!!attrs[:active]}", attrs[:id])
+    redis.hset("example::by_name", attrs[:name], attrs[:id])
     redis.sadd('example::ids', attrs[:id])
   end
 
@@ -43,10 +45,12 @@ describe Sandstorm::Record, :redis => true do
 
     redis.keys('*').should =~ ['example::ids',
                                'example:1:attrs',
+                               'example::by_name',
                                'example::by_active:true']
     redis.smembers('example::ids').should == ['1']
     redis.hgetall('example:1:attrs').should ==
       {'name' => 'John Smith', 'email' => 'jsmith@example.com', 'active' => 'true'}
+    redis.hgetall('example::by_name').should == {'John Smith' => '1'}
     redis.smembers('example::by_active:true').should ==
       ['1']
   end
@@ -76,6 +80,20 @@ describe Sandstorm::Record, :redis => true do
     example.email.should == 'jjones@example.com'
   end
 
+  it "finds records by a uniquely indexed value in redis" do
+    create_example(:id => '8', :name => 'John Jones',
+                   :email => 'jjones@example.com', :active => 'true')
+
+    examples = Sandstorm::Example.intersect(:name => 'John Jones').all
+    examples.should_not be_nil
+    examples.should be_an(Array)
+    examples.should have(1).example
+    example = examples.first
+    example.id.should == '8'
+    example.name.should == 'John Jones'
+    example.email.should == 'jjones@example.com'
+  end
+
   it "updates a record's attributes in redis" do
     create_example(:id => '8', :name => 'John Jones',
                    :email => 'jjones@example.com', :active => 'true')
@@ -87,6 +105,7 @@ describe Sandstorm::Record, :redis => true do
 
     redis.keys('*').should =~ ['example::ids',
                                'example:8:attrs',
+                               'example::by_name',
                                'example::by_active:true']
     redis.smembers('example::ids').should == ['8']
     redis.hgetall('example:8:attrs').should ==
@@ -101,6 +120,7 @@ describe Sandstorm::Record, :redis => true do
 
     redis.keys('*').should =~ ['example::ids',
                                'example:8:attrs',
+                               'example::by_name',
                                'example::by_active:true']
 
     example = Sandstorm::Example.find_by_id('8')
@@ -220,6 +240,7 @@ describe Sandstorm::Record, :redis => true do
       example.children << child
 
       redis.keys('*').should =~ ['example::ids',
+                                 'example::by_name',
                                  'example::by_active:true',
                                  'example:8:attrs',
                                  'example:8:children_ids',
@@ -335,6 +356,7 @@ describe Sandstorm::Record, :redis => true do
       example.data << data
 
       redis.keys('*').should =~ ['example::ids',
+                                 'example::by_name',
                                  'example::by_active:true',
                                  'example:8:attrs',
                                  'example:8:data_ids',
@@ -525,6 +547,7 @@ describe Sandstorm::Record, :redis => true do
       example.special = special
 
       redis.keys('*').should =~ ['example::ids',
+                                 'example::by_name',
                                  'example::by_active:true',
                                  'example:8:attrs',
                                  'example:8:special_id',
