@@ -279,7 +279,9 @@ module Sandstorm
         end
 
         # update indices
-        self.changes.select {|k| idx_attrs.include?(k)}.each_pair do |att, old_new|
+        self.changes.each_pair do |att, old_new|
+          next unless idx_attrs.include?(att)
+
           if old_new.first.nil?
             # sadd
             self.class.send("#{att}_index", old_new.last).add_id( @attributes['id'] )

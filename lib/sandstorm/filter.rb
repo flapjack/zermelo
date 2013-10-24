@@ -105,7 +105,7 @@ module Sandstorm
         when :sorted_set
           Sandstorm.redis.send((order_desc ? :zrevrange : :zrange), set, 0, -1)
         when :set, nil
-          Sandstorm.redis.smembers(set).sort
+          Sandstorm.redis.smembers(set)
         end
       }
     end

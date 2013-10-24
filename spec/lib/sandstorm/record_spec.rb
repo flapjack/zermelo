@@ -22,7 +22,7 @@ describe Sandstorm::Record, :redis => true do
 
   def create_example(attrs = {})
     redis.hmset("example:#{attrs[:id]}:attrs",
-      {'name' => attrs[:name], 'email' => attrs[:email], 'active' => attrs[:active]}.flatten)
+      {'name' => attrs[:name], 'email' => attrs[:email], 'active' => attrs[:active]}.to_a.flatten)
     redis.sadd("example::by_active:#{!!attrs[:active]}", attrs[:id])
     redis.hset("example::by_name", attrs[:name], attrs[:id])
     redis.sadd('example::ids', attrs[:id])
@@ -222,7 +222,7 @@ describe Sandstorm::Record, :redis => true do
       redis.sadd("example:#{parent.id}:children_ids", attrs[:id])
 
       redis.hmset("example_child:#{attrs[:id]}:attrs",
-                  {'name' => attrs[:name], 'important' => !!attrs[:important]}.flatten)
+                  {'name' => attrs[:name], 'important' => !!attrs[:important]}.to_a.flatten)
 
       redis.sadd("example_child::by_important:#{!!attrs[:important]}", attrs[:id])
 
@@ -335,7 +335,7 @@ describe Sandstorm::Record, :redis => true do
 
       redis.hmset("example_datum:#{attrs[:id]}:attrs",
                   {'summary' => attrs[:summary], 'timestamp' => attrs[:timestamp].to_i.to_f,
-                   'emotion' => attrs[:emotion]}.flatten)
+                   'emotion' => attrs[:emotion]}.to_a.flatten)
 
       redis.sadd("example_datum::by_emotion:#{attrs[:emotion]}", attrs[:id])
 
@@ -367,8 +367,11 @@ describe Sandstorm::Record, :redis => true do
       redis.hgetall('example_datum:4:attrs').should ==
         {'summary' => 'hello!', 'timestamp' => time.to_f.to_s}
 
-      redis.zrange('example:8:data_ids', 0, -1,
-        :with_scores => true).should == [['4', time.to_f]]
+      result = redis.zrange('example:8:data_ids', 0, -1,
+        :with_scores => true) # .should == [['4', time.to_f]]
+      result.should have(1).pair
+      result.first.first.should == '4'
+      result.first.last.should be_within(0.001).of(time.to_f)
     end
 
     it "loads a child from a parent's has_sorted_set relationship" do
