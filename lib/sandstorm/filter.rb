@@ -52,11 +52,19 @@ module Sandstorm
     end
 
     def exists?(id)
-      !id.nil? && ids.include?(id.to_s)
+      return if id.nil?
+      resolve_steps {|set, desc|
+        case @initial_set.type
+        when :sorted_set
+          !Sandstorm.redis.zrank(set, id.to_s).nil?
+        when :set, nil
+          Sandstorm.redis.sismember(set, id.to_s)
+        end
+      }
     end
 
     def find_by_id(id)
-      return unless id && exists?(id.to_s)
+      return unless exists?(id)
       load(id.to_s)
     end
 

@@ -309,6 +309,34 @@ describe Sandstorm::Record, :redis => true do
       important_kids.map(&:id).should =~ ['3', '4']
     end
 
+    it "checks whether a record id exists through a has_many filter" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::Example.find_by_id('8')
+
+      create_child(example, :id => '3', :name => 'Martin Luther King', :important => true)
+      create_child(example, :id => '4', :name => 'Julius Caesar', :important => true)
+      create_child(example, :id => '5', :name => 'John Smith', :important => false)
+
+      example.children.intersect(:important => true).exists?('3').should be_true
+      example.children.intersect(:important => true).exists?('5').should be_false
+    end
+
+    it "finds a record through a has_many filter" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::Example.find_by_id('8')
+
+      create_child(example, :id => '3', :name => 'Martin Luther King', :important => true)
+      create_child(example, :id => '4', :name => 'Julius Caesar', :important => true)
+      create_child(example, :id => '5', :name => 'John Smith', :important => false)
+
+      martin = example.children.intersect(:important => true).find_by_id('3')
+      martin.should_not be_nil
+      martin.should be_a(Sandstorm::ExampleChild)
+      martin.id.should == '3'
+    end
+
   end
 
   context "has_sorted_set" do
@@ -519,6 +547,44 @@ describe Sandstorm::Record, :redis => true do
       data.should be_an(Array)
       data.should have(2).children
       data.map(&:id).should == ['5', '4']
+    end
+
+    it "checks whether a record exists through a has_sorted_set filter" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::Example.find_by_id('8')
+
+      time = Time.now
+
+      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time,
+        :emotion => 'upset')
+      create_datum(example, :id => '5', :summary => 'ok', :timestamp => time.to_i + 10,
+        :emotion => 'happy')
+      create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+        :emotion => 'upset')
+
+      example.data.intersect(:emotion => 'upset').exists?('4').should be_true
+      example.data.intersect(:emotion => 'upset').exists?('5').should be_false
+    end
+
+    it "finds a record through a has_sorted_set filter" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::Example.find_by_id('8')
+
+      time = Time.now
+
+      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time,
+        :emotion => 'upset')
+      create_datum(example, :id => '5', :summary => 'ok', :timestamp => time.to_i + 10,
+        :emotion => 'happy')
+      create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+        :emotion => 'upset')
+
+      wellthen = upset_data = example.data.intersect(:emotion => 'upset').find_by_id('4')
+      wellthen.should_not be_nil
+      wellthen.should be_a(Sandstorm::ExampleDatum)
+      wellthen.id.should == '4'
     end
 
   end
