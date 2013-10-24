@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'sandstorm'
+require 'sandstorm/version'
 
 describe Sandstorm do
 

@@ -1,6 +1,8 @@
 require 'spec_helper'
 require 'sandstorm/record'
 
+# NB: also covers associations.rb, which is mixed in to Sandstorm::Record
+
 describe Sandstorm::Record, :redis => true do
 
   module Sandstorm
