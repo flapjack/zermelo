@@ -1,3 +1,5 @@
+require 'forwardable'
+
 require 'sandstorm'
 require 'sandstorm/filter'
 require 'sandstorm/redis_key'
@@ -5,6 +7,13 @@ require 'sandstorm/redis_key'
 module Sandstorm
   module Associations
     class HasMany
+
+      extend Forwardable
+
+      def_delegators :filter, :intersect, :union, :diff,
+                       :count, :empty?, :exists?, :find_by_id,
+                       :all, :each, :collect, :select, :find_all, :reject,
+                       :ids
 
       def initialize(parent, name, options = {})
         @record_ids = Sandstorm::RedisKey.new("#{parent.record_key}:#{name}_ids", :set)
@@ -43,45 +52,11 @@ module Sandstorm
         Sandstorm.redis.srem(@record_ids.key, *records.map(&:id))
       end
 
-      def intersect(opts = {})
-        new_filter.intersect(opts)
-      end
-
-      def union(opts = {})
-        new_filter.union(opts)
-      end
-
-      def diff(opts = {})
-        new_filter.diff(opts)
-      end
-
-      def count
-        new_filter.count
-      end
-
-      def empty?
-        new_filter.empty?
-      end
-
-      def all
-        new_filter.all
-      end
-
-      def collect(&block)
-        new_filter.collect(&block)
-      end
-
-      def each(&block)
-        new_filter.each(&block)
-      end
-
-      def ids
-        new_filter.ids
-      end
-
       private
 
-      def new_filter
+      # creates a new filter class each time it's called, to store the
+      # state for this particular filter chain
+      def filter
         Sandstorm::Filter.new(@record_ids, @associated_class)
       end
 

@@ -6,6 +6,14 @@ module Sandstorm
   module Associations
     class HasSortedSet
 
+      extend Forwardable
+
+      def_delegators :filter, :intersect, :union, :diff,
+                       :intersect_range, :union_range,
+                       :count, :empty?, :exists?, :find_by_id,
+                       :all, :each, :collect, :select, :find_all, :reject,
+                       :first, :last, :ids
+
       def initialize(parent, name, options = {})
         @key = options[:key]
         @parent = parent
@@ -40,59 +48,11 @@ module Sandstorm
         Sandstorm.redis.zrem(@record_ids.key, records.map(&:id))
       end
 
-      def intersect(opts = {})
-        new_filter.intersect(opts)
-      end
-
-      def union(opts = {})
-        new_filter.union(opts)
-      end
-
-      def intersect_range(start, finish, options = {})
-        new_filter.intersect_range(options.merge(:start => start, :end => finish,
-                                                 :by_score => options[:by_score]))
-      end
-
-      def union_range(start, finish, options = {})
-        new_filter.union_range(options.merge(:start => start, :end => finish,
-                                             :by_score => options[:by_score]))
-      end
-
-      def count
-        new_filter.count
-      end
-
-      def empty?
-        new_filter.empty?
-      end
-
-      def all
-        new_filter.all
-      end
-
-      def first
-        new_filter.first
-      end
-
-      def last
-        new_filter.last
-      end
-
-      def collect(&block)
-        new_filter.collect(&block)
-      end
-
-      def each(&block)
-        new_filter.each(&block)
-      end
-
-      def ids
-        new_filter.ids
-      end
-
       private
 
-      def new_filter
+      # creates a new filter class each time it's called, to store the
+      # state for this particular filter chain
+      def filter
         Sandstorm::Filter.new(@record_ids, @associated_class)
       end
 

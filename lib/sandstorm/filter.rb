@@ -26,13 +26,13 @@ module Sandstorm
       self
     end
 
-    def intersect_range(opts = {})
-      @steps += [:intersect_range, opts]
+    def intersect_range(start, finish, opts = {})
+      @steps += [:intersect_range, opts.merge(:start => start, :finish => finish)]
       self
     end
 
-    def union_range(opts = {})
-      @steps += [:union_range, opts]
+    def union_range(start, finish, opts = {})
+      @steps += [:union_range, opts.merge(:start => start, :finish => finish)]
       self
     end
 
@@ -49,6 +49,15 @@ module Sandstorm
 
     def empty?
       count == 0
+    end
+
+    def exists?(id)
+      !id.nil? && ids.include?(id.to_s)
+    end
+
+    def find_by_id(id)
+      return unless id && exists?(id.to_s)
+      load(id.to_s)
     end
 
     def all
@@ -81,6 +90,15 @@ module Sandstorm
       ids.each {|id| block.call(@associated_class.send(:load, id))}
     end
 
+    def select(&block)
+      all.select {|obj| block.call(obj) }
+    end
+    alias_method :find_all, :select
+
+    def reject(&block)
+      all.reject {|obj| block.call(obj)}
+    end
+
     def ids
       resolve_steps {|set, order_desc|
         case @initial_set.type
@@ -94,7 +112,11 @@ module Sandstorm
 
     private
 
-    # TODO possible candidate for moving to a stored Lua script in the redis server?
+    def load(id)
+      object = @associated_class.new
+      object.load(id)
+      object
+    end
 
     def temp_set_name
       "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
@@ -114,6 +136,8 @@ module Sandstorm
         [index.key, false]
       end
     end
+
+    # TODO possible candidate for moving to a stored Lua script in the redis server?
 
     # takes a block and passes the name of the temporary set to it; deletes
     # the temporary set once done
@@ -167,7 +191,7 @@ module Sandstorm
           options = step.last
 
           start = options[:start]
-          finish = options[:end]
+          finish = options[:finish]
 
           if options[:by_score]
             start = '-inf' if start.nil? || (start <= 0)
