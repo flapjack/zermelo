@@ -357,7 +357,9 @@ module Sandstorm
 
     # Simulate attribute readers from method_missing
     def attribute(att)
-      @attributes[att.to_s]
+      value = @attributes[att.to_s]
+      return value unless (self.class.attribute_types[att.to_sym] == :timestamp)
+      value.is_a?(Integer) ? Time.at(value) : value
     end
 
     # Used by ActiveModel to lookup attributes during validations.
