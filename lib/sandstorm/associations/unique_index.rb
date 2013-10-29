@@ -33,6 +33,10 @@ module Sandstorm
         Sandstorm.redis.hset(indexer.key, indexer_to.value, id)
       end
 
+      def clear_if_empty
+        Sandstorm.redis.del(indexer.key) if (Sandstorm.redis.hlen(indexer.key) == 0)
+      end
+
       def key
         indexer.key
       end

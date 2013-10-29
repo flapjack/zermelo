@@ -1,6 +1,8 @@
 require 'sandstorm'
 require 'sandstorm/redis_key'
 
+# The other side of a has_one, has_many, or has_sorted_set association
+
 module Sandstorm
   module Associations
     class BelongsTo
@@ -10,25 +12,43 @@ module Sandstorm
         @parent = parent
         @name = name
 
-        @inverse = options[:inverse_of] ? options[:inverse_of].to_s : nil
-
         # TODO trap possible constantize error
         @associated_class = (options[:class_name] || name.classify).constantize
+
+        raise ":inverse_of must be set" if options[:inverse_of].nil?
+        @inverse = options[:inverse_of].to_s
+      end
+
+      def inverse_of?(source)
+        !source.nil? && (@inverse == source.to_s)
       end
 
       def value=(record)
         # TODO validate that record.is_a?(@associated_class)
 
-        if @inverse
-          record.send("#{@inverse}=".to_sym, @parent) if record.respond_to?("#{@inverse}=".to_sym)
+        if record.nil?
+          Sandstorm.redis.hdel(@record_ids.key, "#{@name}_id")
         else
           Sandstorm.redis.hset(@record_ids.key, "#{@name}_id", record.id)
+        end
+        if Sandstorm.redis.hlen(@record_ids.key) == 0
+          Sandstorm.redis.del(@record_ids.key)
         end
       end
 
       def value
         return unless id = Sandstorm.redis.hget(@record_ids.key, "#{@name}_id")
         @associated_class.send(:load, id)
+      end
+
+      private
+
+      def on_remove
+        record_id = Sandstorm.redis.hget(@record_ids.key, "#{@name}_id")
+        if record_id
+          @associated_class.send(:load, record_id).send("#{@inverse}_proxy".to_sym).delete(@parent)
+        end
+        Sandstorm.redis.del(@record_ids.key)
       end
 
     end

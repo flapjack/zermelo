@@ -19,10 +19,11 @@ module Sandstorm
         @record_ids = Sandstorm::RedisKey.new("#{parent.record_key}:#{name}_ids", :set)
         @name = name
         @parent = parent
-        @inverse = options[:inverse_of] ? options[:inverse_of].to_s : nil
 
         # TODO trap possible constantize error
         @associated_class = (options[:class_name] || name.classify).constantize
+
+        @inverse = @associated_class.send(:inverse_of, name.to_sym)
       end
 
       def <<(record)
@@ -30,29 +31,41 @@ module Sandstorm
         self  # for << 'a' << 'b'
       end
 
+      # TODO load may not be practical in the transaction
+
       def add(*records)
-        # TODO collect all scores/ids and do a single zadd/single hmset
+        raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         records.each do |record|
-          raise 'Invalid class' unless record.is_a?(@associated_class)
-          # TODO next if already exists? in set
           record.save
-
-          # TODO validate that record.is_a?(@associated_class)
-          if @inverse
-            inverse_id = Sandstorm::RedisKey.new("#{record.record_key}:belongs_to", :hash)
-            Sandstorm.redis.hset(inverse_id.key, "#{@inverse}_id", @parent.id)
+          unless @inverse.nil?
+            @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
           end
-
-          Sandstorm.redis.sadd(@record_ids.key, record.id)
         end
+        Sandstorm.redis.sadd(@record_ids.key, *records.map(&:id))
       end
 
       # TODO support dependent delete, for now just deletes the association
       def delete(*records)
+        raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
+        unless @inverse.nil?
+          records.each do |record|
+            @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
+          end
+        end
         Sandstorm.redis.srem(@record_ids.key, *records.map(&:id))
       end
 
       private
+
+      # associated will be a belongs_to
+      def on_remove
+        unless @inverse.nil?
+          Sandstorm.redis.smembers(@record_ids.key).each do |record_id|
+            @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
+          end
+        end
+        Sandstorm.redis.del(@record_ids.key)
+      end
 
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain

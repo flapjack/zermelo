@@ -14,6 +14,9 @@ require 'sandstorm/type_validator'
 
 # TODO callbacks on before/after add/delete on association?
 
+# TODO remove id from other side of belongs_to when parent of assoc deleted
+#  (and child hasn't been deleted, of course)
+
 # TODO optional sort via Redis SORT, first/last for has_many via those
 
 # TODO get DIFF working for exclusion case against ZSETs
@@ -53,7 +56,9 @@ module Sandstorm
     module ClassMethods
 
       def count
-        Sandstorm.redis.scard(ids_key)
+        cnt = Sandstorm.redis.scard(ids_key)
+        Sandstorm.redis.del(ids_key) if cnt == 0
+        cnt
       end
 
       def ids
@@ -156,7 +161,9 @@ module Sandstorm
     end
 
     def record_key
-      "#{self.class.send(:class_key)}:#{self.id}"
+      record_id = self.id
+      raise "id not initialised" if record_id.nil?
+      "#{self.class.send(:class_key)}:#{record_id}"
     end
 
     def refresh
@@ -169,7 +176,7 @@ module Sandstorm
       @attributes = {'id' => self.id}
 
       # TODO this is clunky
-      simple_attrs = Sandstorm.redis.hgetall( @simple_attributes.key ).inject({}) do |memo, (name, value)|
+      simple_attrs = Sandstorm.redis.hgetall( simple_attributes.key ).inject({}) do |memo, (name, value)|
         if type = attr_types[name.to_sym]
           memo[name] = case type
           when :string
@@ -187,7 +194,7 @@ module Sandstorm
         memo
       end
 
-      complex_attrs = @complex_attributes.inject({}) do |memo, (name, redis_key)|
+      complex_attrs = complex_attributes.inject({}) do |memo, (name, redis_key)|
         if type = attr_types[name.to_sym]
         memo[name] = case type
           when :list
@@ -248,7 +255,7 @@ module Sandstorm
           when :boolean
             simple_attrs[name.to_s] = (!!value).to_s
           when :list, :set, :hash
-            redis_key = @complex_attributes[name.to_s]
+            redis_key = complex_attributes[name.to_s]
             Sandstorm.redis.del(redis_key.key)
             unless value.blank?
               case attr_types[name.to_sym]
@@ -269,13 +276,13 @@ module Sandstorm
         # uses hmset
         # TODO check that nil value deletes relevant hash key
         unless remove_attrs.empty?
-          Sandstorm.redis.hdel(@simple_attributes.key, remove_attrs)
+          Sandstorm.redis.hdel(simple_attributes.key, remove_attrs)
         end
         values = simple_attrs.inject([]) do |memo, (k, v)|
           memo += [k, v]
         end
         unless values.empty?
-          Sandstorm.redis.hmset(@simple_attributes.key, *values)
+          Sandstorm.redis.hmset(simple_attributes.key, *values)
         end
 
         # update indices
@@ -309,21 +316,29 @@ module Sandstorm
 
     def key(att)
       # TODO raise error if not a 'complex' attribute
-      @complex_attributes[att.to_s].key
+      complex_attributes[att.to_s].key
     end
 
     def destroy
       run_callbacks :destroy do
+        self.class.send(:remove_from_associated, self)
+        index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes))
         Sandstorm.redis.multi
         self.class.delete_id(@attributes['id'])
-        (self.attributes.keys & self.class.send(:indexed_attributes)).each {|att|
+        index_attrs.each {|att|
           self.class.send("#{att}_index", @attributes[att]).delete_id( @attributes['id'])
         }
-        Sandstorm.redis.del(@simple_attributes.key)
-        @complex_attributes.values do |redis_key|
+        Sandstorm.redis.del(simple_attributes.key)
+        complex_attributes.values do |redis_key|
           Sandstorm.redis.del(redis_key.key)
         end
         Sandstorm.redis.exec
+        # clear any empty indexers
+        index_attrs.each {|att|
+          self.class.send("#{att}_index", @attributes[att]).clear_if_empty
+        }
+        # trigger check for global ids record delete
+        self.class.count
       end
     end
 
@@ -338,13 +353,6 @@ module Sandstorm
         raise "Cannot reassign id" unless @attributes['id'].nil?
         send("id_will_change!")
         @attributes['id'] = value.to_s
-        @simple_attributes = Sandstorm::RedisKey.new("#{record_key}:attrs", :hash)
-        @complex_attributes = self.class.attribute_types.inject({}) do |memo, (name, type)|
-          if Sandstorm::COLLECTION_TYPES.has_key?(type)
-            memo[name.to_s] = Sandstorm::RedisKey.new("#{record_key}:attrs:#{name}", type)
-          end
-          memo
-        end
       else
         send("#{att}_will_change!")
         if (self.class.attribute_types[att.to_sym] == :set) && !value.is_a?(Set)
@@ -352,6 +360,19 @@ module Sandstorm
         else
           @attributes[att.to_s] = value
         end
+      end
+    end
+
+    def simple_attributes
+      @simple_attributes ||= Sandstorm::RedisKey.new("#{record_key}:attrs", :hash)
+    end
+
+    def complex_attributes
+      @complex_attributes ||= self.class.attribute_types.inject({}) do |memo, (name, type)|
+        if Sandstorm::COLLECTION_TYPES.has_key?(type)
+          memo[name.to_s] = Sandstorm::RedisKey.new("#{record_key}:attrs:#{name}", type)
+        end
+        memo
       end
     end
 
