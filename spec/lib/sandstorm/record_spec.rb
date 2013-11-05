@@ -337,6 +337,62 @@ describe Sandstorm::Record, :redis => true do
       martin.id.should == '3'
     end
 
+    it 'clears the belongs_to association when the child record is deleted' # do
+    #   create_example(:id => '8', :name => 'John Jones',
+    #                  :email => 'jjones@example.com', :active => 'true')
+    #   example = Sandstorm::Example.find_by_id('8')
+
+    #   time = Time.now
+
+    #   create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+    #     :emotion => 'upset')
+    #   datum = Sandstorm::ExampleDatum.find_by_id('6')
+
+    #   redis.keys.should =~ ['example::ids',
+    #                         'example::by_name',
+    #                         'example::by_active:true',
+    #                         'example:8:attrs',
+    #                         'example:8:data_ids',
+    #                         'example_datum::ids',
+    #                         'example_datum::by_emotion:upset',
+    #                         'example_datum:6:attrs',
+    #                         'example_datum:6:belongs_to']
+
+    #   datum.destroy
+
+    #   redis.keys.should =~ ['example::ids',
+    #                         'example::by_name',
+    #                         'example::by_active:true',
+    #                         'example:8:attrs']
+    # end
+
+    it "clears the belongs_to association when the parent record is deleted" # do
+    #   create_example(:id => '8', :name => 'John Jones',
+    #                  :email => 'jjones@example.com', :active => 'true')
+    #   example = Sandstorm::Example.find_by_id('8')
+
+    #   time = Time.now
+
+    #   create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+    #     :emotion => 'upset')
+
+    #   redis.keys.should =~ ['example::ids',
+    #                         'example::by_name',
+    #                         'example::by_active:true',
+    #                         'example:8:attrs',
+    #                         'example:8:data_ids',
+    #                         'example_datum::ids',
+    #                         'example_datum::by_emotion:upset',
+    #                         'example_datum:6:attrs',
+    #                         'example_datum:6:belongs_to']
+
+    #   example.destroy
+
+    #   redis.keys.should =~ ['example_datum::ids',
+    #                         'example_datum::by_emotion:upset',
+    #                         'example_datum:6:attrs']
+    # end
+
   end
 
   context "has_sorted_set" do
@@ -755,5 +811,149 @@ describe Sandstorm::Record, :redis => true do
     end
 
   end
+
+  context "has_and_belongs_to_many" do
+
+    class Sandstorm::Template
+      include Sandstorm::Record
+
+      define_attributes :name => :string
+
+      has_and_belongs_to_many :examples, :class_name => 'Sandstorm::Example',
+        :inverse_of => :templates
+
+      validates :name, :presence => true
+    end
+
+    class Sandstorm::Example
+      has_and_belongs_to_many :templates, :class_name => 'Sandstorm::Template',
+        :inverse_of => :examples
+    end
+
+    def create_template(attrs = {})
+      redis.hmset("template:#{attrs[:id]}:attrs", {'name' => attrs[:name]}.to_a.flatten)
+      redis.sadd('template::ids', attrs[:id])
+    end
+
+    before(:each) do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => true)
+      create_template(:id => '2', :name => 'Template 1')
+    end
+
+    it "sets a has_and_belongs_to_many relationship between two records in redis" do
+      example = Sandstorm::Example.find_by_id('8')
+      template = Sandstorm::Template.find_by_id('2')
+
+      example.templates << template
+
+      redis.keys('*').should =~ ['example::ids',
+                                 'example::by_name',
+                                 'example::by_active:true',
+                                 'example:8:attrs',
+                                 'example:8:templates_ids',
+                                 'template::ids',
+                                 'template:2:attrs',
+                                 'template:2:examples_ids']
+
+      redis.smembers('example::ids').should == ['8']
+      redis.smembers('example::by_active:true').should == ['8']
+      redis.hgetall('example:8:attrs').should ==
+        {'name' => 'John Jones', 'email' => 'jjones@example.com', 'active' => 'true'}
+      redis.smembers('example:8:templates_ids').should == ['2']
+
+      redis.smembers('template::ids').should == ['2']
+      redis.hgetall('template:2:attrs').should == {'name' => 'Template 1'}
+      redis.smembers('template:2:examples_ids').should == ['8']
+    end
+
+    it "loads a record from a has_and_belongs_to_many relationship" do
+      example = Sandstorm::Example.find_by_id('8')
+      template = Sandstorm::Template.find_by_id('2')
+
+      template.examples << example
+
+      templates = example.templates.all
+
+      templates.should be_an(Array)
+      templates.should have(1).template
+      other_template = templates.first
+      other_template.should be_a(Sandstorm::Template)
+      other_template.id.should == template.id
+    end
+
+    it "removes a has_and_belongs_to_many relationship between two records in redis" do
+      example = Sandstorm::Example.find_by_id('8')
+      template = Sandstorm::Template.find_by_id('2')
+
+      template.examples << example
+
+      redis.smembers('template::ids').should == ['2']
+      redis.smembers('example:8:templates_ids').should == ['2']
+
+      example.templates.delete(template)
+
+      redis.smembers('template::ids').should == ['2']        # template not deleted
+      redis.smembers('example:8:templates_ids').should == [] # but association is
+    end
+
+    it "filters has_and_belongs_to_many records by indexed attribute values" do
+      create_example(:id => '9', :name => 'James Smith',
+                     :email => 'jsmith@example.com', :active => false)
+      create_example(:id => '10', :name => 'Alpha Beta',
+                     :email => 'abc@example.com', :active => true)
+
+      example = Sandstorm::Example.find_by_id('8')
+      example_2 = Sandstorm::Example.find_by_id('9')
+      example_3 = Sandstorm::Example.find_by_id('10')
+      template = Sandstorm::Template.find_by_id('2')
+
+      example.templates << template
+      example_2.templates << template
+      example_3.templates << template
+
+      examples = template.examples.intersect(:active => true).all
+      examples.should_not be_nil
+      examples.should be_an(Array)
+      examples.should have(2).records
+      examples.map(&:id).should =~ ['8', '10']
+    end
+
+    it "checks whether a record id exists through a has_and_belongs_to_many filter"  do
+      create_example(:id => '9', :name => 'James Smith',
+                     :email => 'jsmith@example.com', :active => false)
+
+      example = Sandstorm::Example.find_by_id('8')
+      example_2 = Sandstorm::Example.find_by_id('9')
+      template = Sandstorm::Template.find_by_id('2')
+
+      example.templates << template
+      example_2.templates << template
+
+      template.examples.intersect(:active => false).exists?('9').should be_true
+      template.examples.intersect(:active => false).exists?('8').should be_false
+    end
+
+    it "finds a record through a has_and_belongs_to_many filter" do
+      create_example(:id => '9', :name => 'James Smith',
+                     :email => 'jsmith@example.com', :active => false)
+
+      example = Sandstorm::Example.find_by_id('8')
+      example_2 = Sandstorm::Example.find_by_id('9')
+      template = Sandstorm::Template.find_by_id('2')
+
+      example.templates << template
+      example_2.templates << template
+
+      james = template.examples.intersect(:active => false).find_by_id('9')
+      james.should_not be_nil
+      james.should be_a(Sandstorm::Example)
+      james.id.should == example_2.id
+    end
+
+    it 'clears a has_and_belongs_to_many association when a record is deleted'
+
+  end
+
 
 end

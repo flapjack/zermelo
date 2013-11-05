@@ -1,9 +1,15 @@
 require 'sandstorm/associations/belongs_to'
+require 'sandstorm/associations/has_and_belongs_to_many'
 require 'sandstorm/associations/has_many'
 require 'sandstorm/associations/has_one'
 require 'sandstorm/associations/has_sorted_set'
 require 'sandstorm/associations/index'
 require 'sandstorm/associations/unique_index'
+
+# TODO update other side of associations without having to load the record, so
+# that it can happen inside the multi/exec block
+
+# TODO redis-level locking around deleting keys if, e.g. value or set empty
 
 module Sandstorm
 
@@ -87,6 +93,15 @@ module Sandstorm
       nil
     end
 
+    def has_and_belongs_to_many(name, args = {})
+      associate(::Sandstorm::Associations::HasAndBelongsToMany, self, name, args)
+      @lock.synchronize do
+        @associations ||= []
+        @associations << name
+      end
+      nil
+    end
+
     def belongs_to(name, args = {})
       associate(::Sandstorm::Associations::BelongsTo, self, name, args)
       @lock.synchronize do
@@ -121,7 +136,9 @@ module Sandstorm
           instance_eval assoc, __FILE__, __LINE__
         end
 
-      when ::Sandstorm::Associations::HasMany.name, ::Sandstorm::Associations::HasSortedSet.name
+      when ::Sandstorm::Associations::HasMany.name, ::Sandstorm::Associations::HasSortedSet.name,
+        ::Sandstorm::Associations::HasAndBelongsToMany.name
+
         assoc_args = []
 
         if args[:class_name]
@@ -130,6 +147,10 @@ module Sandstorm
 
         if (klass == ::Sandstorm::Associations::HasSortedSet) && args[:key]
           assoc_args << %Q{:key => "#{(args[:key] || :id).to_s}"}
+        end
+
+        if (klass == ::Sandstorm::Associations::HasAndBelongsToMany) && args[:inverse_of]
+          assoc_args << %Q{:inverse_of => :#{args[:inverse_of].to_s}}
         end
 
         # TODO check method_defined? ( which relative to class_eval ? )
