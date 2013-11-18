@@ -19,7 +19,7 @@ GEM
     i18n (0.6.5)
     multi_json (1.8.2)
     rake (10.1.0)
-    redis (3.0.5)
+    redis (3.0.6)
     rspec (2.14.1)
       rspec-core (~> 2.14.0)
       rspec-expectations (~> 2.14.0)
