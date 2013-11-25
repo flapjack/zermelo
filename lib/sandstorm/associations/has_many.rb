@@ -41,7 +41,7 @@ module Sandstorm
             @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
           end
         end
-        Sandstorm.redis.sadd(@record_ids.key, *records.map(&:id))
+        Sandstorm.redis.sadd(@record_ids.key, records.map(&:id))
       end
 
       # TODO support dependent delete, for now just deletes the association
@@ -52,7 +52,7 @@ module Sandstorm
             @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
           end
         end
-        Sandstorm.redis.srem(@record_ids.key, *records.map(&:id))
+        Sandstorm.redis.srem(@record_ids.key, records.map(&:id))
       end
 
       private

@@ -58,12 +58,12 @@ module Sandstorm
 
       def add_without_inverse(*records)
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
-        Sandstorm.redis.sadd(@record_ids.key, *records.map(&:id))
+        Sandstorm.redis.sadd(@record_ids.key, records.map(&:id))
       end
 
       def delete_without_inverse(*records)
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
-        Sandstorm.redis.srem(@record_ids.key, *records.map(&:id))
+        Sandstorm.redis.srem(@record_ids.key, records.map(&:id))
       end
 
       # associated will be the other side of the HaBTM

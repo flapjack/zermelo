@@ -211,7 +211,7 @@ describe Sandstorm::Record, :redis => true do
 
       index_by :important
 
-      belongs_to :example, :class_name => 'Sandstorm::Example'
+      belongs_to :example, :class_name => 'Sandstorm::Example', :inverse_of => :children
 
       validates :name, :presence => true
     end
@@ -225,6 +225,9 @@ describe Sandstorm::Record, :redis => true do
 
       redis.hmset("example_child:#{attrs[:id]}:attrs",
                   {'name' => attrs[:name], 'important' => !!attrs[:important]}.to_a.flatten)
+
+      redis.hmset("example_child:#{attrs[:id]}:belongs_to",
+                  {'example_id' => parent.id}.to_a.flatten)
 
       redis.sadd("example_child::by_important:#{!!attrs[:important]}", attrs[:id])
 
@@ -247,7 +250,8 @@ describe Sandstorm::Record, :redis => true do
                                  'example:8:attrs',
                                  'example:8:children_ids',
                                  'example_child::ids',
-                                 'example_child:3:attrs']
+                                 'example_child:3:attrs',
+                                 'example_child:3:belongs_to']
 
       redis.smembers('example::ids').should == ['8']
       redis.smembers('example::by_active:true').should ==
@@ -337,61 +341,60 @@ describe Sandstorm::Record, :redis => true do
       martin.id.should == '3'
     end
 
-    it 'clears the belongs_to association when the child record is deleted' # do
-    #   create_example(:id => '8', :name => 'John Jones',
-    #                  :email => 'jjones@example.com', :active => 'true')
-    #   example = Sandstorm::Example.find_by_id('8')
+    it 'clears the belongs_to association when the child record is deleted' do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::Example.find_by_id('8')
 
-    #   time = Time.now
+      time = Time.now
 
-    #   create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
-    #     :emotion => 'upset')
-    #   datum = Sandstorm::ExampleDatum.find_by_id('6')
+      create_child(example, :id => '6', :name => 'Martin Luther King', :important => true)
+      child = Sandstorm::ExampleChild.find_by_id('6')
 
-    #   redis.keys.should =~ ['example::ids',
-    #                         'example::by_name',
-    #                         'example::by_active:true',
-    #                         'example:8:attrs',
-    #                         'example:8:data_ids',
-    #                         'example_datum::ids',
-    #                         'example_datum::by_emotion:upset',
-    #                         'example_datum:6:attrs',
-    #                         'example_datum:6:belongs_to']
+      redis.keys.should =~ ['example::ids',
+                            'example::by_name',
+                            'example::by_active:true',
+                            'example:8:attrs',
+                            'example:8:children_ids',
+                            'example_child::ids',
+                            'example_child::by_important:true',
+                            'example_child:6:attrs',
+                            'example_child:6:belongs_to']
 
-    #   datum.destroy
+      child.destroy
 
-    #   redis.keys.should =~ ['example::ids',
-    #                         'example::by_name',
-    #                         'example::by_active:true',
-    #                         'example:8:attrs']
-    # end
+      redis.keys.should =~ ['example::ids',
+                            'example::by_name',
+                            'example::by_active:true',
+                            'example:8:attrs']
+    end
 
-    it "clears the belongs_to association when the parent record is deleted" # do
-    #   create_example(:id => '8', :name => 'John Jones',
-    #                  :email => 'jjones@example.com', :active => 'true')
-    #   example = Sandstorm::Example.find_by_id('8')
+    it "clears the belongs_to association when the parent record is deleted" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::Example.find_by_id('8')
 
-    #   time = Time.now
+      time = Time.now
 
-    #   create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
-    #     :emotion => 'upset')
+      create_child(example, :id => '6', :name => 'Martin Luther King', :important => true)
+      child = Sandstorm::ExampleChild.find_by_id('6')
 
-    #   redis.keys.should =~ ['example::ids',
-    #                         'example::by_name',
-    #                         'example::by_active:true',
-    #                         'example:8:attrs',
-    #                         'example:8:data_ids',
-    #                         'example_datum::ids',
-    #                         'example_datum::by_emotion:upset',
-    #                         'example_datum:6:attrs',
-    #                         'example_datum:6:belongs_to']
+      redis.keys.should =~ ['example::ids',
+                            'example::by_name',
+                            'example::by_active:true',
+                            'example:8:attrs',
+                            'example:8:children_ids',
+                            'example_child::ids',
+                            'example_child::by_important:true',
+                            'example_child:6:attrs',
+                            'example_child:6:belongs_to']
 
-    #   example.destroy
+      example.destroy
 
-    #   redis.keys.should =~ ['example_datum::ids',
-    #                         'example_datum::by_emotion:upset',
-    #                         'example_datum:6:attrs']
-    # end
+      redis.keys.should =~ ['example_child::ids',
+                            'example_child::by_important:true',
+                            'example_child:6:attrs']
+    end
 
   end
 
