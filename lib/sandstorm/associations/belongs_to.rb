@@ -14,9 +14,11 @@ module Sandstorm
 
         # TODO trap possible constantize error
         @associated_class = (options[:class_name] || name.classify).constantize
+        @class_name = options[:class_name].demodulize.underscore
 
         raise ":inverse_of must be set" if options[:inverse_of].nil?
         @inverse = options[:inverse_of].to_s
+        @inverse_key = "#{@name}_id"
       end
 
       def inverse_of?(source)
@@ -27,9 +29,9 @@ module Sandstorm
         # TODO validate that record.is_a?(@associated_class)
 
         if record.nil?
-          Sandstorm.redis.hdel(@record_ids.key, "#{@name}_id")
+          Sandstorm.redis.hdel(@record_ids.key, @inverse_key)
         else
-          Sandstorm.redis.hset(@record_ids.key, "#{@name}_id", record.id)
+          Sandstorm.redis.hset(@record_ids.key, @inverse_key, record.id)
         end
         if Sandstorm.redis.hlen(@record_ids.key) == 0
           Sandstorm.redis.del(@record_ids.key)
@@ -37,14 +39,14 @@ module Sandstorm
       end
 
       def value
-        return unless id = Sandstorm.redis.hget(@record_ids.key, "#{@name}_id")
+        return unless id = Sandstorm.redis.hget(@record_ids.key, @inverse_key)
         @associated_class.send(:load, id)
       end
 
       private
 
       def on_remove
-        record_id = Sandstorm.redis.hget(@record_ids.key, "#{@name}_id")
+        record_id = Sandstorm.redis.hget(@record_ids.key, @inverse_key)
         if record_id
           @associated_class.send(:load, record_id).send("#{@inverse}_proxy".to_sym).delete(@parent)
         end

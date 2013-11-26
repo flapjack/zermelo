@@ -26,11 +26,11 @@ module Sandstorm
       ret
     end
 
-    def inverse_of(source)
+    def inverse_of(source, klass)
       ret = nil
       @lock.synchronize do
         @inverses ||= {}
-        ret = @inverses[source.to_sym]
+        ret = @inverses["#{klass.name.demodulize.underscore}_#{source.to_s}"]
       end
       ret
     end
@@ -108,7 +108,7 @@ module Sandstorm
         @associations ||= []
         @associations << name
         @inverses ||= {}
-        @inverses[args[:inverse_of]] = name
+        @inverses["#{args[:class_name].demodulize.underscore}_#{args[:inverse_of]}"] = name
       end
       nil
     end
@@ -236,6 +236,7 @@ module Sandstorm
               @#{name}_proxy ||= #{klass.name}.new(self, "#{name}", #{assoc_args.join(', ')})
             end
           }
+
           class_eval assoc, __FILE__, __LINE__
         end
 

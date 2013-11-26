@@ -22,7 +22,7 @@ module Sandstorm
         @associated_class = (options[:class_name] || name.classify).constantize
         @record_ids = Sandstorm::RedisKey.new("#{parent.record_key}:#{name}_ids", :sorted_set)
 
-        @inverse = @associated_class.send(:inverse_of, name.to_sym)
+        @inverse = @associated_class.send(:inverse_of, name.to_sym, @parent.class)
       end
 
       def <<(record)

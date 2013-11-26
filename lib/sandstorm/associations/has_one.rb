@@ -12,7 +12,7 @@ module Sandstorm
         # TODO trap possible constantize error
         @associated_class = (options[:class_name] || name.classify).constantize
 
-        @inverse = @associated_class.send(:inverse_of, name.to_sym)
+        @inverse = @associated_class.send(:inverse_of, name.to_sym, @parent.class)
       end
 
       def value

@@ -280,6 +280,19 @@ describe Sandstorm::Record, :redis => true do
       child.name.should == 'Abel Tasman'
     end
 
+    it "loads a parent from a child's belongs_to relationship" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::Example.find_by_id('8')
+      create_child(example, :id => '3', :name => 'Abel Tasman')
+      child = Sandstorm::ExampleChild.find_by_id('3')
+
+      other_example = child.example
+      other_example.should_not be_nil
+      other_example.should be_a(Sandstorm::Example)
+      other_example.name.should == 'John Jones'
+    end
+
     it "removes a parent/child has_many relationship between two records in redis" do
       create_example(:id => '8', :name => 'John Jones',
                      :email => 'jjones@example.com', :active => 'true')
