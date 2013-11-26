@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.version       = Sandstorm::VERSION
   spec.authors       = ["Ali Graham"]
   spec.email         = ["ali.graham@bulletproof.net"]
-  spec.description   = %q{TODO: Write a gem description}
-  spec.summary       = %q{TODO: Write a gem summary}
+  spec.description   = %q{ActiveModel-based ORM for Redis}
+  spec.summary       = %q{}
   spec.homepage      = "https://github.com/ali-graham/sandstorm"
   spec.license       = "MIT"
 
