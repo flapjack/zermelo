@@ -10,11 +10,8 @@ module Sandstorm
 
     attr_accessor :expires_at, :life, :sleep_in_ms
 
-    # TODO what happens if a lock already exists? no nesting allowed?
-
     def initialize(*record_klasses)
       @keys = record_klasses.map{|k| k.send(:class_key) }.sort.map{|k| "#{k}::lock" }
-
       @owner_value = Thread.current.object_id
       @life        = 60
       @sleep_in_ms = 125
@@ -23,7 +20,7 @@ module Sandstorm
     def lock( timeout = 10, &block )
       do_lock_with_timeout(timeout) or raise Sandstorm::LockNotAcquired.new(@keys.join(", "))
       result = true
-      if block then
+      if block
         begin
           result = (block.arity == 1) ? block.call(self) : block.call
         ensure
@@ -194,12 +191,20 @@ module Sandstorm
       expire = Time.now + timeout.to_f
       sleepy = @sleep_in_ms / 1000.to_f()
       # this looks inelegant compared to while Time.now < expire, but does not oversleep
+      ret = nil
       loop do
-        return true if block.call
-        log :debug, "Timeout for #{@key}" and return false if Time.now + sleepy > expire
+        if block.call
+          ret = true
+          break
+        end
+        if (Time.now + sleepy) > expire
+          ret = false
+          break
+        end
         sleep(sleepy)
         # might like a different strategy, but general goal is not use 100% cpu while contending for a lock.
       end
+      ret
     end
 
   end

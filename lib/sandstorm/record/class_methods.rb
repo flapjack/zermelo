@@ -26,18 +26,16 @@ module Sandstorm
       end
 
       def all
-        # TODO lock
-        ids.collect {|id| load(id) }
-        # TODO end lock
+        lock { ids.collect {|id| load(id) } }
       end
 
       def delete_all
-        # TODO lock
-        ids.each {|id|
-          next unless record = load(id)
-          record.destroy
-        }
-        # TODO end lock
+        lock do
+          ids.each do |id|
+            next unless record = load(id)
+            record.destroy
+          end
+        end
       end
 
       def intersect(opts = {})
@@ -53,10 +51,13 @@ module Sandstorm
       end
 
       def find_by_id(id)
-        # TODO lock
-        return unless id && exists?(id.to_s)
-        load(id.to_s)
-        # TODO end lock
+        lock do
+          if id && exists?(id.to_s)
+            load(id.to_s)
+          else
+            nil
+          end
+        end
       end
 
       def attribute_types
@@ -64,6 +65,14 @@ module Sandstorm
         @lock.synchronize do
           ret = (@attribute_types ||= {}).dup
         end
+        ret
+      end
+
+      def lock(*klasses)
+        klasses = [self] if klasses.empty?
+        klass_lock = Sandstorm::Lock.new(*klasses)
+        ret = nil
+        klass_lock.lock { ret = yield }
         ret
       end
 

@@ -21,31 +21,33 @@ module Sandstorm
       end
 
       def add(record)
-        # TODO validate that record.is_a?(@associated_class)
+        raise 'Invalid record class' unless record.is_a?(@associated_class)
         raise "Record must have been saved" unless record.persisted?
-        unless @inverse.nil?
-
-          # !!!
-          @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
-
+        @parent.class.lock(@parent.class, @associated_class) do
+          unless @inverse.nil?
+            @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+          end
+          Sandstorm.redis.set(@record_id.key, record.id)
         end
-        Sandstorm.redis.set(@record_id.key, record.id)
       end
 
       def delete(record)
-        # TODO validate that record.is_a?(@associated_class)
+        raise 'Invalid record class' unless record.is_a?(@associated_class)
         raise "Record must have been saved" unless record.persisted?
-        unless @inverse.nil?
-
-          # !!!
-          record_id = Sandstorm.redis.get(@record_id.key)
-          @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
-
+        @parent.class.lock(@parent.class, @associated_class) do
+          delete_without_lock(record)
         end
-        Sandstorm.redis.del(@record_id.key)
       end
 
       private
+
+      def delete_without_lock(record)
+        unless @inverse.nil?
+          record_id = Sandstorm.redis.get(@record_id.key)
+          @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
+        end
+        Sandstorm.redis.del(@record_id.key)
+      end
 
       # associated may be a belongs_to
       def on_remove

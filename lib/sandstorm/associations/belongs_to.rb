@@ -47,7 +47,7 @@ module Sandstorm
 
       def on_remove
         if record = value
-          record.send("#{@inverse}_proxy".to_sym).delete(@parent)
+          record.send("#{@inverse}_proxy".to_sym).send(:delete_without_lock, @parent)
         end
         Sandstorm.redis.del(@record_ids.key)
       end

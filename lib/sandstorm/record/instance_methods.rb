@@ -198,29 +198,24 @@ module Sandstorm
       def destroy
         run_callbacks :destroy do
 
-          # TODO start lock (this class, plus any affected associations -- this
-          # could get tricky)
-
-          self.class.send(:remove_from_associated, self)
-          index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes))
-          Sandstorm.redis.multi
-          self.class.delete_id(@attributes['id'])
-          index_attrs.each {|att|
-            self.class.send("#{att}_index", @attributes[att]).delete_id( @attributes['id'])
-          }
-          Sandstorm.redis.del(simple_attributes.key)
-          complex_attributes.values do |redis_key|
-            Sandstorm.redis.del(redis_key.key)
+          # TODO also need to lock all associated classes, I think
+          self.class.lock do
+            self.class.send(:remove_from_associated, self)
+            index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes))
+            Sandstorm.redis.multi
+            self.class.delete_id(@attributes['id'])
+            index_attrs.each {|att|
+              self.class.send("#{att}_index", @attributes[att]).delete_id( @attributes['id'])
+            }
+            Sandstorm.redis.del(simple_attributes.key, *complex_attributes.values)
+            Sandstorm.redis.exec
+            # clear any empty indexers
+            index_attrs.each {|att|
+              self.class.send("#{att}_index", @attributes[att]).clear_if_empty
+            }
+            # trigger check for global ids record delete # TODO remove, bad idea
+            self.class.count
           end
-          Sandstorm.redis.exec
-          # clear any empty indexers
-          index_attrs.each {|att|
-            self.class.send("#{att}_index", @attributes[att]).clear_if_empty
-          }
-          # trigger check for global ids record delete # TODO remove, bad idea
-          self.class.count
-
-          # TODO end lock
 
         end
       end

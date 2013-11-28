@@ -39,7 +39,7 @@ module Sandstorm
 
       @lock = Monitor.new
 
-      # # including classes can do this
+      # # including classes can do this instead
       # include ActiveModel::Serializers::JSON
       # self.include_root_in_json = false
 

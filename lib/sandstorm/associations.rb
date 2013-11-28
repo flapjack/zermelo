@@ -35,6 +35,12 @@ module Sandstorm
       ret
     end
 
+    # FIXME anything that will be changed when an object is removed, including
+    # associated classes of any child objects -- will need to chart all of this
+    def associated_classes
+      []
+    end
+
     def remove_from_associated(record)
       @lock.synchronize do
         @associations.each do |name|
