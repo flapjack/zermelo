@@ -32,7 +32,7 @@ GEM
       multi_json (~> 1.0)
       simplecov-html (~> 0.7.1)
     simplecov-html (0.7.1)
-    timecop (0.6.3)
+    timecop (0.6.1)
 
 PLATFORMS
   ruby
@@ -43,4 +43,4 @@ DEPENDENCIES
   rspec
   sandstorm!
   simplecov
-  timecop
+  timecop (= 0.6.1)
