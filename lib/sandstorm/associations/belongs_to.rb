@@ -26,16 +26,16 @@ module Sandstorm
       end
 
       def value=(record)
-        # TODO validate that record.is_a?(@associated_class)
-
         if record.nil?
           Sandstorm.redis.hdel(@record_ids.key, @inverse_key)
         else
+          # TODO validate that record.is_a?(@associated_class)
+          raise "Record must have been saved" unless record.persisted?
           Sandstorm.redis.hset(@record_ids.key, @inverse_key, record.id)
         end
-        if Sandstorm.redis.hlen(@record_ids.key) == 0
-          Sandstorm.redis.del(@record_ids.key)
-        end
+        # if Sandstorm.redis.hlen(@record_ids.key) == 0
+        #   Sandstorm.redis.del(@record_ids.key)
+        # end
       end
 
       def value
@@ -46,9 +46,8 @@ module Sandstorm
       private
 
       def on_remove
-        record_id = Sandstorm.redis.hget(@record_ids.key, @inverse_key)
-        if record_id
-          @associated_class.send(:load, record_id).send("#{@inverse}_proxy".to_sym).delete(@parent)
+        if record = value
+          record.send("#{@inverse}_proxy".to_sym).delete(@parent)
         end
         Sandstorm.redis.del(@record_ids.key)
       end

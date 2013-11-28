@@ -38,9 +38,12 @@ module Sandstorm
 
       def add(*records)
         records.each do |record|
-          record.save
+          raise "Record must have been saved" unless record.persisted?
+
+          # !!!
           @associated_class.send(:load, record.id).send(@inverse.to_sym).
             send(:add_without_inverse, @parent)
+
         end
         add_without_inverse(*records)
       end
@@ -48,8 +51,13 @@ module Sandstorm
       # TODO support dependent delete, for now just deletes the association
       def delete(*records)
         records.each do |record|
+         raise "Record must have been saved" unless record.persisted?
+
+          # !!!
           @associated_class.send(:load, record.id).send(@inverse.to_sym).
             send(:delete_without_inverse, @parent)
+
+
         end
         delete_without_inverse(*records)
       end

@@ -31,14 +31,15 @@ module Sandstorm
         self  # for << 'a' << 'b'
       end
 
-      # TODO load may not be practical in the transaction
-
       def add(*records)
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         records.each do |record|
-          record.save
+          raise "Record must have been saved" unless record.persisted?
           unless @inverse.nil?
+
+            # !!!
             @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+
           end
         end
         Sandstorm.redis.sadd(@record_ids.key, records.map(&:id))
@@ -49,7 +50,11 @@ module Sandstorm
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         unless @inverse.nil?
           records.each do |record|
+            raise "Record must have been saved" unless record.persisted?
+
+            # !!!
             @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
+
           end
         end
         Sandstorm.redis.srem(@record_ids.key, records.map(&:id))
