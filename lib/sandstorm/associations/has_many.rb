@@ -34,7 +34,7 @@ module Sandstorm
       def add(*records)
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
-        @parent.class.lock(@parent.class, @associated_class) do
+        @parent.class.send(:lock, @parent.class, @associated_class) do
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
@@ -48,21 +48,17 @@ module Sandstorm
       def delete(*records)
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
-        @parent.class.lock(@parent.class, @associated_class) do
-          delete_without_lock(*records)
+        @parent.class.send(:lock, @parent.class, @associated_class) do
+          unless @inverse.nil?
+            records.each do |record|
+              @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
+            end
+          end
+          Sandstorm.redis.srem(@record_ids.key, records.map(&:id))
         end
       end
 
       private
-
-      def delete_without_lock(*records)
-        unless @inverse.nil?
-          records.each do |record|
-            @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
-          end
-        end
-        Sandstorm.redis.srem(@record_ids.key, records.map(&:id))
-      end
 
       # associated will be a belongs_to; on remove already runs inside a lock
       def on_remove

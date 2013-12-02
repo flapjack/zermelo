@@ -37,44 +37,42 @@ module Sandstorm
       end
 
       def add(*records)
-        records.each do |record|
-          raise "Record must have been saved" unless record.persisted?
-
-          # !!!
-          @associated_class.send(:load, record.id).send(@inverse.to_sym).
-            send(:add_without_inverse, @parent)
-
+        raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
+        raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
+        @parent.class.send(:lock, @parent.class, @associated_class) do
+          records.each do |record|
+            @associated_class.send(:load, record.id).send(@inverse.to_sym).
+              send(:add_without_inverse, @parent)
+          end
+          add_without_inverse(*records)
         end
-        add_without_inverse(*records)
       end
 
       # TODO support dependent delete, for now just deletes the association
       def delete(*records)
-        records.each do |record|
-         raise "Record must have been saved" unless record.persisted?
-
-          # !!!
-          @associated_class.send(:load, record.id).send(@inverse.to_sym).
-            send(:delete_without_inverse, @parent)
-
-
+        raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
+        raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
+        @parent.class.send(:lock, @parent.class, @associated_class) do
+          records.each do |record|
+            @associated_class.send(:load, record.id).send(@inverse.to_sym).
+              send(:delete_without_inverse, @parent)
+          end
+          delete_without_inverse(*records)
         end
-        delete_without_inverse(*records)
       end
 
       private
 
       def add_without_inverse(*records)
-        raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         Sandstorm.redis.sadd(@record_ids.key, records.map(&:id))
       end
 
       def delete_without_inverse(*records)
-        raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         Sandstorm.redis.srem(@record_ids.key, records.map(&:id))
       end
 
-      # associated will be the other side of the HaBTM
+      # associated will be the other side of the HaBTM; on_remove is always
+      # called inside a lock
       def on_remove
         Sandstorm.redis.smembers(@record_ids.key).each do |record_id|
           @associated_class.send(:load, record_id).send(@inverse.to_sym).

@@ -31,11 +31,6 @@ module Sandstorm
         Sandstorm.redis.smove(indexer.key, indexer_to.key, id)
       end
 
-      def clear_if_empty
-        return unless indexer = indexer_for_value
-        Sandstorm.redis.del(indexer.key) if (Sandstorm.redis.scard(indexer.key) == 0)
-      end
-
       def key
         return unless indexer = indexer_for_value
         indexer.key

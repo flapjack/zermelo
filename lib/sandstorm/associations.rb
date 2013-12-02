@@ -6,10 +6,9 @@ require 'sandstorm/associations/has_sorted_set'
 require 'sandstorm/associations/index'
 require 'sandstorm/associations/unique_index'
 
-# TODO update other side of associations without having to load the record, so
-# that it can happen inside the multi/exec block
+# TODO update other side of associations without having to load the record (?)
 
-# TODO redis-level locking around deleting keys if, e.g. value or set empty
+# NB: this module gets mixed in to Sandstorm::Record as class methods
 
 module Sandstorm
 
@@ -35,15 +34,21 @@ module Sandstorm
       ret
     end
 
-    # FIXME anything that will be changed when an object is removed, including
-    # associated classes of any child objects -- will need to chart all of this
-    def associated_classes
-      []
+    # Works out which classes should be locked when updating associations
+    def associated_classes(visited = [], cascade = true)
+      visited |= [self]
+      return visited unless cascade
+      @association_klasses.each_pair do |assoc, klass_name|
+        klass = klass_name.constantize # not optimal
+        next if visited.include?(klass)
+        visited |= klass.associated_classes(visited, false)
+      end
+      visited
     end
 
     def remove_from_associated(record)
       @lock.synchronize do
-        @associations.each do |name|
+        @association_klasses.keys.each do |name|
           record.send("#{name}_proxy".to_sym).send(:on_remove)
         end
       end
@@ -75,8 +80,8 @@ module Sandstorm
     def has_many(name, args = {})
       associate(::Sandstorm::Associations::HasMany, self, name, args)
       @lock.synchronize do
-        @associations ||= []
-        @associations << name
+        @association_klasses ||= {}
+        @association_klasses[name] = args[:class_name]
       end
       nil
     end
@@ -84,8 +89,8 @@ module Sandstorm
     def has_one(name, args = {})
       associate(::Sandstorm::Associations::HasOne, self, name, args)
       @lock.synchronize do
-        @associations ||= []
-        @associations << name
+        @association_klasses ||= {}
+        @association_klasses[name] = args[:class_name]
       end
       nil
     end
@@ -93,8 +98,8 @@ module Sandstorm
     def has_sorted_set(name, args = {})
       associate(::Sandstorm::Associations::HasSortedSet, self, name, args)
       @lock.synchronize do
-        @associations ||= []
-        @associations << name
+        @association_klasses ||= {}
+        @association_klasses[name] = args[:class_name]
       end
       nil
     end
@@ -102,8 +107,8 @@ module Sandstorm
     def has_and_belongs_to_many(name, args = {})
       associate(::Sandstorm::Associations::HasAndBelongsToMany, self, name, args)
       @lock.synchronize do
-        @associations ||= []
-        @associations << name
+        @association_klasses ||= {}
+        @association_klasses[name] = args[:class_name]
       end
       nil
     end
@@ -111,8 +116,8 @@ module Sandstorm
     def belongs_to(name, args = {})
       associate(::Sandstorm::Associations::BelongsTo, self, name, args)
       @lock.synchronize do
-        @associations ||= []
-        @associations << name
+        @association_klasses ||= {}
+        @association_klasses[name] = args[:class_name]
         @inverses ||= {}
         @inverses["#{args[:class_name].demodulize.underscore}_#{args[:inverse_of]}"] = name
       end

@@ -105,8 +105,6 @@ module Sandstorm
 
           idx_attrs = self.class.send(:indexed_attributes)
 
-          # TODO start lock (this class only)
-
           Sandstorm.redis.multi
 
           simple_attrs  = {}
@@ -180,9 +178,6 @@ module Sandstorm
           self.class.add_id(@attributes['id'])
 
           Sandstorm.redis.exec
-
-          # TODO end lock
-
         end
 
         # AM::Dirty
@@ -194,12 +189,12 @@ module Sandstorm
         true
       end
 
-      # TODO what happens if this is called inside an existing lock?
       def destroy
         run_callbacks :destroy do
 
-          # TODO also need to lock all associated classes, I think
-          self.class.lock do
+          assoc_classes = self.class.send(:associated_classes)
+
+          self.class.send(:lock, *assoc_classes) do
             self.class.send(:remove_from_associated, self)
             index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes))
             Sandstorm.redis.multi
@@ -209,12 +204,6 @@ module Sandstorm
             }
             Sandstorm.redis.del(simple_attributes.key, *complex_attributes.values)
             Sandstorm.redis.exec
-            # clear any empty indexers
-            index_attrs.each {|att|
-              self.class.send("#{att}_index", @attributes[att]).clear_if_empty
-            }
-            # trigger check for global ids record delete # TODO remove, bad idea
-            self.class.count
           end
 
         end

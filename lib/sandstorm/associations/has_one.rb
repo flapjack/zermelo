@@ -16,14 +16,19 @@ module Sandstorm
       end
 
       def value
-        return unless id = Sandstorm.redis.get(@record_id.key)
-        @associated_class.send(:load, id)
+        @parent.class.send(:lock, @parent.class, @associated_class) do
+          if id = Sandstorm.redis.get(@record_id.key)
+            @associated_class.send(:load, id)
+          else
+            nil
+          end
+        end
       end
 
       def add(record)
         raise 'Invalid record class' unless record.is_a?(@associated_class)
         raise "Record must have been saved" unless record.persisted?
-        @parent.class.lock(@parent.class, @associated_class) do
+        @parent.class.send(:lock, @parent.class, @associated_class) do
           unless @inverse.nil?
             @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
           end
@@ -34,7 +39,7 @@ module Sandstorm
       def delete(record)
         raise 'Invalid record class' unless record.is_a?(@associated_class)
         raise "Record must have been saved" unless record.persisted?
-        @parent.class.lock(@parent.class, @associated_class) do
+        @parent.class.send(:lock, @parent.class, @associated_class) do
           delete_without_lock(record)
         end
       end
@@ -49,7 +54,7 @@ module Sandstorm
         Sandstorm.redis.del(@record_id.key)
       end
 
-      # associated may be a belongs_to
+      # associated will be a belongs_to; on_remove already runs inside lock
       def on_remove
         unless @inverse.nil?
           if record_id = Sandstorm.redis.get(@record_id.key)

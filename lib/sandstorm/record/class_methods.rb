@@ -1,3 +1,4 @@
+require 'sandstorm/lock'
 
 module Sandstorm
 
@@ -25,6 +26,16 @@ module Sandstorm
         Sandstorm.redis.sismember(ids_key, id.to_s)
       end
 
+      def find_by_id(id)
+        lock do
+          if id && exists?(id.to_s)
+            load(id.to_s)
+          else
+            nil
+          end
+        end
+      end
+
       def all
         lock { ids.collect {|id| load(id) } }
       end
@@ -50,29 +61,11 @@ module Sandstorm
         Sandstorm::Filter.new(Sandstorm::RedisKey.new(ids_key, :set), self).diff(opts)
       end
 
-      def find_by_id(id)
-        lock do
-          if id && exists?(id.to_s)
-            load(id.to_s)
-          else
-            nil
-          end
-        end
-      end
-
       def attribute_types
         ret = nil
         @lock.synchronize do
           ret = (@attribute_types ||= {}).dup
         end
-        ret
-      end
-
-      def lock(*klasses)
-        klasses = [self] if klasses.empty?
-        klass_lock = Sandstorm::Lock.new(*klasses)
-        ret = nil
-        klass_lock.lock { ret = yield }
         ret
       end
 
@@ -90,6 +83,27 @@ module Sandstorm
       end
 
       private
+
+      def lock(*klasses)
+        klasses |= [self]
+        ret = nil
+        locking = Thread.current[:sandstorm_locking]
+        if locking.nil?
+          Sandstorm::Lock.new(*klasses).lock do
+            Thread.current[:sandstorm_locking] = klasses
+            ret = yield
+            Thread.current[:sandstorm_locking] = nil
+          end
+        else
+          # accepts any subset of 'locking'
+          unless (klasses - locking).empty?
+            Thread.current[:sandstorm_locking] = nil
+            raise "Currently locking #{locking.map(&:name)}, cannot lock different set #{klasses.map(&:name)}"
+          end
+          ret = yield
+        end
+        ret
+      end
 
       def ids_key
         "#{class_key}::ids"

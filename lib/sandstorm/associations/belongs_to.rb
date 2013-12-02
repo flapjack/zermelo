@@ -25,29 +25,33 @@ module Sandstorm
         !source.nil? && (@inverse == source.to_s)
       end
 
+      # intrinsically atomic, so no locking needed
       def value=(record)
         if record.nil?
           Sandstorm.redis.hdel(@record_ids.key, @inverse_key)
         else
-          # TODO validate that record.is_a?(@associated_class)
+          raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise "Record must have been saved" unless record.persisted?
           Sandstorm.redis.hset(@record_ids.key, @inverse_key, record.id)
         end
-        # if Sandstorm.redis.hlen(@record_ids.key) == 0
-        #   Sandstorm.redis.del(@record_ids.key)
-        # end
       end
 
       def value
-        return unless id = Sandstorm.redis.hget(@record_ids.key, @inverse_key)
-        @associated_class.send(:load, id)
+        @parent.class.send(:lock, @parent.class, @associated_class) do
+          if id = Sandstorm.redis.hget(@record_ids.key, @inverse_key)
+            @associated_class.send(:load, id)
+          else
+            nil
+          end
+        end
       end
 
       private
 
+      # on remove already runs inside a lock
       def on_remove
         if record = value
-          record.send("#{@inverse}_proxy".to_sym).send(:delete_without_lock, @parent)
+          record.send("#{@inverse}_proxy".to_sym).send(:delete, @parent)
         end
         Sandstorm.redis.del(@record_ids.key)
       end

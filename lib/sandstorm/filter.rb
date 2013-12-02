@@ -37,6 +37,94 @@ module Sandstorm
     end
 
     def count
+      lock { _count }
+    end
+
+    def empty?
+      lock { _count == 0 }
+    end
+
+    def exists?(id)
+      lock { _exists?(id) }
+    end
+
+    def find_by_id(id)
+      lock do
+        if _exists?(id)
+          _load(id.to_s)
+        else
+          nil
+        end
+      end
+    end
+
+    def all
+      lock { _ids.map {|id| @associated_class.send(:load, id) } }
+    end
+
+    def first
+      raise "Can't get first member of a non-sorted set" unless @initial_set.type == :sorted_set
+      lock {
+        first_id = resolve_steps{|set, order_desc|
+          Sandstorm.redis.send(:zrange, set, 0, 0).first
+        }
+        if first_id.nil?
+          nil
+        else
+          @associated_class.send(:load, first_id)
+        end
+      }
+    end
+
+    def last
+      raise "Can't get last member of a non-sorted set" unless @initial_set.type == :sorted_set
+      lock {
+        last_id = resolve_steps{|set, order_desc|
+          Sandstorm.redis.send(:zrevrange, set, 0, 0).first
+        }
+        if last_id.nil?
+          nil
+        else
+          @associated_class.send(:load, last_id)
+        end
+      }
+    end
+
+    def collect(&block)
+      lock { _ids.collect {|id| block.call(@associated_class.send(:load, id))} }
+    end
+
+    def each(&block)
+      lock { _each(&block) }
+    end
+
+    def select(&block)
+      lock { _all.select {|obj| block.call(obj) } }
+    end
+    alias_method :find_all, :select
+
+    def reject(&block)
+      lock { _all.reject {|obj| block.call(obj)} }
+    end
+
+    def ids
+      lock { _ids }
+    end
+
+    def destroy_all
+      lock(*@associated_class.send(:associated_classes)) { _each {|r| r.destroy } }
+    end
+
+    private
+
+    # TODO lock should not be required for some operations if there are no steps
+    # (maybe one step for a subset as well); distinguish and optimise.
+    def lock(*klasses)
+      klasses = [@associated_class] if klasses.empty?
+      @associated_class.send(:lock, *klasses) { yield }
+    end
+
+    def _count
       resolve_steps {|set, desc|
         case @initial_set.type
         when :sorted_set
@@ -47,11 +135,7 @@ module Sandstorm
       }
     end
 
-    def empty?
-      count == 0
-    end
-
-    def exists?(id)
+    def _exists?(id)
       return if id.nil?
       resolve_steps {|set, desc|
         case @initial_set.type
@@ -63,51 +147,11 @@ module Sandstorm
       }
     end
 
-    def find_by_id(id)
-      return unless exists?(id)
-      load(id.to_s)
+    def _all
+      _ids.map {|id| @associated_class.send(:load, id) }
     end
 
-    def all
-      ids.map {|id| @associated_class.send(:load, id) }
-    end
-
-    def first
-      raise "Can't get first member of a non-sorted set" unless @initial_set.type == :sorted_set
-      first_id = resolve_steps{|set, order_desc|
-        Sandstorm.redis.send(:zrange, set, 0, 0).first
-      }
-      return if first_id.nil?
-      @associated_class.send(:load, first_id)
-    end
-
-    def last
-      raise "Can't get last member of a non-sorted set" unless @initial_set.type == :sorted_set
-      last_id = resolve_steps{|set, order_desc|
-        Sandstorm.redis.send(:zrevrange, set, 0, 0).first
-      }
-      return if last_id.nil?
-      @associated_class.send(:load, last_id)
-    end
-
-    def collect(&block)
-      ids.collect {|id| block.call(@associated_class.send(:load, id))}
-    end
-
-    def each(&block)
-      ids.each {|id| block.call(@associated_class.send(:load, id))}
-    end
-
-    def select(&block)
-      all.select {|obj| block.call(obj) }
-    end
-    alias_method :find_all, :select
-
-    def reject(&block)
-      all.reject {|obj| block.call(obj)}
-    end
-
-    def ids
+    def _ids
       resolve_steps {|set, order_desc|
         case @initial_set.type
         when :sorted_set
@@ -118,9 +162,11 @@ module Sandstorm
       }
     end
 
-    private
+    def _each(&block)
+      _ids.each {|id| block.call(@associated_class.send(:load, id))}
+    end
 
-    def load(id)
+    def _load(id)
       object = @associated_class.new
       object.load(id)
       object

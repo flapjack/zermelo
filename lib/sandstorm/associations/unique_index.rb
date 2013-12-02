@@ -29,12 +29,9 @@ module Sandstorm
       end
 
       def move_id(id, indexer_to)
+        # TODO locking
         Sandstorm.redis.hdel(indexer.key, @value)
         Sandstorm.redis.hset(indexer.key, indexer_to.value, id)
-      end
-
-      def clear_if_empty
-        Sandstorm.redis.del(indexer.key) if (Sandstorm.redis.hlen(indexer.key) == 0)
       end
 
       def key
