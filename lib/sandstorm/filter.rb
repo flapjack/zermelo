@@ -125,14 +125,14 @@ module Sandstorm
     end
 
     def _count
-      resolve_steps {|set, desc|
-        case @initial_set.type
-        when :sorted_set
+      case @initial_set.type
+      when :sorted_set
+        resolve_steps {|set, desc|
           Sandstorm.redis.zcard(set)
-        when :set, nil
-          Sandstorm.redis.scard(set)
-        end
-      }
+        }
+      when :set, nil
+        resolve_steps(:scard)
+      end
     end
 
     def _exists?(id)
@@ -152,14 +152,14 @@ module Sandstorm
     end
 
     def _ids
-      resolve_steps {|set, order_desc|
-        case @initial_set.type
-        when :sorted_set
+      case @initial_set.type
+      when :sorted_set
+        resolve_steps {|set, order_desc|
           Sandstorm.redis.send((order_desc ? :zrevrange : :zrange), set, 0, -1)
-        when :set, nil
-          Sandstorm.redis.smembers(set)
-        end
-      }
+        }
+      when :set, nil
+        resolve_steps(:smembers)
+      end
     end
 
     def _each(&block)
@@ -195,19 +195,33 @@ module Sandstorm
 
     # takes a block and passes the name of the temporary set to it; deletes
     # the temporary set once done
-    # NB set case could use sunion/sinter for the last step, sorted set case can't
-    # TODO break this up, it's too large
-    def resolve_steps(&block)
-      return block.call(@initial_set.key, false) if @steps.empty?
 
+    # TODO break this up, it's too large
+    def resolve_steps(shortcut = nil, &block)
       source_set = @initial_set.key
-      dest_set   = temp_set_name
+      ret = nil
+
+      if @steps.empty?
+        ret = if shortcut
+          value = Sandstorm.redis.send(shortcut, source_set)
+          block ? block.call(value) : value
+        else
+          block.call(source_set, false)
+        end
+        return(ret)
+      end
+
+      dest_set  = (!shortcut || (@steps.size > 2)) ? temp_set_name : nil
 
       idx_attrs = @associated_class.send(:indexed_attributes)
 
       order_desc = nil
 
+      step_num = 0
+      members = nil
+
       @steps.each_slice(2) do |step|
+        step_num += 2
 
         order_desc = false
 
@@ -289,35 +303,52 @@ module Sandstorm
           temp_sets << range_ids_set
         end
 
-        case @initial_set.type
-        when :sorted_set
-          weights = [1.0] + ([0.0] * (source_keys.length - 1))
-          case step.first
-          when :union, :union_range
-            Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
-          when :intersect, :intersect_range
-            Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
-          end
-          Sandstorm.redis.del(range_ids_set) unless range_ids_set.nil?
-        when :set, nil
-          case step.first
+        if :smembers.eql?(shortcut) && (step_num == @steps.size) && (@initial_set.type == :set)
+          members = case step.first
           when :union
-            Sandstorm.redis.sunionstore(dest_set, *source_keys)
+            Sandstorm.redis.sunion(*source_keys)
           when :intersect
-            Sandstorm.redis.sinterstore(dest_set, *source_keys)
+            Sandstorm.redis.sinter(*source_keys)
           when :diff
-            Sandstorm.redis.sdiffstore(dest_set, *source_keys)
+            Sandstorm.redis.sdiff(*source_keys)
           end
+        else
+          case @initial_set.type
+          when :sorted_set
+            weights = [1.0] + ([0.0] * (source_keys.length - 1))
+            case step.first
+            when :union, :union_range
+              Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
+            when :intersect, :intersect_range
+              Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
+            end
+            Sandstorm.redis.del(range_ids_set) unless range_ids_set.nil?
+          when :set, nil
+            case step.first
+            when :union
+              Sandstorm.redis.sunionstore(dest_set, *source_keys)
+            when :intersect
+              Sandstorm.redis.sinterstore(dest_set, *source_keys)
+            when :diff
+              Sandstorm.redis.sdiffstore(dest_set, *source_keys)
+            end
+          end
+          unless temp_sets.empty?
+            Sandstorm.redis.del(temp_sets)
+            temp_sets.clear
+          end
+          source_set = dest_set
         end
-        unless temp_sets.empty?
-          Sandstorm.redis.del(temp_sets)
-          temp_sets.clear
-        end
-        source_set = dest_set
       end
-      ret = block.call(dest_set, order_desc)
-      Sandstorm.redis.del(dest_set)
 
+      ret = if shortcut
+        value = :smembers.eql?(shortcut) ? members : Sandstorm.redis.send(shortcut, dest_set)
+        block ? block.call(value) : value
+      else
+        block.call(dest_set, order_desc)
+      end
+
+      Sandstorm.redis.del(dest_set) unless :smembers.eql?(shortcut) && (step_num <= 2)
       ret
     end
   end
