@@ -11,6 +11,7 @@ module Sandstorm
       @steps = []
     end
 
+    # step builders
     def intersect(opts = {})
       @steps += [:intersect, opts]
       self
@@ -35,22 +36,28 @@ module Sandstorm
       @steps += [:union_range, opts.merge(:start => start, :finish => finish)]
       self
     end
+    # end step builders
+
+    # step users
+    def ids
+      lock_if_needed { _ids }
+    end
 
     def count
-      lock { _count }
+      lock_if_needed { _count }
     end
 
     def empty?
-      lock { _count == 0 }
+      lock_if_needed { _count == 0 }
     end
 
     def exists?(id)
-      lock { _exists?(id) }
+      lock_if_needed { _exists?(id) }
     end
 
     def find_by_id(id)
       lock do
-        if _exists?(id)
+        if !id.nil? && _exists?(id)
           _load(id.to_s)
         else
           nil
@@ -107,19 +114,21 @@ module Sandstorm
       lock { _all.reject {|obj| block.call(obj)} }
     end
 
-    def ids
-      lock { _ids }
-    end
-
     def destroy_all
       lock(*@associated_class.send(:associated_classes)) { _each {|r| r.destroy } }
     end
+    # end step users
 
     private
 
-    # TODO lock should not be required for some operations if there are no steps
-    # (maybe one step for a subset as well); distinguish and optimise.
-    def lock(*klasses)
+    def lock_if_needed(*klasses, &block)
+      if @steps.empty?
+        return yield
+      end
+      lock(*klasses, &block)
+    end
+
+    def lock(*klasses, &block)
       klasses = [@associated_class] if klasses.empty?
       @associated_class.send(:lock, *klasses) { yield }
     end

@@ -1,3 +1,5 @@
+require 'forwardable'
+
 require 'sandstorm/lock'
 
 module Sandstorm
@@ -6,59 +8,19 @@ module Sandstorm
 
     module ClassMethods
 
-      def count
-        Sandstorm.redis.scard(ids_key)
-      end
+      extend Forwardable
 
-      def ids
-        Sandstorm.redis.smembers(ids_key)
-      end
+      def_delegators :filter, :intersect, :union, :diff,
+                       :find_by_id, :all, :each, :collect, :select, :find_all,
+                       :reject, :destroy_all,
+                       :ids, :count, :empty?, :exists?
 
       def add_id(id)
-        Sandstorm.redis.sadd(ids_key, id.to_s)
+        Sandstorm.redis.sadd(ids_key.key, id.to_s)
       end
 
       def delete_id(id)
-        Sandstorm.redis.srem(ids_key, id.to_s)
-      end
-
-      def exists?(id)
-        Sandstorm.redis.sismember(ids_key, id.to_s)
-      end
-
-      def find_by_id(id)
-        lock do
-          if id && exists?(id.to_s)
-            load(id.to_s)
-          else
-            nil
-          end
-        end
-      end
-
-      def all
-        lock { ids.collect {|id| load(id) } }
-      end
-
-      def delete_all
-        lock do
-          ids.each do |id|
-            next unless record = load(id)
-            record.destroy
-          end
-        end
-      end
-
-      def intersect(opts = {})
-        Sandstorm::Filter.new(Sandstorm::RedisKey.new(ids_key, :set), self).intersect(opts)
-      end
-
-      def union(opts = {})
-        Sandstorm::Filter.new(Sandstorm::RedisKey.new(ids_key, :set), self).union(opts)
-      end
-
-      def diff(opts = {})
-        Sandstorm::Filter.new(Sandstorm::RedisKey.new(ids_key, :set), self).diff(opts)
+        Sandstorm.redis.srem(ids_key.key, id.to_s)
       end
 
       def attribute_types
@@ -108,7 +70,7 @@ module Sandstorm
       end
 
       def ids_key
-        "#{class_key}::ids"
+        @ids_key ||= Sandstorm::RedisKey.new("#{class_key}::ids", :set)
       end
 
       def class_key
@@ -119,6 +81,10 @@ module Sandstorm
         object = self.new
         object.load(id)
         object
+      end
+
+      def filter
+        Sandstorm::Filter.new(ids_key, self)
       end
 
     end

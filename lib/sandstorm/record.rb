@@ -13,12 +13,6 @@ require 'sandstorm/type_validator'
 require 'sandstorm/record/class_methods'
 require 'sandstorm/record/instance_methods'
 
-# TODO if passing empty array to associations, raise error
-
-# TODO if querying on non-indexed values, raise error
-
-
-
 # TODO escape ids and index_keys -- shouldn't allow bare :
 
 # TODO callbacks on before/after add/delete on association?
