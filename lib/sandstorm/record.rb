@@ -13,12 +13,15 @@ require 'sandstorm/type_validator'
 require 'sandstorm/record/class_methods'
 require 'sandstorm/record/instance_methods'
 
-# TODO escape ids and index_keys -- shouldn't allow bare : or space
+# TODO if passing empty array to associations, raise error
+
+# TODO if querying on non-indexed values, raise error
+
+
+
+# TODO escape ids and index_keys -- shouldn't allow bare :
 
 # TODO callbacks on before/after add/delete on association?
-
-# TODO remove id from other side of belongs_to when parent of assoc deleted
-#  (and child hasn't been deleted, of course)
 
 # TODO optional sort via Redis SORT, first/last for has_many via those
 

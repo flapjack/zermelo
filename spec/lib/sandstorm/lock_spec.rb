@@ -19,36 +19,36 @@ describe Sandstorm::Lock, :redis => true do
   let(:redis) { Sandstorm.redis }
 
   it "locks access to class-level data" do
-    redis.keys.should be_empty
+    expect(redis.keys).to be_empty
 
     slock = Sandstorm::Lock.new(Sandstorm::LockExample)
     locked = slock.lock
-    locked.should be_true
+    expect(locked).to be_truthy
 
     lock_keys = ["lock_example::lock:owner", "lock_example::lock:expiry"]
-    redis.keys.should =~ lock_keys
+    expect(redis.keys).to match_array(lock_keys)
 
     example = Sandstorm::LockExample.new(:name => 'temporary')
     example.save
 
     example_keys = ["lock_example::ids", "lock_example:#{example.id}:attrs"]
-    redis.keys.should =~ lock_keys + example_keys
+    expect(redis.keys).to match_array(lock_keys + example_keys)
 
     unlocked = slock.unlock
-    unlocked.should be_true
-    redis.keys.should =~ example_keys
+    expect(unlocked).to be_truthy
+    expect(redis.keys).to match_array(example_keys)
   end
 
   it "locks access to class-level data from two classes" do
-    redis.keys.should be_empty
+    expect(redis.keys).to be_empty
 
     slock = Sandstorm::Lock.new(Sandstorm::LockExample, Sandstorm::AnotherExample)
     locked = slock.lock
-    locked.should be_true
+    expect(locked).to be_truthy
 
     lock_keys = ["another_example::lock:owner", "another_example::lock:expiry",
       "lock_example::lock:owner", "lock_example::lock:expiry"]
-    redis.keys.should =~ lock_keys
+    expect(redis.keys).to match_array(lock_keys)
 
     lock_example = Sandstorm::LockExample.new(:name => 'temporary')
     lock_example.save
@@ -58,11 +58,11 @@ describe Sandstorm::Lock, :redis => true do
 
     example_keys = ["lock_example::ids", "lock_example:#{lock_example.id}:attrs",
       "another_example::ids", "another_example:#{another_example.id}:attrs"]
-    redis.keys.should =~ lock_keys + example_keys
+    expect(redis.keys).to match_array(lock_keys + example_keys)
 
     unlocked = slock.unlock
-    unlocked.should be_true
-    redis.keys.should =~ example_keys
+    expect(unlocked).to be_truthy
+    expect(redis.keys).to match_array(example_keys)
   end
 
   it "extends an existing lock", :time => true do
@@ -75,18 +75,18 @@ describe Sandstorm::Lock, :redis => true do
     locked = slock.lock
 
     expiry_time = redis.get("lock_example::lock:expiry")
-    expiry_time.to_i.should == time.to_i + 60
+    expect(expiry_time.to_i).to eq(time.to_i + 60)
 
     Timecop.travel(time + 45)
 
     extended = slock.extend_life(30)
-    extended.should be_true
+    expect(extended).to be_truthy
 
     expiry_time = redis.get("lock_example::lock:expiry")
-    expiry_time.to_i.should == time.to_i + 75
+    expect(expiry_time.to_i).to eq(time.to_i + 75)
 
     unlocked = slock.unlock
-    unlocked.should be_true
+    expect(unlocked).to be_truthy
   end
 
   it "expires a lock when its lifetime has expired"
@@ -98,7 +98,7 @@ describe Sandstorm::Lock, :redis => true do
 
     slock = Sandstorm::Lock.new(Sandstorm::LockExample)
     locked = slock.lock
-    locked.should be_true
+    expect(locked).to be_truthy
 
     # ensure Redis connection is instantiated
     redis
@@ -107,14 +107,14 @@ describe Sandstorm::Lock, :redis => true do
       Sandstorm.redis = redis # thread-local
 
       slock.lock
-      locked.should be_true
+      expect(locked).to be_truthy
 
       monitor.synchronize do
         times['thread'] = Time.now
       end
 
       unlocked = slock.unlock
-      unlocked.should be_true
+      expect(unlocked).to be_truthy
     end
 
     monitor.synchronize do
@@ -126,7 +126,7 @@ describe Sandstorm::Lock, :redis => true do
 
     t.join
 
-    (times['thread'] - times['main']).should be >= 0.25
+    expect(times['thread'] - times['main']).to be >= 0.25
   end
 
   it "stops another thread from accessing a lock on multiple classes while held" do
@@ -136,7 +136,7 @@ describe Sandstorm::Lock, :redis => true do
 
     slock = Sandstorm::Lock.new(Sandstorm::LockExample, Sandstorm::AnotherExample)
     locked = slock.lock
-    locked.should be_true
+    expect(locked).to be_truthy
 
     # ensure Redis connection is instantiated
     redis
@@ -145,14 +145,14 @@ describe Sandstorm::Lock, :redis => true do
       Sandstorm.redis = redis # thread-local
 
       slock.lock
-      locked.should be_true
+      expect(locked).to be_truthy
 
       monitor.synchronize do
         times['thread'] = Time.now
       end
 
       unlocked = slock.unlock
-      unlocked.should be_true
+      expect(unlocked).to be_truthy
     end
 
     monitor.synchronize do
@@ -164,7 +164,7 @@ describe Sandstorm::Lock, :redis => true do
 
     t.join
 
-    (times['thread'] - times['main']).should be >= 0.25
+    expect(times['thread'] - times['main']).to be >= 0.25
   end
 
 end

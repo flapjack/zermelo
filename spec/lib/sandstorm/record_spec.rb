@@ -32,29 +32,31 @@ describe Sandstorm::Record, :redis => true do
 
   it "is invalid without a name" do
     example = Sandstorm::Example.new(:id => '1', :email => 'jsmith@example.com')
-    example.should_not be_valid
+    expect(example).not_to be_valid
 
     errs = example.errors
-    errs.should_not be_nil
-    errs[:name].should == ["can't be blank"]
+    expect(errs).not_to be_nil
+    expect(errs[:name]).to eq(["can't be blank"])
   end
 
   it "adds a record's attributes to redis" do
     example = Sandstorm::Example.new(:id => '1', :name => 'John Smith',
       :email => 'jsmith@example.com', :active => true)
-    example.should be_valid
-    example.save.should be_true
+    expect(example).to be_valid
+    expect(example.save).to be_truthy
 
-    redis.keys('*').should =~ ['example::ids',
+    expect(redis.keys('*')).to match_array(['example::ids',
                                'example:1:attrs',
                                'example::by_name',
-                               'example::by_active:true']
-    redis.smembers('example::ids').should == ['1']
-    redis.hgetall('example:1:attrs').should ==
+                               'example::by_active:true'])
+    expect(redis.smembers('example::ids')).to eq(['1'])
+    expect(redis.hgetall('example:1:attrs')).to eq(
       {'name' => 'John Smith', 'email' => 'jsmith@example.com', 'active' => 'true'}
-    redis.hgetall('example::by_name').should == {'John Smith' => '1'}
-    redis.smembers('example::by_active:true').should ==
+    )
+    expect(redis.hgetall('example::by_name')).to eq({'John Smith' => '1'})
+    expect(redis.smembers('example::by_active:true')).to eq(
       ['1']
+    )
   end
 
   it "finds a record by id in redis" do
@@ -62,10 +64,10 @@ describe Sandstorm::Record, :redis => true do
                    :email => 'jjones@example.com', :active => 'true')
 
     example = Sandstorm::Example.find_by_id('8')
-    example.should_not be_nil
-    example.id.should == '8'
-    example.name.should == 'John Jones'
-    example.email.should == 'jjones@example.com'
+    expect(example).not_to be_nil
+    expect(example.id).to eq('8')
+    expect(example.name).to eq('John Jones')
+    expect(example.email).to eq('jjones@example.com')
   end
 
   it "finds records by an indexed value in redis" do
@@ -73,13 +75,13 @@ describe Sandstorm::Record, :redis => true do
                    :email => 'jjones@example.com', :active => 'true')
 
     examples = Sandstorm::Example.intersect(:active => true).all
-    examples.should_not be_nil
-    examples.should be_an(Array)
-    examples.should have(1).example
+    expect(examples).not_to be_nil
+    expect(examples).to be_an(Array)
+    expect(examples.size).to eq(1)
     example = examples.first
-    example.id.should == '8'
-    example.name.should == 'John Jones'
-    example.email.should == 'jjones@example.com'
+    expect(example.id).to eq('8')
+    expect(example.name).to eq('John Jones')
+    expect(example.email).to eq('jjones@example.com')
   end
 
   it "finds records by a uniquely indexed value in redis" do
@@ -87,13 +89,13 @@ describe Sandstorm::Record, :redis => true do
                    :email => 'jjones@example.com', :active => 'true')
 
     examples = Sandstorm::Example.intersect(:name => 'John Jones').all
-    examples.should_not be_nil
-    examples.should be_an(Array)
-    examples.should have(1).example
+    expect(examples).not_to be_nil
+    expect(examples).to be_an(Array)
+    expect(examples.size).to eq(1)
     example = examples.first
-    example.id.should == '8'
-    example.name.should == 'John Jones'
-    example.email.should == 'jjones@example.com'
+    expect(example.id).to eq('8')
+    expect(example.name).to eq('John Jones')
+    expect(example.email).to eq('jjones@example.com')
   end
 
   it "updates a record's attributes in redis" do
@@ -103,32 +105,34 @@ describe Sandstorm::Record, :redis => true do
     example = Sandstorm::Example.find_by_id('8')
     example.name = 'Jane Janes'
     example.email = 'jjanes@example.com'
-    example.save.should be_true
+    expect(example.save).to be_truthy
 
-    redis.keys('*').should =~ ['example::ids',
+    expect(redis.keys('*')).to match_array(['example::ids',
                                'example:8:attrs',
                                'example::by_name',
-                               'example::by_active:true']
-    redis.smembers('example::ids').should == ['8']
-    redis.hgetall('example:8:attrs').should ==
+                               'example::by_active:true'])
+    expect(redis.smembers('example::ids')).to eq(['8'])
+    expect(redis.hgetall('example:8:attrs')).to eq(
       {'name' => 'Jane Janes', 'email' => 'jjanes@example.com', 'active' => 'true'}
-    redis.smembers('example::by_active:true').should ==
+    )
+    expect(redis.smembers('example::by_active:true')).to eq(
       ['8']
+    )
   end
 
   it "deletes a record's attributes from redis" do
     create_example(:id => '8', :name => 'John Jones',
                    :email => 'jjones@example.com', :active => 'true')
 
-    redis.keys('*').should =~ ['example::ids',
+    expect(redis.keys('*')).to match_array(['example::ids',
                                'example:8:attrs',
                                'example::by_name',
-                               'example::by_active:true']
+                               'example::by_active:true'])
 
     example = Sandstorm::Example.find_by_id('8')
     example.destroy
 
-    redis.keys('*').should == []
+    expect(redis.keys('*')).to eq([])
   end
 
   it "resets changed state on refresh" do
@@ -137,12 +141,12 @@ describe Sandstorm::Record, :redis => true do
     example = Sandstorm::Example.find_by_id('8')
 
     example.name = "King Henry VIII"
-    example.changed.should include('name')
-    example.changes.should == {'name' => ['John Jones', 'King Henry VIII']}
+    expect(example.changed).to include('name')
+    expect(example.changes).to eq({'name' => ['John Jones', 'King Henry VIII']})
 
     example.refresh
-    example.changed.should be_empty
-    example.changes.should be_empty
+    expect(example.changed).to be_empty
+    expect(example.changes).to be_empty
   end
 
   it "stores a string as an attribute value"
@@ -172,18 +176,18 @@ describe Sandstorm::Record, :redis => true do
 
     it "filters all class records by indexed attribute values" do
       example = Sandstorm::Example.intersect(:active => true).all
-      example.should_not be_nil
-      example.should be_an(Array)
-      example.should have(1).example
-      example.map(&:id).should == ['8']
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['8'])
     end
 
     it 'supports sequential intersection and union operations' do
       example = Sandstorm::Example.intersect(:active => true).union(:active => false).all
-      example.should_not be_nil
-      example.should be_an(Array)
-      example.should have(2).examples
-      example.map(&:id).should =~ ['8', '9']
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(2)
+      expect(example.map(&:id)).to match_array(['8', '9'])
     end
 
     it 'allows intersection operations across multiple values for an attribute'
@@ -192,10 +196,10 @@ describe Sandstorm::Record, :redis => true do
 
     it 'excludes particular records' do
       example = Sandstorm::Example.diff(:active => true).all
-      example.should_not be_nil
-      example.should be_an(Array)
-      example.should have(1).example
-      example.map(&:id).should == ['9']
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['9'])
     end
 
   end
@@ -239,30 +243,33 @@ describe Sandstorm::Record, :redis => true do
                      :email => 'jjones@example.com', :active => 'true')
 
       child = Sandstorm::ExampleChild.new(:id => '3', :name => 'Abel Tasman')
-      child.save.should be_true
+      expect(child.save).to be_truthy
 
       example = Sandstorm::Example.find_by_id('8')
       example.children << child
 
-      redis.keys('*').should =~ ['example::ids',
+      expect(redis.keys('*')).to match_array(['example::ids',
                                  'example::by_name',
                                  'example::by_active:true',
                                  'example:8:attrs',
                                  'example:8:children_ids',
                                  'example_child::ids',
                                  'example_child:3:attrs',
-                                 'example_child:3:belongs_to']
+                                 'example_child:3:belongs_to'])
 
-      redis.smembers('example::ids').should == ['8']
-      redis.smembers('example::by_active:true').should ==
+      expect(redis.smembers('example::ids')).to eq(['8'])
+      expect(redis.smembers('example::by_active:true')).to eq(
         ['8']
-      redis.hgetall('example:8:attrs').should ==
+      )
+      expect(redis.hgetall('example:8:attrs')).to eq(
         {'name' => 'John Jones', 'email' => 'jjones@example.com', 'active' => 'true'}
-      redis.smembers('example:8:children_ids').should == ['3']
+      )
+      expect(redis.smembers('example:8:children_ids')).to eq(['3'])
 
-      redis.smembers('example_child::ids').should == ['3']
-      redis.hgetall('example_child:3:attrs').should ==
+      expect(redis.smembers('example_child::ids')).to eq(['3'])
+      expect(redis.hgetall('example_child:3:attrs')).to eq(
         {'name' => 'Abel Tasman'}
+      )
     end
 
     it "loads a child from a parent's has_many relationship" do
@@ -273,11 +280,11 @@ describe Sandstorm::Record, :redis => true do
 
       children = example.children.all
 
-      children.should be_an(Array)
-      children.should have(1).child
+      expect(children).to be_an(Array)
+      expect(children.size).to eq(1)
       child = children.first
-      child.should be_a(Sandstorm::ExampleChild)
-      child.name.should == 'Abel Tasman'
+      expect(child).to be_a(Sandstorm::ExampleChild)
+      expect(child.name).to eq('Abel Tasman')
     end
 
     it "loads a parent from a child's belongs_to relationship" do
@@ -288,9 +295,9 @@ describe Sandstorm::Record, :redis => true do
       child = Sandstorm::ExampleChild.find_by_id('3')
 
       other_example = child.example
-      other_example.should_not be_nil
-      other_example.should be_a(Sandstorm::Example)
-      other_example.name.should == 'John Jones'
+      expect(other_example).not_to be_nil
+      expect(other_example).to be_a(Sandstorm::Example)
+      expect(other_example.name).to eq('John Jones')
     end
 
     it "removes a parent/child has_many relationship between two records in redis" do
@@ -301,13 +308,13 @@ describe Sandstorm::Record, :redis => true do
       create_child(example, :id => '3', :name => 'Abel Tasman')
       child = Sandstorm::ExampleChild.find_by_id('3')
 
-      redis.smembers('example_child::ids').should == ['3']
-      redis.smembers('example:8:children_ids').should == ['3']
+      expect(redis.smembers('example_child::ids')).to eq(['3'])
+      expect(redis.smembers('example:8:children_ids')).to eq(['3'])
 
       example.children.delete(child)
 
-      redis.smembers('example_child::ids').should == ['3']    # child not deleted
-      redis.smembers('example:8:children_ids').should == [] # but association is
+      expect(redis.smembers('example_child::ids')).to eq(['3'])    # child not deleted
+      expect(redis.smembers('example:8:children_ids')).to eq([]) # but association is
     end
 
     it "filters has_many records by indexed attribute values" do
@@ -320,10 +327,10 @@ describe Sandstorm::Record, :redis => true do
       create_child(example, :id => '5', :name => 'John Smith', :important => false)
 
       important_kids = example.children.intersect(:important => true).all
-      important_kids.should_not be_nil
-      important_kids.should be_an(Array)
-      important_kids.should have(2).children
-      important_kids.map(&:id).should =~ ['3', '4']
+      expect(important_kids).not_to be_nil
+      expect(important_kids).to be_an(Array)
+      expect(important_kids.size).to eq(2)
+      expect(important_kids.map(&:id)).to match_array(['3', '4'])
     end
 
     it "checks whether a record id exists through a has_many filter" do
@@ -335,8 +342,8 @@ describe Sandstorm::Record, :redis => true do
       create_child(example, :id => '4', :name => 'Julius Caesar', :important => true)
       create_child(example, :id => '5', :name => 'John Smith', :important => false)
 
-      example.children.intersect(:important => true).exists?('3').should be_true
-      example.children.intersect(:important => true).exists?('5').should be_false
+      expect(example.children.intersect(:important => true).exists?('3')).to be_truthy
+      expect(example.children.intersect(:important => true).exists?('5')).to be_falsey
     end
 
     it "finds a record through a has_many filter" do
@@ -349,9 +356,9 @@ describe Sandstorm::Record, :redis => true do
       create_child(example, :id => '5', :name => 'John Smith', :important => false)
 
       martin = example.children.intersect(:important => true).find_by_id('3')
-      martin.should_not be_nil
-      martin.should be_a(Sandstorm::ExampleChild)
-      martin.id.should == '3'
+      expect(martin).not_to be_nil
+      expect(martin).to be_a(Sandstorm::ExampleChild)
+      expect(martin.id).to eq('3')
     end
 
     it 'clears the belongs_to association when the child record is deleted' do
@@ -364,7 +371,7 @@ describe Sandstorm::Record, :redis => true do
       create_child(example, :id => '6', :name => 'Martin Luther King', :important => true)
       child = Sandstorm::ExampleChild.find_by_id('6')
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
                             'example:8:attrs',
@@ -372,14 +379,14 @@ describe Sandstorm::Record, :redis => true do
                             'example_child::ids',
                             'example_child::by_important:true',
                             'example_child:6:attrs',
-                            'example_child:6:belongs_to']
+                            'example_child:6:belongs_to'])
 
       child.destroy
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
-                            'example:8:attrs']
+                            'example:8:attrs'])
     end
 
     it "clears the belongs_to association when the parent record is deleted" do
@@ -392,7 +399,7 @@ describe Sandstorm::Record, :redis => true do
       create_child(example, :id => '6', :name => 'Martin Luther King', :important => true)
       child = Sandstorm::ExampleChild.find_by_id('6')
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
                             'example:8:attrs',
@@ -400,13 +407,13 @@ describe Sandstorm::Record, :redis => true do
                             'example_child::ids',
                             'example_child::by_important:true',
                             'example_child:6:attrs',
-                            'example_child:6:belongs_to']
+                            'example_child:6:belongs_to'])
 
       example.destroy
 
-      redis.keys.should =~ ['example_child::ids',
+      expect(redis.keys).to match_array(['example_child::ids',
                             'example_child::by_important:true',
-                            'example_child:6:attrs']
+                            'example_child:6:attrs'])
     end
 
   end
@@ -453,31 +460,33 @@ describe Sandstorm::Record, :redis => true do
 
       data = Sandstorm::ExampleDatum.new(:id => '4', :timestamp => time,
         :summary => "hello!")
-      data.save.should be_true
+      expect(data.save).to be_truthy
 
       example = Sandstorm::Example.find_by_id('8')
       example.data << data
 
-      redis.keys('*').should =~ ['example::ids',
+      expect(redis.keys('*')).to match_array(['example::ids',
                                  'example::by_name',
                                  'example::by_active:true',
                                  'example:8:attrs',
                                  'example:8:data_ids',
                                  'example_datum::ids',
                                  'example_datum:4:attrs',
-                                 'example_datum:4:belongs_to']
+                                 'example_datum:4:belongs_to'])
 
-      redis.smembers('example_datum::ids').should == ['4']
-      redis.hgetall('example_datum:4:attrs').should ==
+      expect(redis.smembers('example_datum::ids')).to eq(['4'])
+      expect(redis.hgetall('example_datum:4:attrs')).to eq(
         {'summary' => 'hello!', 'timestamp' => time.to_f.to_s}
-      redis.hgetall('example_datum:4:belongs_to').should ==
+      )
+      expect(redis.hgetall('example_datum:4:belongs_to')).to eq(
         {'example_id' => '8'}
+      )
 
       result = redis.zrange('example:8:data_ids', 0, -1,
         :with_scores => true) # .should == [['4', time.to_f]]
-      result.should have(1).pair
-      result.first.first.should == '4'
-      result.first.last.should be_within(0.001).of(time.to_f)
+      expect(result.size).to eq(1)
+      expect(result.first.first).to eq('4')
+      expect(result.first.last).to be_within(0.001).of(time.to_f)
     end
 
     it "loads a child from a parent's has_sorted_set relationship" do
@@ -492,12 +501,12 @@ describe Sandstorm::Record, :redis => true do
 
       data = example.data.all
 
-      data.should be_an(Array)
-      data.should have(1).datum
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(1)
       datum = data.first
-      datum.should be_a(Sandstorm::ExampleDatum)
-      datum.summary.should == 'well then'
-      datum.timestamp.should be_within(1).of(time) # ignore fractional differences
+      expect(datum).to be_a(Sandstorm::ExampleDatum)
+      expect(datum.summary).to eq('well then')
+      expect(datum.timestamp).to be_within(1).of(time) # ignore fractional differences
     end
 
     it "removes a parent/child has_sorted_set relationship between two records in redis" do
@@ -510,13 +519,13 @@ describe Sandstorm::Record, :redis => true do
       create_datum(example, :id => '4', :summary => 'well then', :timestamp => time)
       datum = Sandstorm::ExampleDatum.find_by_id('4')
 
-      redis.smembers('example_datum::ids').should == ['4']
-      redis.zrange('example:8:data_ids', 0, -1).should == ['4']
+      expect(redis.smembers('example_datum::ids')).to eq(['4'])
+      expect(redis.zrange('example:8:data_ids', 0, -1)).to eq(['4'])
 
       example.data.delete(datum)
 
-      redis.smembers('example_datum::ids').should == ['4']        # child not deleted
-      redis.zrange('example:8:data_ids', 0, -1).should == [] # but association is
+      expect(redis.smembers('example_datum::ids')).to eq(['4'])        # child not deleted
+      expect(redis.zrange('example:8:data_ids', 0, -1)).to eq([]) # but association is
     end
 
     it "filters has_sorted_set records by indexed attribute values" do
@@ -534,10 +543,10 @@ describe Sandstorm::Record, :redis => true do
         :emotion => 'upset')
 
       upset_data = example.data.intersect(:emotion => 'upset').all
-      upset_data.should_not be_nil
-      upset_data.should be_an(Array)
-      upset_data.should have(2).children
-      upset_data.map(&:id).should == ['4', '6']
+      expect(upset_data).not_to be_nil
+      expect(upset_data).to be_an(Array)
+      expect(upset_data.size).to eq(2)
+      expect(upset_data.map(&:id)).to eq(['4', '6'])
     end
 
     it "retrieves a subset of a sorted set by index" do
@@ -555,10 +564,10 @@ describe Sandstorm::Record, :redis => true do
         :emotion => 'upset')
 
       data = example.data.intersect_range(0, 1).all
-      data.should_not be_nil
-      data.should be_an(Array)
-      data.should have(2).children
-      data.map(&:id).should == ['4', '5']
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(2)
+      expect(data.map(&:id)).to eq(['4', '5'])
     end
 
     it "retrieves a reversed subset of a sorted set by index" do
@@ -576,10 +585,10 @@ describe Sandstorm::Record, :redis => true do
         :emotion => 'upset')
 
       data = example.data.intersect_range(0, 1, :order => 'desc').all
-      data.should_not be_nil
-      data.should be_an(Array)
-      data.should have(2).children
-      data.map(&:id).should == ['6', '5']
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(2)
+      expect(data.map(&:id)).to eq(['6', '5'])
     end
 
     it "retrieves a subset of a sorted set by score" do
@@ -597,10 +606,10 @@ describe Sandstorm::Record, :redis => true do
         :emotion => 'upset')
 
       data = example.data.intersect_range(time.to_i - 1, time.to_i + 15, :by_score => true).all
-      data.should_not be_nil
-      data.should be_an(Array)
-      data.should have(2).children
-      data.map(&:id).should == ['4', '5']
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(2)
+      expect(data.map(&:id)).to eq(['4', '5'])
     end
 
     it "retrieves a reversed subset of a sorted set by score" do
@@ -619,10 +628,10 @@ describe Sandstorm::Record, :redis => true do
 
       data = example.data.intersect_range(time.to_i - 1, time.to_i + 15,
               :order => 'desc', :by_score => true).all
-      data.should_not be_nil
-      data.should be_an(Array)
-      data.should have(2).children
-      data.map(&:id).should == ['5', '4']
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(2)
+      expect(data.map(&:id)).to eq(['5', '4'])
     end
 
     it "checks whether a record exists through a has_sorted_set filter" do
@@ -639,8 +648,8 @@ describe Sandstorm::Record, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      example.data.intersect(:emotion => 'upset').exists?('4').should be_true
-      example.data.intersect(:emotion => 'upset').exists?('5').should be_false
+      expect(example.data.intersect(:emotion => 'upset').exists?('4')).to be_truthy
+      expect(example.data.intersect(:emotion => 'upset').exists?('5')).to be_falsey
     end
 
     it "finds a record through a has_sorted_set filter" do
@@ -658,9 +667,9 @@ describe Sandstorm::Record, :redis => true do
         :emotion => 'upset')
 
       wellthen = upset_data = example.data.intersect(:emotion => 'upset').find_by_id('4')
-      wellthen.should_not be_nil
-      wellthen.should be_a(Sandstorm::ExampleDatum)
-      wellthen.id.should == '4'
+      expect(wellthen).not_to be_nil
+      expect(wellthen).to be_a(Sandstorm::ExampleDatum)
+      expect(wellthen.id).to eq('4')
     end
 
     it 'clears the belongs_to association when the child record is deleted' do
@@ -674,7 +683,7 @@ describe Sandstorm::Record, :redis => true do
         :emotion => 'upset')
       datum = Sandstorm::ExampleDatum.find_by_id('6')
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
                             'example:8:attrs',
@@ -682,14 +691,14 @@ describe Sandstorm::Record, :redis => true do
                             'example_datum::ids',
                             'example_datum::by_emotion:upset',
                             'example_datum:6:attrs',
-                            'example_datum:6:belongs_to']
+                            'example_datum:6:belongs_to'])
 
       datum.destroy
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
-                            'example:8:attrs']
+                            'example:8:attrs'])
     end
 
     it "clears the belongs_to association when the parent record is deleted" do
@@ -702,7 +711,7 @@ describe Sandstorm::Record, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
                             'example:8:attrs',
@@ -710,13 +719,13 @@ describe Sandstorm::Record, :redis => true do
                             'example_datum::ids',
                             'example_datum::by_emotion:upset',
                             'example_datum:6:attrs',
-                            'example_datum:6:belongs_to']
+                            'example_datum:6:belongs_to'])
 
       example.destroy
 
-      redis.keys.should =~ ['example_datum::ids',
+      expect(redis.keys).to match_array(['example_datum::ids',
                             'example_datum::by_emotion:upset',
-                            'example_datum:6:attrs']
+                            'example_datum:6:attrs'])
     end
 
   end
@@ -742,34 +751,36 @@ describe Sandstorm::Record, :redis => true do
                      :email => 'jjones@example.com', :active => 'true')
 
       special = Sandstorm::ExampleSpecial.new(:id => '22', :name => 'Bill Smith')
-      special.save.should be_true
+      expect(special.save).to be_truthy
 
       example = Sandstorm::Example.find_by_id('8')
       example.special = special
 
-      redis.keys('*').should =~ ['example::ids',
+      expect(redis.keys('*')).to match_array(['example::ids',
                                  'example::by_name',
                                  'example::by_active:true',
                                  'example:8:attrs',
                                  'example:8:special_id',
                                  'example_special::ids',
                                  'example_special:22:attrs',
-                                 'example_special:22:belongs_to']
+                                 'example_special:22:belongs_to'])
 
-      redis.get('example:8:special_id').should == '22'
+      expect(redis.get('example:8:special_id')).to eq('22')
 
-      redis.smembers('example_special::ids').should == ['22']
-      redis.hgetall('example_special:22:attrs').should ==
+      expect(redis.smembers('example_special::ids')).to eq(['22'])
+      expect(redis.hgetall('example_special:22:attrs')).to eq(
         {'name' => 'Bill Smith'}
+      )
 
-      redis.hgetall('example_special:22:belongs_to').should ==
+      expect(redis.hgetall('example_special:22:belongs_to')).to eq(
         {'example_id' => '8'}
+      )
 
       example2 = Sandstorm::Example.find_by_id('8')
       special2 = example2.special
-      special2.should_not be_nil
-      special2.id.should == '22'
-      special2.example.id.should == '8'
+      expect(special2).not_to be_nil
+      expect(special2.id).to eq('22')
+      expect(special2.example.id).to eq('8')
     end
 
     def create_special(parent, attrs = {})
@@ -788,21 +799,21 @@ describe Sandstorm::Record, :redis => true do
       create_special(example, :id => '3', :name => 'Another Jones')
       special = Sandstorm::ExampleSpecial.find_by_id('3')
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
                             'example:8:attrs',
                             'example:8:special_id',
                             'example_special::ids',
                             'example_special:3:attrs',
-                            'example_special:3:belongs_to']
+                            'example_special:3:belongs_to'])
 
       special.destroy
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
-                            'example:8:attrs']
+                            'example:8:attrs'])
     end
 
     it "clears the belongs_to association when the parent record is deleted" do
@@ -811,19 +822,19 @@ describe Sandstorm::Record, :redis => true do
       example = Sandstorm::Example.find_by_id('8')
       create_special(example, :id => '3', :name => 'Another Jones')
 
-      redis.keys.should =~ ['example::ids',
+      expect(redis.keys).to match_array(['example::ids',
                             'example::by_name',
                             'example::by_active:true',
                             'example:8:attrs',
                             'example:8:special_id',
                             'example_special::ids',
                             'example_special:3:attrs',
-                            'example_special:3:belongs_to']
+                            'example_special:3:belongs_to'])
 
       example.destroy
 
-      redis.keys.should =~ ['example_special::ids',
-                            'example_special:3:attrs']
+      expect(redis.keys).to match_array(['example_special::ids',
+                            'example_special:3:attrs'])
     end
 
   end
@@ -863,24 +874,25 @@ describe Sandstorm::Record, :redis => true do
 
       example.templates << template
 
-      redis.keys('*').should =~ ['example::ids',
+      expect(redis.keys('*')).to match_array(['example::ids',
                                  'example::by_name',
                                  'example::by_active:true',
                                  'example:8:attrs',
                                  'example:8:templates_ids',
                                  'template::ids',
                                  'template:2:attrs',
-                                 'template:2:examples_ids']
+                                 'template:2:examples_ids'])
 
-      redis.smembers('example::ids').should == ['8']
-      redis.smembers('example::by_active:true').should == ['8']
-      redis.hgetall('example:8:attrs').should ==
+      expect(redis.smembers('example::ids')).to eq(['8'])
+      expect(redis.smembers('example::by_active:true')).to eq(['8'])
+      expect(redis.hgetall('example:8:attrs')).to eq(
         {'name' => 'John Jones', 'email' => 'jjones@example.com', 'active' => 'true'}
-      redis.smembers('example:8:templates_ids').should == ['2']
+      )
+      expect(redis.smembers('example:8:templates_ids')).to eq(['2'])
 
-      redis.smembers('template::ids').should == ['2']
-      redis.hgetall('template:2:attrs').should == {'name' => 'Template 1'}
-      redis.smembers('template:2:examples_ids').should == ['8']
+      expect(redis.smembers('template::ids')).to eq(['2'])
+      expect(redis.hgetall('template:2:attrs')).to eq({'name' => 'Template 1'})
+      expect(redis.smembers('template:2:examples_ids')).to eq(['8'])
     end
 
     it "loads a record from a has_and_belongs_to_many relationship" do
@@ -891,11 +903,11 @@ describe Sandstorm::Record, :redis => true do
 
       templates = example.templates.all
 
-      templates.should be_an(Array)
-      templates.should have(1).template
+      expect(templates).to be_an(Array)
+      expect(templates.size).to eq(1)
       other_template = templates.first
-      other_template.should be_a(Sandstorm::Template)
-      other_template.id.should == template.id
+      expect(other_template).to be_a(Sandstorm::Template)
+      expect(other_template.id).to eq(template.id)
     end
 
     it "removes a has_and_belongs_to_many relationship between two records in redis" do
@@ -904,13 +916,13 @@ describe Sandstorm::Record, :redis => true do
 
       template.examples << example
 
-      redis.smembers('template::ids').should == ['2']
-      redis.smembers('example:8:templates_ids').should == ['2']
+      expect(redis.smembers('template::ids')).to eq(['2'])
+      expect(redis.smembers('example:8:templates_ids')).to eq(['2'])
 
       example.templates.delete(template)
 
-      redis.smembers('template::ids').should == ['2']        # template not deleted
-      redis.smembers('example:8:templates_ids').should == [] # but association is
+      expect(redis.smembers('template::ids')).to eq(['2'])        # template not deleted
+      expect(redis.smembers('example:8:templates_ids')).to eq([]) # but association is
     end
 
     it "filters has_and_belongs_to_many records by indexed attribute values" do
@@ -929,10 +941,10 @@ describe Sandstorm::Record, :redis => true do
       example_3.templates << template
 
       examples = template.examples.intersect(:active => true).all
-      examples.should_not be_nil
-      examples.should be_an(Array)
-      examples.should have(2).records
-      examples.map(&:id).should =~ ['8', '10']
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '10'])
     end
 
     it "checks whether a record id exists through a has_and_belongs_to_many filter"  do
@@ -946,8 +958,8 @@ describe Sandstorm::Record, :redis => true do
       example.templates << template
       example_2.templates << template
 
-      template.examples.intersect(:active => false).exists?('9').should be_true
-      template.examples.intersect(:active => false).exists?('8').should be_false
+      expect(template.examples.intersect(:active => false).exists?('9')).to be_truthy
+      expect(template.examples.intersect(:active => false).exists?('8')).to be_falsey
     end
 
     it "finds a record through a has_and_belongs_to_many filter" do
@@ -962,9 +974,9 @@ describe Sandstorm::Record, :redis => true do
       example_2.templates << template
 
       james = template.examples.intersect(:active => false).find_by_id('9')
-      james.should_not be_nil
-      james.should be_a(Sandstorm::Example)
-      james.id.should == example_2.id
+      expect(james).not_to be_nil
+      expect(james).to be_a(Sandstorm::Example)
+      expect(james.id).to eq(example_2.id)
     end
 
     it 'clears a has_and_belongs_to_many association when a record is deleted'
