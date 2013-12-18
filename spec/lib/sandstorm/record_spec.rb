@@ -15,8 +15,54 @@ describe Sandstorm::Record, :redis => true do
 
       validates :name, :presence => true
 
+      has_many :children, :class_name => 'Sandstorm::ExampleChild'
+
+      has_sorted_set :data, :class_name => 'Sandstorm::ExampleDatum',
+        :key => :timestamp
+
+      has_and_belongs_to_many :templates, :class_name => 'Sandstorm::Template',
+        :inverse_of => :examples
+
       index_by :active
       unique_index_by :name
+    end
+
+    class ExampleChild
+      include Sandstorm::Record
+
+      define_attributes :name => :string,
+                        :important => :boolean
+
+      index_by :important
+
+      belongs_to :example, :class_name => 'Sandstorm::Example', :inverse_of => :children
+
+      validates :name, :presence => true
+    end
+
+    class ExampleDatum
+      include Sandstorm::Record
+
+      define_attributes :timestamp => :timestamp,
+                        :summary => :string,
+                        :emotion => :string
+
+      belongs_to :example, :class_name => 'Sandstorm::Example', :inverse_of => :data
+
+      index_by :emotion
+
+      validates :timestamp, :presence => true
+    end
+
+    class Template
+      include Sandstorm::Record
+
+      define_attributes :name => :string
+
+      has_and_belongs_to_many :examples, :class_name => 'Sandstorm::Example',
+        :inverse_of => :templates
+
+      validates :name, :presence => true
     end
   end
 
@@ -206,23 +252,6 @@ describe Sandstorm::Record, :redis => true do
 
 
   context "has_many" do
-
-    class Sandstorm::ExampleChild
-      include Sandstorm::Record
-
-      define_attributes :name => :string,
-                        :important => :boolean
-
-      index_by :important
-
-      belongs_to :example, :class_name => 'Sandstorm::Example', :inverse_of => :children
-
-      validates :name, :presence => true
-    end
-
-    class Sandstorm::Example
-      has_many :children, :class_name => 'Sandstorm::ExampleChild'
-    end
 
     def create_child(parent, attrs = {})
       redis.sadd("example:#{parent.id}:children_ids", attrs[:id])
@@ -419,25 +448,6 @@ describe Sandstorm::Record, :redis => true do
   end
 
   context "has_sorted_set" do
-
-    class Sandstorm::ExampleDatum
-      include Sandstorm::Record
-
-      define_attributes :timestamp => :timestamp,
-                        :summary => :string,
-                        :emotion => :string
-
-      belongs_to :example, :class_name => 'Sandstorm::Example', :inverse_of => :data
-
-      index_by :emotion
-
-      validates :timestamp, :presence => true
-    end
-
-    class Sandstorm::Example
-      has_sorted_set :data, :class_name => 'Sandstorm::ExampleDatum',
-        :key => :timestamp
-    end
 
     def create_datum(parent, attrs = {})
       redis.zadd("example:#{parent.id}:data_ids", attrs[:timestamp].to_i.to_f, attrs[:id])
@@ -841,22 +851,6 @@ describe Sandstorm::Record, :redis => true do
 
   context "has_and_belongs_to_many" do
 
-    class Sandstorm::Template
-      include Sandstorm::Record
-
-      define_attributes :name => :string
-
-      has_and_belongs_to_many :examples, :class_name => 'Sandstorm::Example',
-        :inverse_of => :templates
-
-      validates :name, :presence => true
-    end
-
-    class Sandstorm::Example
-      has_and_belongs_to_many :templates, :class_name => 'Sandstorm::Template',
-        :inverse_of => :examples
-    end
-
     def create_template(attrs = {})
       redis.hmset("template:#{attrs[:id]}:attrs", {'name' => attrs[:name]}.to_a.flatten)
       redis.sadd('template::ids', attrs[:id])
@@ -983,5 +977,56 @@ describe Sandstorm::Record, :redis => true do
 
   end
 
+  context 'bad parameters' do
+
+    let(:example) { Sandstorm::Example.find_by_id('8') }
+
+    before(:each) do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => true)
+    end
+
+    it 'raises an error when calling add on has_many without an argument' do
+      expect {
+        example.children.add
+      }.to raise_error
+    end
+
+    it 'raises an error when calling delete on has_many without an argument' do
+      expect {
+        example.children.delete
+      }.to raise_error
+    end
+
+    it 'raises an error when calling add on has_sorted_set without an argument' do
+      expect {
+        example.data.add
+      }.to raise_error
+    end
+
+    it 'raises an error when calling delete on has_sorted_set without an argument' do
+      expect {
+        example.data.delete
+      }.to raise_error
+    end
+
+    it 'raises an error when calling add on has_and_belongs_to_many without an argument' do
+      expect {
+        example.templates.add
+      }.to raise_error
+    end
+
+    it 'raises an error when calling delete on has_and_belongs_to_many without an argument' do
+      expect {
+        example.templates.delete
+      }.to raise_error
+    end
+
+    it 'raises an error when trying to filter on a non-indexed value' do
+      expect {
+        Sandstorm::Example.intersect(:email => 'jjones@example.com').all
+      }.to raise_error
+    end
+  end
 
 end

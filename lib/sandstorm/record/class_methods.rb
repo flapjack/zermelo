@@ -90,14 +90,16 @@ module Sandstorm
         locking = Thread.current[:sandstorm_locking]
         if locking.nil?
           Sandstorm::Lock.new(*klasses).lock do
-            Thread.current[:sandstorm_locking] = klasses
-            ret = yield
-            Thread.current[:sandstorm_locking] = nil
+            begin
+              Thread.current[:sandstorm_locking] = klasses
+              ret = yield
+            ensure
+              Thread.current[:sandstorm_locking] = nil
+            end
           end
         else
           # accepts any subset of 'locking'
           unless (klasses - locking).empty?
-            Thread.current[:sandstorm_locking] = nil
             raise "Currently locking #{locking.map(&:name)}, cannot lock different set #{klasses.map(&:name)}"
           end
           ret = yield

@@ -176,7 +176,6 @@ module Sandstorm
       "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
     end
 
-    # return
     def indexed_step_to_set(att, value)
       index = @associated_class.send("#{att}_index", value)
 
@@ -231,7 +230,7 @@ module Sandstorm
         if [:intersect, :union, :diff].include?(step.first)
 
           source_keys += step.last.inject([]) do |memo, (att, value)|
-            next memo unless idx_attrs.include?(att.to_s)
+            raise "'#{att}' property is not indexed" unless idx_attrs.include?(att.to_s)
 
             if value.is_a?(Enumerable)
               conditions_set = temp_set_name

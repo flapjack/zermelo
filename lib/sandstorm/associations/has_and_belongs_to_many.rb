@@ -37,6 +37,7 @@ module Sandstorm
       end
 
       def add(*records)
+        raise 'No records to add' if records.empty?
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.send(:lock, @parent.class, @associated_class) do
@@ -50,6 +51,7 @@ module Sandstorm
 
       # TODO support dependent delete, for now just deletes the association
       def delete(*records)
+        raise 'No records to delete' if records.empty?
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.send(:lock, @parent.class, @associated_class) do

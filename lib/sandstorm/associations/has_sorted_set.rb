@@ -32,6 +32,7 @@ module Sandstorm
 
       # TODO collect all scores/ids and do a single zadd/single hmset
       def add(*records)
+        raise 'No records to add' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.send(:lock, @parent.class, @associated_class) do
@@ -45,6 +46,7 @@ module Sandstorm
       end
 
       def delete(*records)
+        raise 'No records to delete' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.send(:lock, @parent.class, @associated_class) do
