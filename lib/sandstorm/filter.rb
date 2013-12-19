@@ -40,19 +40,19 @@ module Sandstorm
 
     # step users
     def ids
-      lock_if_needed { _ids }
+      lock(false) { _ids }
     end
 
     def count
-      lock_if_needed { _count }
+      lock(false) { _count }
     end
 
     def empty?
-      lock_if_needed { _count == 0 }
+      lock(false) { _count == 0 }
     end
 
     def exists?(id)
-      lock_if_needed { _exists?(id) }
+      lock(false) { _exists?(id) }
     end
 
     def find_by_id(id)
@@ -121,14 +121,10 @@ module Sandstorm
 
     private
 
-    def lock_if_needed(*klasses, &block)
-      if @steps.empty?
+    def lock(when_steps_empty = true, *klasses, &block)
+      if !when_steps_empty && @steps.empty?
         return yield
       end
-      lock(*klasses, &block)
-    end
-
-    def lock(*klasses, &block)
       klasses = [@associated_class] if klasses.empty?
       @associated_class.send(:lock, *klasses) { yield }
     end
