@@ -72,7 +72,7 @@ describe Sandstorm::Record, :redis => true do
     redis.hmset("example:#{attrs[:id]}:attrs",
       {'name' => attrs[:name], 'email' => attrs[:email], 'active' => attrs[:active]}.to_a.flatten)
     redis.sadd("example::by_active:#{!!attrs[:active]}", attrs[:id])
-    redis.hset("example::by_name", attrs[:name], attrs[:id])
+    redis.hset('example::by_name', attrs[:name], attrs[:id])
     redis.sadd('example::ids', attrs[:id])
   end
 
@@ -229,16 +229,34 @@ describe Sandstorm::Record, :redis => true do
     end
 
     it 'supports sequential intersection and union operations' do
-      example = Sandstorm::Example.intersect(:active => true).union(:active => false).all
-      expect(example).not_to be_nil
-      expect(example).to be_an(Array)
-      expect(example.size).to eq(2)
-      expect(example.map(&:id)).to match_array(['8', '9'])
+      examples = Sandstorm::Example.intersect(:active => true).union(:active => false).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '9'])
     end
 
-    it 'allows intersection operations across multiple values for an attribute'
+    it 'allows intersection operations across multiple values for an attribute' do
+      create_example(:id => '10', :name => 'Jay Johns',
+                     :email => 'jjohns@example.com', :active => true)
 
-    it 'allows union operations across multiple values for an attribute'
+      examples = Sandstorm::Example.intersect(:name => ['Jay Johns', 'James Brown']).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['9', '10'])
+    end
+
+    it 'allows union operations across multiple values for an attribute' do
+      create_example(:id => '10', :name => 'Jay Johns',
+                     :email => 'jjohns@example.com', :active => true)
+
+      examples = Sandstorm::Example.intersect(:active => false).union(:name => ['Jay Johns', 'James Brown']).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['9', '10'])
+    end
 
     it 'excludes particular records' do
       example = Sandstorm::Example.diff(:active => true).all
