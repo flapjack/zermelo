@@ -16,7 +16,7 @@ module Sandstorm
         @associated_class = (options[:class_name] || name.classify).constantize
         @class_name = options[:class_name].demodulize.underscore
 
-        raise ":inverse_of must be set" if options[:inverse_of].nil?
+        raise ':inverse_of must be set' if options[:inverse_of].nil?
         @inverse = options[:inverse_of].to_s
         @inverse_key = "#{@name}_id"
       end
@@ -31,7 +31,7 @@ module Sandstorm
           Sandstorm.redis.hdel(@record_ids.key, @inverse_key)
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
-          raise "Record must have been saved" unless record.persisted?
+          raise 'Record must have been saved' unless record.persisted?
           Sandstorm.redis.hset(@record_ids.key, @inverse_key, record.id)
         end
       end

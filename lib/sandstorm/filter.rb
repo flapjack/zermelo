@@ -70,7 +70,7 @@ module Sandstorm
     end
 
     def first
-      raise "Can't get first member of a non-sorted set" unless @initial_set.type == :sorted_set
+      raise 'Can\'t get first member of a non-sorted set' unless @initial_set.type == :sorted_set
       lock {
         first_id = resolve_steps{|set, order_desc|
           Sandstorm.redis.send(:zrange, set, 0, 0).first
@@ -84,7 +84,7 @@ module Sandstorm
     end
 
     def last
-      raise "Can't get last member of a non-sorted set" unless @initial_set.type == :sorted_set
+      raise 'Can\'t get last member of a non-sorted set' unless @initial_set.type == :sorted_set
       lock {
         last_id = resolve_steps{|set, order_desc|
           Sandstorm.redis.send(:zrevrange, set, 0, 0).first

@@ -27,7 +27,7 @@ module Sandstorm
 
       def add(record)
         raise 'Invalid record class' unless record.is_a?(@associated_class)
-        raise "Record must have been saved" unless record.persisted?
+        raise 'Record must have been saved' unless record.persisted?
         @parent.class.send(:lock, @parent.class, @associated_class) do
           unless @inverse.nil?
             @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
@@ -38,7 +38,7 @@ module Sandstorm
 
       def delete(record)
         raise 'Invalid record class' unless record.is_a?(@associated_class)
-        raise "Record must have been saved" unless record.persisted?
+        raise 'Record must have been saved' unless record.persisted?
         @parent.class.send(:lock, @parent.class, @associated_class) do
           delete_without_lock(record)
         end

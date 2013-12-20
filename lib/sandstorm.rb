@@ -1,4 +1,6 @@
-require "sandstorm/version"
+require 'sandstorm/version'
+
+require 'time'
 
 module Sandstorm
 
