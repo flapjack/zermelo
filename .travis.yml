@@ -9,6 +9,7 @@ gemfile:
 services:
   - redis-server
 before_install:
-  # 1.3.5 due to https://github.com/bundler/bundler/issues/2784
-  - gem install bundler -v 1.3.5
+  # https://github.com/bundler/bundler/issues/2784
+  - gem update --system 2.1.11
+  - gem --version
 script: bundle exec rspec spec
