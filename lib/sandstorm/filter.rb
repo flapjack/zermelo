@@ -195,6 +195,95 @@ module Sandstorm
       end
     end
 
+    def resolve_step(step, source_set, idx_attrs, &block)
+      temp_sets   = []
+      source_keys = [source_set]
+
+      if [:intersect, :union, :diff].include?(step.first)
+
+        source_keys += step.last.inject([]) do |memo, (att, value)|
+          raise "'#{att}' property is not indexed" unless idx_attrs.include?(att.to_s)
+
+          if value.is_a?(Enumerable)
+            conditions_set = temp_set_name
+            temp_idx_sets = []
+            Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
+              idx_set, clear = indexed_step_to_set(att, val)
+              temp_idx_sets << idx_set if clear
+              idx_set
+            })
+            Sandstorm.redis.del(temp_idx_sets) unless temp_idx_sets.empty?
+            temp_sets << conditions_set
+            memo << conditions_set
+          else
+            idx_set, clear = indexed_step_to_set(att, value)
+            temp_sets << idx_set if clear
+            memo << idx_set
+          end
+
+          memo
+        end
+
+      elsif [:intersect_range, :union_range].include?(step.first)
+        range_ids_set = temp_set_name
+
+        options = step.last
+
+        start = options[:start]
+        finish = options[:finish]
+
+        order_desc = options[:order] && 'desc'.eql?(options[:order].downcase)
+
+        if options[:by_score]
+          start = '-inf' if start.nil? || (start <= 0)
+          finish = '+inf' if finish.nil? || (finish <= 0)
+        else
+          start = 0 if start.nil?
+          finish = -1 if finish.nil?
+        end
+
+        args = [start, finish]
+
+        if order_desc
+          if options[:by_score]
+            query = :zrevrangebyscore
+            args = args.map(&:to_s).reverse
+          else
+            query = :zrevrange
+          end
+        elsif options[:by_score]
+          query = :zrangebyscore
+          args = args.map(&:to_s)
+        else
+          query = :zrange
+        end
+
+        args << {:with_scores => :true}
+
+        if options[:limit]
+          args.last.update(:limit => [0, options[:limit].to_i])
+        end
+
+        args.unshift(source_set)
+
+        range_ids_scores = Sandstorm.redis.send(query, *args)
+
+        unless range_ids_scores.empty?
+          Sandstorm.redis.zadd(range_ids_set, range_ids_scores.map(&:reverse))
+        end
+        source_keys << range_ids_set
+        temp_sets << range_ids_set
+      end
+
+      yield(source_keys)
+
+      unless temp_sets.empty?
+        Sandstorm.redis.del(*temp_sets)
+        temp_sets.clear
+      end
+    end
+
+
     # TODO possible candidate for moving to a stored Lua script in the redis server?
 
     # takes a block and passes the name of the temporary set to it; deletes
@@ -227,96 +316,12 @@ module Sandstorm
       @steps.each_slice(2) do |step|
         step_num += 2
 
-        order_desc = false
-
-        temp_sets  = []
-        source_keys = [source_set]
-
-        if [:intersect, :union, :diff].include?(step.first)
-
-          source_keys += step.last.inject([]) do |memo, (att, value)|
-            raise "'#{att}' property is not indexed" unless idx_attrs.include?(att.to_s)
-
-            if value.is_a?(Enumerable)
-              conditions_set = temp_set_name
-              temp_idx_sets = []
-              Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
-                idx_set, clear = indexed_step_to_set(att, val)
-                temp_idx_sets << idx_set if clear
-                idx_set
-              })
-              Sandstorm.redis.del(temp_idx_sets) unless temp_idx_sets.empty?
-              temp_sets << conditions_set
-              memo << conditions_set
-            else
-              idx_set, clear = indexed_step_to_set(att, value)
-              temp_sets << idx_set if clear
-              memo << idx_set
-            end
-
-            memo
-          end
-
-        elsif [:intersect_range, :union_range].include?(step.first)
-          range_ids_set = temp_set_name
-
+        resolve_step(step, source_set, idx_attrs) do |source_keys|
           options = step.last
+          order_desc = order_desc ^ (options[:order] && 'desc'.eql?(options[:order].downcase))
 
-          start = options[:start]
-          finish = options[:finish]
+          smember_shortcut = :smembers.eql?(shortcut) && (step_num == @steps.size)
 
-          if options[:by_score]
-            start = '-inf' if start.nil? || (start <= 0)
-            finish = '+inf' if finish.nil? || (finish <= 0)
-          else
-            start = 0 if start.nil?
-            finish = -1 if finish.nil?
-          end
-
-          args = [start, finish]
-
-          order_desc = options[:order] && 'desc'.eql?(options[:order].downcase)
-          if order_desc
-            if options[:by_score]
-              query = :zrevrangebyscore
-              args = args.map(&:to_s).reverse
-            else
-              query = :zrevrange
-            end
-          elsif options[:by_score]
-            query = :zrangebyscore
-            args = args.map(&:to_s)
-          else
-            query = :zrange
-          end
-
-          args << {:with_scores => :true}
-
-          if options[:limit]
-            args.last.update(:limit => [0, options[:limit].to_i])
-          end
-
-          args.unshift(source_set)
-
-          range_ids_scores = Sandstorm.redis.send(query, *args)
-
-          unless range_ids_scores.empty?
-            Sandstorm.redis.zadd(range_ids_set, range_ids_scores.map(&:reverse))
-          end
-          source_keys << range_ids_set
-          temp_sets << range_ids_set
-        end
-
-        if :smembers.eql?(shortcut) && (step_num == @steps.size) && (@initial_set.type == :set)
-          members = case step.first
-          when :union
-            Sandstorm.redis.sunion(*source_keys)
-          when :intersect
-            Sandstorm.redis.sinter(*source_keys)
-          when :diff
-            Sandstorm.redis.sdiff(*source_keys)
-          end
-        else
           case @initial_set.type
           when :sorted_set
             weights = [1.0] + ([0.0] * (source_keys.length - 1))
@@ -326,27 +331,35 @@ module Sandstorm
             when :intersect, :intersect_range
               Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
             end
-            Sandstorm.redis.del(range_ids_set) unless range_ids_set.nil?
           when :set, nil
             case step.first
             when :union
-              Sandstorm.redis.sunionstore(dest_set, *source_keys)
+              if smember_shortcut
+                members = Sandstorm.redis.sunion(*source_keys)
+              else
+                Sandstorm.redis.sunionstore(dest_set, *source_keys)
+              end
             when :intersect
-              Sandstorm.redis.sinterstore(dest_set, *source_keys)
+              if smember_shortcut
+                members = Sandstorm.redis.sinter(*source_keys)
+              else
+                Sandstorm.redis.sinterstore(dest_set, *source_keys)
+              end
             when :diff
-              Sandstorm.redis.sdiffstore(dest_set, *source_keys)
+              if smember_shortcut
+                members = Sandstorm.redis.sdiff(*source_keys)
+              else
+                Sandstorm.redis.sdiffstore(dest_set, *source_keys)
+              end
             end
           end
-          unless temp_sets.empty?
-            Sandstorm.redis.del(temp_sets)
-            temp_sets.clear
-          end
-          source_set = dest_set
         end
+
+        source_set = dest_set
       end
 
       ret = if shortcut
-        value = :smembers.eql?(shortcut) ? members : Sandstorm.redis.send(shortcut, dest_set)
+        value = members || Sandstorm.redis.send(shortcut, dest_set)
         block ? block.call(value) : value
       else
         block.call(dest_set, order_desc)
