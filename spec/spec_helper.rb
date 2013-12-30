@@ -15,6 +15,10 @@ $:.unshift(File.dirname(__FILE__) + '/../lib')
 # in ./support/ and its subdirectories.
 Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
 
+# silence deprecation warning
+require 'i18n'
+I18n.enforce_available_locales = true
+
 require 'redis'
 
 def new_redis_connection
