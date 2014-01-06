@@ -57,11 +57,13 @@ module Sandstorm
 
     def find_by_id(id)
       lock do
-        if !id.nil? && _exists?(id)
-          _load(id.to_s)
-        else
-          nil
-        end
+        _find_by_id(id)
+      end
+    end
+
+    def find_by_ids(ids)
+      lock do
+        _ids.collect {|id| _find_by_id(id) }
       end
     end
 
@@ -150,6 +152,14 @@ module Sandstorm
           Sandstorm.redis.sismember(set, id.to_s)
         end
       }
+    end
+
+    def _find_by_id(id)
+      if !id.nil? && _exists?(id)
+        _load(id.to_s)
+      else
+        nil
+      end
     end
 
     def _all
@@ -288,8 +298,6 @@ module Sandstorm
 
     # takes a block and passes the name of the temporary set to it; deletes
     # the temporary set once done
-
-    # TODO break this up, it's too large
     def resolve_steps(shortcut = nil, &block)
       source_set = @initial_set.key
       ret = nil
