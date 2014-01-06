@@ -56,19 +56,15 @@ module Sandstorm
     end
 
     def find_by_id(id)
-      lock do
-        _find_by_id(id)
-      end
+      lock { _find_by_id(id) }
     end
 
     def find_by_ids(ids)
-      lock do
-        _ids.collect {|id| _find_by_id(id) }
-      end
+      lock { _ids.collect {|id| _find_by_id(id) } }
     end
 
     def all
-      lock { _ids.map {|id| @associated_class.send(:load, id) } }
+      lock { _ids.map {|id| _load(id) } }
     end
 
     def first
@@ -80,7 +76,7 @@ module Sandstorm
         if first_id.nil?
           nil
         else
-          @associated_class.send(:load, first_id)
+          _load(first_id)
         end
       }
     end
@@ -94,13 +90,13 @@ module Sandstorm
         if last_id.nil?
           nil
         else
-          @associated_class.send(:load, last_id)
+          _load(last_id)
         end
       }
     end
 
     def collect(&block)
-      lock { _ids.collect {|id| block.call(@associated_class.send(:load, id))} }
+      lock { _ids.collect {|id| block.call(_load(id))} }
     end
 
     def each(&block)
@@ -163,7 +159,7 @@ module Sandstorm
     end
 
     def _all
-      _ids.map {|id| @associated_class.send(:load, id) }
+      _ids.map {|id| _load(id) }
     end
 
     def _ids
@@ -178,7 +174,7 @@ module Sandstorm
     end
 
     def _each(&block)
-      _ids.each {|id| block.call(@associated_class.send(:load, id))}
+      _ids.each {|id| block.call(_load(id)) }
     end
 
     def _load(id)
