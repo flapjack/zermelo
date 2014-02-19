@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_dependency 'redis'
-  spec.add_dependency 'activemodel'
+  spec.add_dependency 'activemodel', '~> 3.2.17' # for Ruby 1.8 support
 
   spec.add_development_dependency 'bundler', '~> 1.3'
   spec.add_development_dependency 'rake'
