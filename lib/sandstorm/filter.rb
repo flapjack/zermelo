@@ -1,3 +1,4 @@
+require 'sandstorm/errors'
 
 module Sandstorm
 
@@ -59,8 +60,22 @@ module Sandstorm
       lock { _find_by_id(id) }
     end
 
+    def find_by_id!(id)
+      ret = lock { _find_by_id(id) }
+      raise ::Sandstorm::Errors::RecordNotFound(@associated_class, id) if ret.nil?
+      ret
+    end
+
     def find_by_ids(ids)
       lock { _ids.collect {|id| _find_by_id(id) } }
+    end
+
+    def find_by_ids!(ids)
+      ret = lock { _ids.collect {|id| _find_by_id(id) } }
+      unless ids.length.eql?(ret.length)
+        raise ::Sandstorm::Errors::RecordsNotFound(@associated_class, ids - ret.map(&:id))
+      end
+      ret
     end
 
     def all

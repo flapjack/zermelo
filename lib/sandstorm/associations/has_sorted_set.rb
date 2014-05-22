@@ -10,9 +10,11 @@ module Sandstorm
 
       def_delegators :filter, :intersect, :union, :diff,
                        :intersect_range, :union_range,
-                       :count, :empty?, :exists?, :find_by_id,
-                       :all, :each, :collect, :select, :find_all, :reject,
-                       :first, :last, :ids
+                       :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
+                       :all, :each, :collect,
+                       :select, :find_all, :reject, :destroy_all,
+                       :ids, :count, :empty?, :exists?,
+                       :first, :last
 
       def initialize(parent, name, options = {})
         @key = options[:key]
