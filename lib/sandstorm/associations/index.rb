@@ -36,12 +36,26 @@ module Sandstorm
         indexer.key
       end
 
+      # Raises RegexpError if the provided pattern is invalid
+      # (will likely have been invoked with .send("#{att}_index", nil) as
+      #  value is not needed)
+      def attributes_matching(pattern)
+        regexp = Regexp.new(pattern)
+        Sandstorm.redis.keys("#{@class_key}::by_#{@attribute}:*").inject([]) do |memo, k|
+          if k =~ /^#{@class_key}::by_#{@attribute}:(.+)$/
+            att = $1.gsub(/%3A/, ':').gsub(/%20/, ' ').gsub(/%%/, '%')
+            memo << att if (regexp === att)
+          end
+          memo
+        end
+      end
+
       private
 
       def indexer_for_value
         index_key = case @value
         when String, Symbol, TrueClass, FalseClass
-          @value.to_s.gsub(/ /, '%20').gsub(/:/, '%3A')
+          @value.to_s.gsub(/%/, '%%').gsub(/ /, '%20').gsub(/:/, '%3A')
         end
         return if index_key.nil?
 
