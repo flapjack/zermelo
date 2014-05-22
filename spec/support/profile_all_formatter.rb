@@ -16,7 +16,6 @@ class ProfileAllFormatter < RSpec::Core::Formatters::BaseTextFormatter
   end
 
   def example_started(notification)
-    super(notification)
     @time = ((Time.respond_to?(:zone) && Time.zone) ? Time.zone.now : Time.now)
   end
 
@@ -30,7 +29,6 @@ class ProfileAllFormatter < RSpec::Core::Formatters::BaseTextFormatter
   end
 
   def start_dump(notification)
-    # super
     @output.puts "\n\nExample times:\n"
 
     @example_times = @example_times.sort_by do |description, example, time|
