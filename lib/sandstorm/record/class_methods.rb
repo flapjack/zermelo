@@ -1,4 +1,5 @@
 require 'forwardable'
+require 'securerandom'
 
 require 'sandstorm/lock'
 
@@ -15,6 +16,10 @@ module Sandstorm
                        :all, :each, :collect,
                        :select, :find_all, :reject, :destroy_all,
                        :ids, :count, :empty?, :exists?
+
+      def generate_id
+        SecureRandom.hex(16)
+      end
 
       def add_id(id)
         Sandstorm.redis.sadd(ids_key.key, id.to_s)

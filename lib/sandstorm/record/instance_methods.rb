@@ -101,7 +101,7 @@ module Sandstorm
 
         run_callbacks( (self.persisted? ? :update : :create) ) do
 
-          self.id ||= SecureRandom.hex(16)
+          self.id ||= self.class.generate_id
 
           idx_attrs = self.class.send(:indexed_attributes)
 

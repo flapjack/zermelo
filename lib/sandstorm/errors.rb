@@ -2,7 +2,7 @@ module Sandstorm
 
   module Errors
 
-    class RecordNotFound
+    class RecordNotFound < RuntimeError
       attr_reader :klass, :id
 
       def initialize(k, i)
@@ -11,7 +11,7 @@ module Sandstorm
       end
     end
 
-    class RecordsNotFound
+    class RecordsNotFound < RuntimeError
       attr_reader :klass, :ids
 
       def initialize(k, i)
