@@ -2,14 +2,19 @@ language: ruby
 rvm:
   - '1.8.7'
   - '1.9.3'
-  - '2.0.0'
-  - '2.1.0'
+  - '2.0'
+  - '2.1'
 gemfile:
   - Gemfile
 services:
   - redis-server
 before_install:
-  # https://github.com/bundler/bundler/issues/2784
-  - gem update --system 2.1.11
   - gem --version
+  - wget http://s3.amazonaws.com/influxdb/influxdb_latest_amd64.deb
+  - sudo dpkg -i influxdb_latest_amd64.deb
+  - sudo /etc/init.d/influxdb start
+  - sleep 10
+  - "curl -X POST 'http://localhost:8086/db?u=root&p=root' -d '{\"name\": \"sandstorm_test\"}'"
+  - "curl -X POST 'http://localhost:8086/db/sandstorm_test/users?u=root&p=root' -d '{\"name\": \"sandstorm\", \"password\": \"sandstorm\"}'"
+  - "curl -X POST 'http://localhost:8086/db/sandstorm_test/users/sandstorm?u=root&p=root' -d '{\"admin\": true}'"
 script: bundle exec rspec spec
