@@ -1,4 +1,4 @@
-require 'sandstorm/redis_key'
+require 'sandstorm/records/key'
 
 module Sandstorm
   module Associations
@@ -16,24 +16,29 @@ module Sandstorm
         @value = value
       end
 
+      # TODO defined in backend, call there (or extract to key strategy)
+      def redis_key(key)
+        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
+      end
+
       def delete_id(id)
         return unless indexer = indexer_for_value
-        Sandstorm.redis.srem(indexer.key, id)
+        Sandstorm.redis.srem(redis_key(indexer), id)
       end
 
       def add_id(id)
         return unless indexer = indexer_for_value
-        Sandstorm.redis.sadd(indexer.key, id)
+        Sandstorm.redis.sadd(redis_key(indexer), id)
       end
 
       def move_id(id, indexer_to)
         return unless indexer = indexer_for_value
-        Sandstorm.redis.smove(indexer.key, indexer_to.key, id)
+        Sandstorm.redis.smove(redis_key(indexer), redis_key(indexer_to), id)
       end
 
       def key
         return unless indexer = indexer_for_value
-        indexer.key
+        redis_key(indexer)
       end
 
       private
@@ -45,7 +50,11 @@ module Sandstorm
         end
         return if index_key.nil?
 
-        @indexers[index_key] ||= Sandstorm::RedisKey.new("#{@class_key}::by_#{@attribute}:#{index_key}", :set)
+        @indexers[index_key] ||= Sandstorm::Records::Key.new(
+          :class => @class_key,
+          :name  => "by_#{@attribute}:#{index_key}",
+          :type  => :set
+        )
       end
 
     end

@@ -1,5 +1,5 @@
 require 'sandstorm'
-require 'sandstorm/redis_key'
+require 'sandstorm/records/key'
 
 # The other side of a has_one, has_many, or has_sorted_set association
 
@@ -8,7 +8,13 @@ module Sandstorm
     class BelongsTo
 
       def initialize(parent, name, options = {})
-        @record_ids = Sandstorm::RedisKey.new("#{parent.record_key}:belongs_to", :hash)
+        @record_ids = Sandstorm::Records::Key.new(
+          :class => parent.class.send(:class_key),
+          :id    => parent.id,
+          :name  => 'belongs_to',
+          :type  => :hash
+        )
+
         @parent = parent
         @name = name
 
@@ -28,17 +34,17 @@ module Sandstorm
       # intrinsically atomic, so no locking needed
       def value=(record)
         if record.nil?
-          Sandstorm.redis.hdel(@record_ids.key, @inverse_key)
+          Sandstorm.redis.hdel(redis_key(@record_ids), @inverse_key)
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
-          Sandstorm.redis.hset(@record_ids.key, @inverse_key, record.id)
+          Sandstorm.redis.hset(redis_key(@record_ids), @inverse_key, record.id)
         end
       end
 
       def value
         @parent.class.send(:lock, @parent.class, @associated_class) do
-          if id = Sandstorm.redis.hget(@record_ids.key, @inverse_key)
+          if id = Sandstorm.redis.hget(redis_key(@record_ids), @inverse_key)
             @associated_class.send(:load, id)
           else
             nil
@@ -48,12 +54,15 @@ module Sandstorm
 
       private
 
+      # TODO defined in backend, call there (or extract to key strategy)
+      def redis_key(key)
+        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
+      end
+
       # on remove already runs inside a lock
       def on_remove
-        if record = value
-          record.send("#{@inverse}_proxy".to_sym).send(:delete, @parent)
-        end
-        Sandstorm.redis.del(@record_ids.key)
+        value.send("#{@inverse}_proxy".to_sym).send(:delete, @parent) unless value.nil?
+        Sandstorm.redis.del(redis_key(@record_ids))
       end
 
     end

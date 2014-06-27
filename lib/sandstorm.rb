@@ -25,13 +25,15 @@ module Sandstorm
     end
 
     # Thread and fiber-local
-    def redis
-      Thread.current[:sandstorm_redis]
+    [:redis, :moneta, :influxdb].each do |backend|
+      define_method(backend) do
+        Thread.current["sandstorm_#{backend.to_s}".to_sym]
+      end
+      define_method("#{backend.to_s}=".to_sym) do |connection|
+        Thread.current["sandstorm_#{backend.to_s}".to_sym] = connection
+      end
     end
 
-    def redis=(connection)
-      Thread.current[:sandstorm_redis] = connection
-    end
   end
 
 end

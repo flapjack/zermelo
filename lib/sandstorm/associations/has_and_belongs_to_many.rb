@@ -1,8 +1,7 @@
 require 'forwardable'
 
 require 'sandstorm'
-require 'sandstorm/filter'
-require 'sandstorm/redis_key'
+require 'sandstorm/records/key'
 
 # much like a has_many, but with different add/remove behaviour, as it's paired
 # with another has_and_belongs_to_many association. both sides must set the
@@ -20,7 +19,13 @@ module Sandstorm
                        :ids
 
       def initialize(parent, name, options = {})
-        @record_ids = Sandstorm::RedisKey.new("#{parent.record_key}:#{name}_ids", :set)
+        @record_ids = Sandstorm::Records::Key.new(
+          :class => parent.class.send(:class_key),
+          :id    => parent.id,
+          :name  => "#{name}_ids",
+          :type  => :set
+        )
+
         @name = name
         @parent = parent
 
@@ -65,28 +70,38 @@ module Sandstorm
 
       private
 
+      # TODO defined in backend, call there (or extract to key strategy)
+      def redis_key(key)
+        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
+      end
+
       def add_without_inverse(*records)
-        Sandstorm.redis.sadd(@record_ids.key, records.map(&:id))
+        Sandstorm.redis.sadd(redis_key(@record_ids), records.map(&:id))
       end
 
       def delete_without_inverse(*records)
-        Sandstorm.redis.srem(@record_ids.key, records.map(&:id))
+        Sandstorm.redis.srem(redis_key(@record_ids), records.map(&:id))
       end
 
       # associated will be the other side of the HaBTM; on_remove is always
       # called inside a lock
       def on_remove
-        Sandstorm.redis.smembers(@record_ids.key).each do |record_id|
+        Sandstorm.redis.smembers(redis_key(@record_ids)).each do |record_id|
           @associated_class.send(:load, record_id).send(@inverse.to_sym).
             send(:delete_without_inverse, @parent)
         end
-        Sandstorm.redis.del(@record_ids.key)
+        Sandstorm.redis.del(redis_key(@record_ids))
+      end
+
+      # TODO make generic to all backends
+      def backend
+        Sandstorm::Backends::RedisBackend.new
       end
 
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
-        Sandstorm::Filter.new(@record_ids, @associated_class)
+        backend.filter(@record_ids, @associated_class)
       end
 
     end

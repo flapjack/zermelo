@@ -1,36 +1,33 @@
 require 'rspec/core/formatters/base_formatter'
 
-class ProfileAllFormatter < RSpec::Core::Formatters::BaseTextFormatter
+class ProfileAllFormatter < RSpec::Core::Formatters::BaseFormatter
 
-  RSpec::Core::Formatters.register self, :start, :example_started, :example_passed,
-                                         :start_dump
+  RSpec::Core::Formatters.register self,
+    :example_started, :example_passed, :start_dump
 
   def initialize(output)
     super(output)
     @example_times = []
   end
 
-  def start(count)
-    super(count)
+  def start(notification)
+    super(notification)
     @output.puts "Profiling enabled."
   end
 
   def example_started(notification)
-    super(notification)
     @time = ((Time.respond_to?(:zone) && Time.zone) ? Time.zone.now : Time.now)
   end
 
   def example_passed(notification)
-    example = notification.example
     @example_times << [
-      example.example_group.description,
-      example.description,
+      notification.example.example_group.description,
+      notification.example.description,
       ((Time.respond_to?(:zone) && Time.zone) ? Time.zone.now : Time.now) - @time
     ]
   end
 
   def start_dump(notification)
-    # super
     @output.puts "\n\nExample times:\n"
 
     @example_times = @example_times.sort_by do |description, example, time|
