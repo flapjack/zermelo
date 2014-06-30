@@ -208,6 +208,11 @@ module Sandstorm
                 [:list, :set, :hash].include?(v)
               }
 
+              # 1.8.7 shim
+              if complex_attr_types.is_a?(Array)
+                complex_attr_types = Hash[*complex_attr_types]
+              end
+
               complex_attr_types.each_pair do |name, type|
                 item_key = complex_attributes[name.to_s]
                 case attr_types[name.to_sym]
