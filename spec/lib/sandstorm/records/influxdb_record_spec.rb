@@ -59,6 +59,24 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
     expect(example.active).to be true
   end
 
-  it "cannot update a value in influxdb"
+  it "cannot update a value in influxdb" do
+    Sandstorm.influxdb.write_point('influx_db_example', :id => '1',
+      :attrs => {:name => 'Jane Doe', :email => 'jdoe@example.com', :active => 'true'})
+
+    example = Sandstorm::InfluxDBExample.find_by_id('1')
+    expect(example).not_to be_nil
+
+    example.name = 'John Smith'
+    expect {example.save}.to raise_error
+  end
+
+  it "cannot write a point with an id that already exists for that time series" do
+    Sandstorm.influxdb.write_point('influx_db_example', :id => '1',
+      :attrs => {:name => 'Jane Doe', :email => 'jdoe@example.com', :active => 'true'})
+
+    example = example = Sandstorm::InfluxDBExample.new(:id => '1', :name => 'John Smith',
+      :email => 'jsmith@example.com', :active => true)
+    expect {example.save}.to raise_error
+  end
 
 end

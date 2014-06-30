@@ -11,7 +11,7 @@ module Sandstorm
       # NB not trying to handle steps yet
       def _exists?(id)
         return if id.nil?
-        Sandstorm.influxdb.query("SELECT id from #{@initial_set.klass}")[@initial_set.klass].size > 0
+        Sandstorm.influxdb.query("SELECT id from #{@initial_set.klass}")[@initial_set.klass].present?
       end
 
       private

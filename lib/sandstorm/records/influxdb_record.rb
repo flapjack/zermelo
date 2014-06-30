@@ -36,6 +36,13 @@ module Sandstorm
         set_backend :influxdb
       end
 
+      def save
+        raise "InfluxDB records cannot be updated" if persisted? ||
+          (!self.id.nil? && self.class.exists?(self.id))
+
+        super
+      end
+
     end
 
   end

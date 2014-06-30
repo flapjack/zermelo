@@ -89,20 +89,21 @@ module Sandstorm
       def lock(*klasses, &block)
         klasses |= [self]
         ret = nil
+        # doesn't handle re-entrant case for influxdb, which has no locking yet
         locking = Thread.current[:sandstorm_locking]
         if locking.nil?
-          backend.lock(*klasses).lock do
+          lock_proc = proc do
             begin
               Thread.current[:sandstorm_locking] = klasses
               ret = block.call
-
-            # rescue Exception => e
-            #   puts e.message
-            #   puts e.backtrace.join("\n")
-            #   raise e
             ensure
               Thread.current[:sandstorm_locking] = nil
             end
+          end
+          if backend_lock = backend.lock(*klasses)
+            backend_lock.lock(&lock_proc)
+          else
+            lock_proc.call
           end
         else
           # accepts any subset of 'locking'

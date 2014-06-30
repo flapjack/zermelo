@@ -35,50 +35,57 @@ module Sandstorm
 
         @attributes = {'id' => self.id}
 
-        # TODO start lock (this class only)
+        simple_attrs  = nil
+        complex_attrs = nil
 
-        # TODO unlock if returning
-        return false unless backend.exists?(simple_attributes)
+        record_exists = nil
 
-        @is_new = false
+        self.class.send(:lock) do
 
-        # TODO this is clunky
-        simple_attrs = backend.get_all( simple_attributes ).inject({}) do |memo, (name, value)|
-          if type = attr_types[name.to_sym]
-            memo[name] = case type
-            when :string
-              value.to_s
-            when :integer
-              value.to_i
-            when :float
-              value.to_f
-            when :timestamp
-              Time.at(value.to_f)
-            when :boolean
-              value.downcase == 'true'
+          if backend.exists?(simple_attributes)
+            record_exists = true
+            @is_new = false
+
+            simple_attrs = backend.get_all( simple_attributes ).inject({}) do |memo, (name, value)|
+              if type = attr_types[name.to_sym]
+                memo[name] = case type
+                when :string
+                  value.to_s
+                when :integer
+                  value.to_i
+                when :float
+                  value.to_f
+                when :timestamp
+                  Time.at(value.to_f)
+                when :boolean
+                  value.downcase == 'true'
+                end
+              end
+              memo
+            end
+
+            complex_attrs = complex_attributes.inject({}) do |memo, (name, item_key)|
+              if type = attr_types[name.to_sym]
+              memo[name] = case type
+                when :list
+                  backend.get_all(item_key)
+                when :set
+                  Set.new( backend.get_all(item_key) )
+                when :hash
+                  backend.get_all(item_key)
+                end
+              end
+              memo
             end
           end
-          memo
         end
 
-        complex_attrs = complex_attributes.inject({}) do |memo, (name, item_key)|
-          if type = attr_types[name.to_sym]
-          memo[name] = case type
-            when :list
-              backend.get_all(item_key)
-            when :set
-              Set.new( backend.get_all(item_key) )
-            when :hash
-              backend.get_all(item_key)
-            end
-          end
-          memo
-        end
-
-        # TODO end lock
+        return false unless record_exists
 
         @attributes.update(simple_attrs)
         @attributes.update(complex_attrs)
+
+        true
       end
 
       # TODO limit to only those attribute names defined in define_attributes
