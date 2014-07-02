@@ -35,55 +35,27 @@ module Sandstorm
 
         @attributes = {'id' => self.id}
 
-        simple_attrs  = nil
-        complex_attrs = nil
-
-        record_exists = nil
+        attrs = nil
 
         self.class.send(:lock) do
+          class_key = self.class.send(:class_key)
 
-          if backend.exists?(simple_attributes)
-            record_exists = true
-            @is_new = false
+          # TODO check for record existence in backend-agnostic fashion
+          @is_new = false
 
-            simple_attrs = backend.get_all( simple_attributes ).inject({}) do |memo, (name, value)|
-              if type = attr_types[name.to_sym]
-                memo[name] = case type
-                when :string
-                  value.to_s
-                when :integer
-                  value.to_i
-                when :float
-                  value.to_f
-                when :timestamp
-                  Time.at(value.to_f)
-                when :boolean
-                  value.downcase == 'true'
-                end
-              end
-              memo
-            end
+          attr_types = self.class.attribute_types.reject {|k, v| k == :id}
 
-            complex_attrs = complex_attributes.inject({}) do |memo, (name, item_key)|
-              if type = attr_types[name.to_sym]
-              memo[name] = case type
-                when :list
-                  backend.get_all(item_key)
-                when :set
-                  Set.new( backend.get_all(item_key) )
-                when :hash
-                  backend.get_all(item_key)
-                end
-              end
-              memo
-            end
+          attrs_to_load = attr_types.collect do |name, type|
+            Sandstorm::Records::Key.new(:class => class_key,
+              :id => self.id, :name => name, :type => type)
           end
+
+          attrs = backend.get(*attrs_to_load)[class_key][self.id]
         end
 
-        return false unless record_exists
+        # return false unless record_exists
 
-        @attributes.update(simple_attrs)
-        @attributes.update(complex_attrs)
+        @attributes.update(attrs) if attrs.present?
 
         true
       end
@@ -110,56 +82,14 @@ module Sandstorm
           idx_attrs = self.class.send(:indexed_attributes)
 
           self.class.transaction do
+            self.class.attribute_types.reject {|k, v|
+              k == :id
+            }.each_pair do |name, type|
+              attr_key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
+                :id => self.id, :name => name, :type => type)
 
-            simple_attrs = {}
-            remove_attrs = []
-
-            attr_types = self.class.attribute_types.reject {|k, v| k == :id}
-
-            attr_types.each_pair do |name, type|
               value = @attributes[name.to_s]
-              if value.nil?
-                remove_attrs << name.to_s
-                next
-              end
-              case type
-              when :string, :integer
-                simple_attrs[name.to_s] = value.blank? ? nil : value.to_s
-              when :timestamp
-                simple_attrs[name.to_s] = value.blank? ? nil : value.to_f
-              when :boolean
-                simple_attrs[name.to_s] = (!!value).to_s
-              when :list, :set, :hash
-                item_key = complex_attributes[name.to_s]
-                unless value.blank?
-                  case attr_types[name.to_sym]
-                  when :list
-                    backend.clear(item_key)
-                    backend.add(item_key, value)
-                  when :set
-                    backend.clear(item_key)
-                    backend.add(item_key, value.to_a)
-                  when :hash
-                    backend.clear(item_key)
-                    values = value.inject([]) do |memo, (k, v)|
-                      memo += [k, v]
-                    end
-                    backend.add(item_key, Hash[*values])
-                  end
-                end
-              end
-            end
-
-            # uses hmset
-            # TODO check that nil value deletes relevant hash key
-            unless remove_attrs.empty?
-              backend.delete(simple_attributes, remove_attrs)
-            end
-            values = simple_attrs.inject([]) do |memo, (k, v)|
-              memo += [k, v]
-            end
-            unless values.empty?
-              backend.add(simple_attributes, Hash[*values])
+              value.nil? ? backend.clear(attr_key) : backend.set(attr_key, value)
             end
 
             # update indices
@@ -195,6 +125,8 @@ module Sandstorm
       end
 
       def destroy
+        raise "Record was not persisted" if !persisted?
+
         run_callbacks :destroy do
 
           assoc_classes = self.class.send(:associated_classes)
@@ -209,29 +141,15 @@ module Sandstorm
                 self.class.send("#{att}_index", @attributes[att]).delete_id( @attributes['id'])
               }
 
-              backend.clear(simple_attributes)
-
-              complex_attr_types = self.class.attribute_types.select {|k, v|
-                [:list, :set, :hash].include?(v)
+              self.class.attribute_types.each_pair {|name, type|
+                key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
+                  :id => self.id, :name => name.to_s, :type => type)
+                backend.clear(key)
               }
 
-              # 1.8.7 shim
-              if complex_attr_types.is_a?(Array)
-                complex_attr_types = Hash[*complex_attr_types]
-              end
-
-              complex_attr_types.each_pair do |name, type|
-                item_key = complex_attributes[name.to_s]
-                case attr_types[name.to_sym]
-                when :list
-                  backend.list_clear(item_key)
-                when :set
-                  backend.set_clear(item_key)
-                when :hash
-                  backend.hash_clear(item_key)
-                end
-              end
-
+              record_key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
+                  :id => self.id)
+              backend.purge(record_key)
             end
 
           end
@@ -243,21 +161,6 @@ module Sandstorm
 
       def backend
         self.class.send(:backend)
-      end
-
-      def simple_attributes
-        @simple_attributes ||= Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
-          :id => self.id, :name => 'attrs', :type => :hash)
-      end
-
-      def complex_attributes
-        @complex_attributes ||= self.class.attribute_types.inject({}) do |memo, (name, type)|
-          if Sandstorm::COLLECTION_TYPES.has_key?(type)
-            memo[name.to_s] = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
-              :id => self.id, :name => "attrs:#{name}", :type => type)
-          end
-          memo
-        end
       end
 
       # http://stackoverflow.com/questions/7613574/activemodel-fields-not-mapped-to-accessors

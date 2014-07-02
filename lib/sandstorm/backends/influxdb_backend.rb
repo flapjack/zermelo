@@ -19,92 +19,168 @@ module Sandstorm
         Sandstorm::Filters::InfluxDBFilter.new(self, ids_key, record)
       end
 
+      def add(key, value)
+        change(:add, key, value)
+      end
+
+      def delete(key, value)
+        change(:delete, key, value)
+      end
+
+      def clear(key)
+        change(:clear, key)
+      end
+
+      def set(key, value)
+        change(:set, key, value)
+      end
+
+      def purge(key)
+        change(:purge, key)
+      end
+
       # TODO get filter calling this instead of using same logic
       def exists?(key)
         return if key.id.nil?
         Sandstorm.influxdb.query("SELECT id from #{key.klass}")[key.klass].size > 0
       end
 
-      # # only relevant for :sorted_set
-      # def get_at(key, index)
-      #   raise "Invalid data type for #get_at ('#{key.type})'" unless :sorted_set.eql?(key.type)
-      #   # TODO
-      # end
+      # nb: does lots of queries, should batch, but ensuring single operations are correct
+      # for now
+      def get(*attr_keys)
+        attr_keys.inject({}) do |memo, attr_key|
 
-      # only relevant for :sorted_set (e.g. redis by_score) & :hash
-      def get(key, value)
-        return if key.id.nil?
-
-        raise "Invalid data type for #get ('#{key.type})'" unless [:sorted_set, :hash].include?(key.type)
-        case key.type
-        # when :sorted_set
-        when :hash
-
-        end
-      end
-
-      def get_all(key)
-        return if key.id.nil?
-
-        case key.type
-        when :list, :hash
-          esc_id = if key.id.is_a?(Numeric)
-            key.id
+          esc_id = if attr_key.id.is_a?(Numeric)
+            attr_key.id
           else
-            "'" + key.id.gsub(/'/, "\\'").gsub(/\\/, "\\\\'") + "'"
+            "'" + attr_key.id.gsub(/'/, "\\'").gsub(/\\/, "\\\\'") + "'"
           end
 
-          records = Sandstorm.influxdb.query("select * from #{key.klass} where id = #{esc_id} limit 1")[key.klass]
-          (records && !records.empty?) ? records.first[key.name] : nil
-        when :set
-          esc_id = if key.id.is_a?(Number)
-            key.id
+          records = Sandstorm.influxdb.query("select #{attr_key.name} from #{attr_key.klass} where id = #{esc_id} limit 1")[attr_key.klass]
+          value = (records && !records.empty?) ? records.first[attr_key.name.to_s] : nil
+
+          memo[attr_key.klass] ||= {}
+          memo[attr_key.klass][attr_key.id] ||= {}
+
+          memo[attr_key.klass][attr_key.id][attr_key.name.to_s] = if value.nil?
+            nil
           else
-            "'" + key.id.gsub(/'/, "\\'").gsub(/\\/, "\\\\'") + "'"
+
+            case attr_key.type
+            when :string
+              value.to_s
+            when :integer
+              value.to_i
+            when :float
+              value.to_f
+            when :timestamp
+              Time.at(value.to_f)
+            when :boolean
+              case value
+              when TrueClass
+                true
+              when FalseClass
+                false
+              when String
+                'true'.eql?(value.downcase)
+              else
+                nil
+              end
+            when :list, :hash
+              # if sub_key.nil?
+                # get all
+                value
+              # else
+              #   # sub_key is an index (list) or hash key(hash)
+              #   value[sub_key]
+              # end
+            when :set
+              # if sub_key.nil?
+                # get all
+                Set.new(value)
+              # end
+            # when :sorted_set
+            end
           end
-
-          records = Sandstorm.influxdb.query("select #{key.name} from #{key.klass} where id = #{esc_id} limit 1")[key.klass]
-          (records && !records.empty?) ? Set.new(records.first[key.name]) : nil
-        # when :sorted_set
+          memo
         end
       end
 
-      def add(key, value)
-        case key.type
-        when :list, :set, :hash #, :sorted_set
-          @steps << [:add, key, value]
-        end
-      end
-
-      def lock(klasses, &block)
+      def lock(*klasses)
         # no-op
       end
 
+      def begin_transaction
+        @in_transaction = true
+        @changes = []
+      end
+
       def commit_transaction
+        apply_changes(@changes)
+        @in_transaction = false
+        @changes = []
+      end
+
+      def abort_transaction
+        @in_transaction = false
+        @changes = []
+      end
+
+      private
+
+      def change(op, key, value = nil)
+        ch = [op, key, value]
+        if @in_transaction
+          @changes << ch
+        else
+          apply_changes([ch])
+        end
+      end
+
+      # composite all new changes into records, and then into influxdb
+      # query statements
+      def apply_changes(changes)
         records = {}
 
-        @steps.each do |step|
-          op    = step[0]
-          key   = step[1]
-          value = step[2]
+        changes.each do |ch|
+          op    = ch[0]
+          key   = ch[1]
+          value = ch[2]
 
           next if key.id.nil?
 
           records[key.klass]         ||= {}
           records[key.klass][key.id] ||= {}
 
-          case op
+          unless [:set, :add].include?(op)
+            raise "Record updating, deletion not supported by InfluxDB backend"
+          end
+
+          records[key.klass][key.id][key.name] = case op
+          when :set
+            case key.type
+            when :string, :integer
+              value.to_s
+            when :timestamp
+              value.to_f
+            when :boolean
+              (!!value).to_s
+            when :list, :hash
+              value
+            when :set
+              value.to_a
+            # when :sorted_set
+            end
           when :add
             case key.type
-            when :list
-              records[key.klass][key.id][key.name] = value
+            when :list, :hash
+              value
             when :set
-              records[key.klass][key.id][key.name] = value.to_a
+              value.to_a
             # when :sorted_set
-            when :hash
-              records[key.klass][key.id][key.name] = value
             end
           end
+
         end
 
         records.each_pair do |klass, klass_records|
@@ -112,8 +188,6 @@ module Sandstorm
             Sandstorm.influxdb.write_point(klass, data.merge(:id => id))
           end
         end
-
-        super
       end
 
     end

@@ -14,11 +14,92 @@ module Sandstorm
         Sandstorm.influxdb.query("SELECT id from #{@initial_set.klass}")[@initial_set.klass].present?
       end
 
+      def ids
+        lock(false) { _ids }
+      end
+
+      def count
+        lock(false) { _count }
+      end
+
+      def empty?
+        lock(false) { _count == 0 }
+      end
+
+      def find_by_ids(ids)
+        lock { _ids.collect {|id| _find_by_id(id) } }
+      end
+
+      def all
+        lock { _ids.map {|id| _load(id) } }
+      end
+
       private
 
       def lock(when_steps_empty = true, *klasses, &block)
         # no-op
         block.call
+      end
+
+      def _ids
+        resolve_steps(:ids)
+      end
+
+      def _count
+        resolve_steps(:count)
+      end
+
+      def _all
+        _ids.map {|id| _load(id) }
+      end
+
+      def resolve_steps(result_type)
+        query = case result_type
+        when :ids
+          "SELECT id FROM #{@initial_set.klass}"
+        when :count
+          "SELECT COUNT(id) FROM #{@initial_set.klass}"
+        end
+
+        unless @steps.empty?
+
+          query += ' WHERE '
+          step_count = 0
+
+          @steps.each_slice(3) do |step|
+            step_type = step.first
+            options   = step[1] || {}
+            values    = step.last
+
+            query += ' AND ' if step_count > 0
+
+            query += values.collect {|k, v| "#{k} = '#{v}'" }.join(' AND ')
+
+            step_count += 2
+          end
+
+        end
+
+        # p query
+
+        result = Sandstorm.influxdb.query(query)
+
+        # p result
+
+        data = result[@initial_set.klass]
+
+        # p data
+
+        # p Sandstorm.influxdb.query('select * from /.*/')
+
+        return if data.nil?
+
+        case result_type
+        when :ids
+          data.collect {|d| d['id']}
+        when :count
+          data.first['count']
+        end
       end
 
     end

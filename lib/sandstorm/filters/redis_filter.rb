@@ -142,12 +142,6 @@ module Sandstorm
         _ids.each {|id| block.call(_load(id)) }
       end
 
-      def _load(id)
-        object = @associated_class.new
-        object.load(id)
-        object
-      end
-
       def temp_set_name
         "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
       end
@@ -198,7 +192,7 @@ module Sandstorm
         elsif [:intersect_range, :union_range].include?(step.first)
           range_ids_set = temp_set_name
 
-          options = step.last
+          options = step[1] || {}
 
           start = options[:start]
           finish = options[:finish]
@@ -281,11 +275,11 @@ module Sandstorm
         step_num = 0
         members = nil
 
-        @steps.each_slice(2) do |step|
-          step_num += 2
+        @steps.each_slice(3) do |step|
+          step_num += 3
 
           resolve_step(step, source_set, idx_attrs) do |source_keys|
-            options = step.last
+            options = step[1] || {}
             order_desc = order_desc ^ (options[:order] && 'desc'.eql?(options[:order].downcase))
 
             smember_shortcut = :smembers.eql?(shortcut) && (step_num == @steps.size)

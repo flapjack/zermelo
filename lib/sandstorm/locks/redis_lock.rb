@@ -25,6 +25,10 @@ module Sandstorm
         if block
           begin
             result = (block.arity == 1) ? block.call(self) : block.call
+          # rescue Exception => e
+          #   puts e.message
+          #   puts e.backtrace.join("\n")
+          #   raise e
           ensure
             release_lock
           end

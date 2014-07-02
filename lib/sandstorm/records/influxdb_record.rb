@@ -43,6 +43,12 @@ module Sandstorm
         super
       end
 
+      def destroy
+        raise "InfluxDB records cannot be destroyed" if persisted? ||
+          (!self.id.nil? && self.class.exists?(self.id))
+        super
+      end
+
     end
 
   end

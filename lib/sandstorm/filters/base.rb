@@ -20,27 +20,30 @@ module Sandstorm
       end
 
       def intersect(opts = {})
-        @steps += [:intersect, opts]
+        @steps += [:intersect, {}, opts]
         self
       end
 
       def union(opts = {})
-        @steps += [:union, opts]
+        @steps += [:union, {}, opts]
         self
       end
 
       def diff(opts = {})
-        @steps += [:diff, opts]
+        @steps += [:diff, {}, opts]
         self
       end
 
+      # TODO split data and arguments in step construction
       def intersect_range(start, finish, opts = {})
-        @steps += [:intersect_range, opts.merge(:start => start, :finish => finish)]
+        @steps += [:intersect_range, {:start => start, :finish => finish,
+          :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
         self
       end
 
       def union_range(start, finish, opts = {})
-        @steps += [:union_range, opts.merge(:start => start, :finish => finish)]
+        @steps += [:union_range, {:start => start, :finish => finish,
+          :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
         self
       end
 

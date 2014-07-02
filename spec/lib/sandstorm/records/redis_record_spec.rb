@@ -606,7 +606,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       time = Time.now
 
-      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time,
+      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time.to_i,
         :emotion => 'upset')
       create_datum(example, :id => '5', :summary => 'ok', :timestamp => time.to_i + 10,
         :emotion => 'happy')
@@ -614,6 +614,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
         :emotion => 'upset')
 
       data = example.data.intersect_range(0, 1, :order => 'desc').all
+
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
       expect(data.size).to eq(2)
