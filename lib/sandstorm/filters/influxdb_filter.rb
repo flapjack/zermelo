@@ -84,11 +84,7 @@ module Sandstorm
               end
             end
 
-            query += values.collect {|k, v| "#{k} = '#{v}'" }.join(' AND ')
-
-            if (@steps.size - step_count) > 0
-              query += ')'
-            end
+            query += values.collect {|k, v| "#{k} = '#{v}'" }.join(' AND ') + ")"
 
             step_count += 3
           end
