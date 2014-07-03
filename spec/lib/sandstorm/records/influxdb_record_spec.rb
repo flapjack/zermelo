@@ -162,6 +162,37 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(example.map(&:id)).to eq(['1'])
     end
 
+    it "chains two intersect filters together" do
+      create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
+        :active => 'true')
+      create_example(:id => '2', :name => 'John Smith',
+        :email => 'jsmith@example.com', :active => 'false')
+      create_example(:id => '3', :name => 'Fred Bloggs',
+        :email => 'fbloggs@example.com', :active => 'true')
+
+      example = Sandstorm::InfluxDBExample.intersect(:active => true).
+        intersect(:name => 'Jane Doe').all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['1'])
+    end
+
+    it "chains an intersect and a union filter together" do
+      create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
+        :active => 'true')
+      create_example(:id => '2', :name => 'John Smith',
+        :email => 'jsmith@example.com', :active => 'false')
+      create_example(:id => '3', :name => 'Fred Bloggs',
+        :email => 'fbloggs@example.com', :active => 'false')
+
+      example = Sandstorm::InfluxDBExample.intersect(:active => true).union(:name => 'Fred Bloggs').all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(2)
+      expect(example.map(&:id)).to eq(['3', '1'])
+    end
+
   end
 
 end

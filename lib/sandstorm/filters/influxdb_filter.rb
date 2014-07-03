@@ -66,33 +66,40 @@ module Sandstorm
           query += ' WHERE '
           step_count = 0
 
+          query += ('(' * (@steps.size / 3))
+
           @steps.each_slice(3) do |step|
             step_type = step.first
             options   = step[1] || {}
             values    = step.last
 
-            query += ' AND ' if step_count > 0
+            if step_count > 0
+              case step_type
+              when :intersect
+                query += ' AND '
+              when :union
+                query += ' OR '
+              else
+                raise "Unhandled filter operation '#{step_type}'"
+              end
+            end
 
             query += values.collect {|k, v| "#{k} = '#{v}'" }.join(' AND ')
 
-            step_count += 2
+            if (@steps.size - step_count) > 0
+              query += ')'
+            end
+
+            step_count += 3
           end
 
         end
 
-        # p query
-
         result = Sandstorm.influxdb.query(query)
-
-        # p result
 
         data = result[@initial_set.klass]
 
-        # p data
-
-        # p Sandstorm.influxdb.query('select * from /.*/')
-
-        return if data.nil?
+        return [] if data.nil?
 
         case result_type
         when :ids
