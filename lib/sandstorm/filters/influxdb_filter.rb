@@ -8,33 +8,13 @@ module Sandstorm
 
       include Sandstorm::Filters::Base
 
+      private
+
       # NB not trying to handle steps yet
       def _exists?(id)
         return if id.nil?
         Sandstorm.influxdb.query("SELECT id from #{@initial_set.klass}")[@initial_set.klass].present?
       end
-
-      def ids
-        lock(false) { _ids }
-      end
-
-      def count
-        lock(false) { _count }
-      end
-
-      def empty?
-        lock(false) { _count == 0 }
-      end
-
-      def find_by_ids(ids)
-        lock { _ids.collect {|id| _find_by_id(id) } }
-      end
-
-      def all
-        lock { _ids.map {|id| _load(id) } }
-      end
-
-      private
 
       def lock(when_steps_empty = true, *klasses, &block)
         # no-op
@@ -47,10 +27,6 @@ module Sandstorm
 
       def _count
         resolve_steps(:count)
-      end
-
-      def _all
-        _ids.map {|id| _load(id) }
       end
 
       def resolve_steps(result_type)

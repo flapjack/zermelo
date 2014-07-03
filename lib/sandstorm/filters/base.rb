@@ -34,7 +34,6 @@ module Sandstorm
         self
       end
 
-      # TODO split data and arguments in step construction
       def intersect_range(start, finish, opts = {})
         @steps += [:intersect_range, {:start => start, :finish => finish,
           :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
@@ -56,6 +55,43 @@ module Sandstorm
         lock { _find_by_id(id) }
       end
 
+      def ids
+        lock(false) { _ids }
+      end
+
+      def count
+        lock(false) { _count }
+      end
+
+      def empty?
+        lock(false) { _count == 0 }
+      end
+
+      def find_by_ids(ids)
+        lock { _ids.collect {|id| _find_by_id(id) } }
+      end
+
+      def all
+        lock { _all }
+      end
+
+      def collect(&block)
+        lock { _ids.collect {|id| block.call(_load(id))} }
+      end
+
+      def each(&block)
+        lock { _ids.each {|id| block.call(_load(id)) } }
+      end
+
+      def select(&block)
+        lock { _all.select {|obj| block.call(obj) } }
+      end
+      alias_method :find_all, :select
+
+      def reject(&block)
+        lock { _all.reject {|obj| block.call(obj)} }
+      end
+
       protected
 
       def _find_by_id(id)
@@ -70,6 +106,10 @@ module Sandstorm
         object = @associated_class.new
         object.load(id)
         object
+      end
+
+      def _all
+        _ids.map {|id| _load(id) }
       end
 
     end

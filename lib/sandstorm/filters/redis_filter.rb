@@ -16,27 +16,7 @@ module Sandstorm
 
       include Sandstorm::Filters::Base
 
-      # step users
-      def ids
-        lock(false) { _ids }
-      end
-
-      def count
-        lock(false) { _count }
-      end
-
-      def empty?
-        lock(false) { _count == 0 }
-      end
-
-      def find_by_ids(ids)
-        lock { _ids.collect {|id| _find_by_id(id) } }
-      end
-
-      def all
-        lock { _ids.map {|id| _load(id) } }
-      end
-
+      # more step users
       def first
         raise 'Can\'t get first member of a non-sorted set' unless @initial_set.type == :sorted_set
         lock {
@@ -65,25 +45,8 @@ module Sandstorm
         }
       end
 
-      def collect(&block)
-        lock { _ids.collect {|id| block.call(_load(id))} }
-      end
-
-      def each(&block)
-        lock { _each(&block) }
-      end
-
-      def select(&block)
-        lock { _all.select {|obj| block.call(obj) } }
-      end
-      alias_method :find_all, :select
-
-      def reject(&block)
-        lock { _all.reject {|obj| block.call(obj)} }
-      end
-
       def destroy_all
-        lock(*@associated_class.send(:associated_classes)) { _each {|r| r.destroy } }
+        lock(*@associated_class.send(:associated_classes)) { _all.each {|r| r.destroy } }
       end
       # end step users
 
@@ -121,10 +84,6 @@ module Sandstorm
         }
       end
 
-      def _all
-        _ids.map {|id| _load(id) }
-      end
-
       def _ids
         case @initial_set.type
         when :sorted_set
@@ -136,10 +95,6 @@ module Sandstorm
           resolve_steps(:smembers)
           # resolve_steps(:ids)
         end
-      end
-
-      def _each(&block)
-        _ids.each {|id| block.call(_load(id)) }
       end
 
       def temp_set_name
