@@ -51,7 +51,7 @@ module Sandstorm
 
             if step_count > 0
               case step_type
-              when :intersect
+              when :intersect, :diff
                 query += ' AND '
               when :union
                 query += ' OR '
@@ -60,7 +60,34 @@ module Sandstorm
               end
             end
 
-            query += values.collect {|k, v| "#{k} = '#{v}'" }.join(' AND ') + ")"
+            case step_type
+            when :intersect, :union
+              query += values.collect {|k, v|
+                op, value = case v
+                when String
+                  ["=~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
+                else
+                  ["=",  "'#{v}'"]
+                end
+
+               "#{k} #{op} #{value}"
+              }.join(' AND ')
+            when :diff
+              query += values.collect {|k, v|
+                op, value = case v
+                when String
+                  ["!~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
+                else
+                  ["!=",  "'#{v}'"]
+                end
+
+                "#{k} #{op} #{value}"
+              }.join(' AND ')
+            else
+              raise "Unhandled filter operation '#{step_type}'"
+            end
+
+            query += ")"
 
             step_count += 3
           end
