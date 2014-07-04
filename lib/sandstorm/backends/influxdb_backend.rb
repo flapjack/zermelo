@@ -87,19 +87,9 @@ module Sandstorm
                 nil
               end
             when :list, :hash
-              # if sub_key.nil?
-                # get all
-                value
-              # else
-              #   # sub_key is an index (list) or hash key(hash)
-              #   value[sub_key]
-              # end
+              value
             when :set
-              # if sub_key.nil?
-                # get all
-                Set.new(value)
-              # end
-            # when :sorted_set
+              Set.new(value)
             end
           end
           memo
@@ -169,7 +159,6 @@ module Sandstorm
               value
             when :set
               value.to_a
-            # when :sorted_set
             end
           when :add
             case key.type
@@ -177,7 +166,6 @@ module Sandstorm
               value
             when :set
               value.to_a
-            # when :sorted_set
             end
           end
 

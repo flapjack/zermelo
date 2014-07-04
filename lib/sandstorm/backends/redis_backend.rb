@@ -47,30 +47,11 @@ module Sandstorm
 
             case attr_key.type
             when :list
-              # if sub_key.nil?
-                # get all
-                Sandstorm.redis.lrange(complex_attr_key, 0, -1)
-              # else
-              #   # sub_key is an index
-              #   Sandstorm.redis.lrange(complex_attr_key, sub_key, sub_key)
-              # end
+              Sandstorm.redis.lrange(complex_attr_key, 0, -1)
             when :set
-              # if sub_key.nil?
-                # get all
-                Set.new( Sandstorm.redis.smembers(complex_attr_key) )
-              # end
-            when :sorted_set
-              # if sub_key.nil?
-              #   # get all
-              # else
-              #   # get sub
-              # end
+              Set.new( Sandstorm.redis.smembers(complex_attr_key) )
             when :hash
-              # if sub_key.nil?
-                Sandstorm.redis.hgetall(complex_attr_key)
-              # else
-              #   Sandstorm.redis.hget(complex_attr_key, sub_key)
-              # end
+              Sandstorm.redis.hgetall(complex_attr_key)
             end
 
           else
@@ -115,8 +96,6 @@ module Sandstorm
         case key.type
         when :set
           Sandstorm.redis.sismember(redis_key(key), id)
-        when :sorted_set
-          !Sandstorm.redis.zscore(redis_key(key), id).nil?
         else
           raise "Not implemented"
         end
@@ -188,7 +167,6 @@ module Sandstorm
               when :set
                 Sandstorm.redis.del(complex_attr_key) if :set.eql?(op)
                 Sandstorm.redis.sadd(complex_attr_key, value)
-              # when :sorted_set
               when :hash
                 Sandstorm.redis.del(complex_attr_key) if :set.eql?(op)
                 kv = value.inject([]) do |memo, (k, v)|
@@ -203,7 +181,6 @@ module Sandstorm
                 Sandstorm.redis.lrem(complex_attr_key, value, 0)
               when :set
                 Sandstorm.redis.srem(complex_attr_key, value)
-              # when :sorted_set
               when :hash
                 Sandstorm.redis.hdel(complex_attr_key, value)
               end
