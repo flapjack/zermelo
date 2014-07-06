@@ -10,10 +10,10 @@ module Sandstorm
 
       private
 
-      # NB not trying to handle steps yet
       def _exists?(id)
         return if id.nil?
-        Sandstorm.influxdb.query("SELECT id from #{@initial_set.klass}")[@initial_set.klass].present?
+        @steps += [:intersect, {}, {:id => id}]
+        resolve_steps(:count) > 0
       end
 
       def lock(when_steps_empty = true, *klasses, &block)
@@ -27,6 +27,43 @@ module Sandstorm
 
       def _count
         resolve_steps(:count)
+      end
+
+      def resolve_step(step)
+        query = ''
+
+        step_type = step.first
+        options   = step[1] || {}
+        values    = step.last
+
+        case step_type
+        when :intersect, :union
+          query += values.collect {|k, v|
+            op, value = case v
+            when String
+              ["=~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
+            else
+              ["=",  "'#{v}'"]
+            end
+
+           "#{k} #{op} #{value}"
+          }.join(' AND ')
+        when :diff
+          query += values.collect {|k, v|
+            op, value = case v
+            when String
+              ["!~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
+            else
+              ["!=",  "'#{v}'"]
+            end
+
+            "#{k} #{op} #{value}"
+          }.join(' AND ')
+        else
+          raise "Unhandled filter operation '#{step_type}'"
+        end
+
+        query
       end
 
       def resolve_steps(result_type)
@@ -45,9 +82,8 @@ module Sandstorm
           query += ('(' * (@steps.size / 3))
 
           @steps.each_slice(3) do |step|
+
             step_type = step.first
-            options   = step[1] || {}
-            values    = step.last
 
             if step_count > 0
               case step_type
@@ -60,32 +96,7 @@ module Sandstorm
               end
             end
 
-            case step_type
-            when :intersect, :union
-              query += values.collect {|k, v|
-                op, value = case v
-                when String
-                  ["=~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
-                else
-                  ["=",  "'#{v}'"]
-                end
-
-               "#{k} #{op} #{value}"
-              }.join(' AND ')
-            when :diff
-              query += values.collect {|k, v|
-                op, value = case v
-                when String
-                  ["!~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
-                else
-                  ["!=",  "'#{v}'"]
-                end
-
-                "#{k} #{op} #{value}"
-              }.join(' AND ')
-            else
-              raise "Unhandled filter operation '#{step_type}'"
-            end
+            query += resolve_step(step)
 
             query += ")"
 
@@ -98,13 +109,11 @@ module Sandstorm
 
         data = result[@initial_set.klass]
 
-        return [] if data.nil?
-
         case result_type
         when :ids
-          data.collect {|d| d['id']}
+          data.nil? ? [] : data.collect {|d| d['id']}
         when :count
-          data.first['count']
+          data.nil? ? 0 : data.first['count']
         end
       end
 
