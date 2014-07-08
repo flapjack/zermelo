@@ -13,7 +13,7 @@ module Sandstorm
           :id     => parent.id,
           :name   => 'belongs_to',
           :type   => :hash,
-          :object => :association,
+          :object => :association
         )
 
         @parent = parent

@@ -20,7 +20,7 @@ module Sandstorm
           :id     => parent.id,
           :name   => "#{name}_ids",
           :type   => :sorted_set,
-          :object => :association,
+          :object => :association
         )
 
         @key = options[:key]

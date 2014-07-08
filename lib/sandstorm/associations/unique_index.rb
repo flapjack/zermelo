@@ -44,7 +44,7 @@ module Sandstorm
           :class  => @class_key,
           :name   => "by_#{@attribute}",
           :type   => :hash,
-          :object => :index,
+          :object => :index
         )
       end
 

@@ -24,7 +24,7 @@ module Sandstorm
           :id    => parent.id,
           :name  => "#{name}_ids",
           :type  => :set,
-          :object => :association,
+          :object => :association
         )
 
         @name = name

@@ -52,7 +52,7 @@ module Sandstorm
           :class  => @class_key,
           :name   => "by_#{@attribute}:#{index_key}",
           :type   => :set,
-          :object => :index,
+          :object => :index
         )
       end
 

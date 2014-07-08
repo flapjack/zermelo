@@ -16,11 +16,11 @@ module Sandstorm
 
       def initialize(parent, name, options = {})
         @record_ids = Sandstorm::Records::Key.new(
-          :class => parent.class.send(:class_key),
-          :id    => parent.id,
-          :name  => "#{name}_ids",
-          :type  => :set,
-          :object => :association,
+          :class  => parent.class.send(:class_key),
+          :id     => parent.id,
+          :name   => "#{name}_ids",
+          :type   => :set,
+          :object => :association
         )
 
         @name = name
