@@ -14,11 +14,13 @@ module Sandstorm
                        :first, :last, :ids
 
       def initialize(parent, name, options = {})
+        @backend = parent.class.send(:backend)
         @record_ids = Sandstorm::Records::Key.new(
-          :class => parent.class.send(:class_key),
-          :id    => parent.id,
-          :name  => "#{name}_ids",
-          :type  => :sorted_set
+          :class  => parent.class.send(:class_key),
+          :id     => parent.id,
+          :name   => "#{name}_ids",
+          :type   => :sorted_set,
+          :object => :association,
         )
 
         @key = options[:key]
@@ -46,7 +48,7 @@ module Sandstorm
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
             end
           end
-          Sandstorm.redis.zadd(redis_key(@record_ids), *(records.map {|r| [r.send(@key.to_sym).to_f, r.id]}.flatten))
+          backend.add(@record_ids, (records.map {|r| [r.send(@key.to_sym).to_f, r.id]}.flatten))
         end
       end
 
@@ -60,37 +62,31 @@ module Sandstorm
               @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
             end
           end
-          Sandstorm.redis.zrem(redis_key(@record_ids), *records.map(&:id))
+          backend.delete(@record_ids, records.map(&:id))
         end
       end
 
       private
 
-      # TODO defined in backend, call there (or extract to key strategy)
-      def redis_key(key)
-        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
-      end
-
       # associated will be a belongs_to; on remove already runs inside a lock
       def on_remove
         unless @inverse.nil?
-          Sandstorm.redis.zrange(redis_key(@record_ids), 0, -1).each do |record_id|
+          self.ids.each do |record_id|
             # clear the belongs_to inverse value with this @parent.id
             @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
           end
         end
-        Sandstorm.redis.del(redis_key(@record_ids))
-      end
-
-      # TODO make generic to all backends
-      def backend
-        Sandstorm::Backends::RedisBackend.new
+        backend.clear(@record_ids)
       end
 
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
         backend.filter(@record_ids, @associated_class)
+      end
+
+      def backend
+        @backend ||= @parent.class.send(:backend)
       end
 
     end

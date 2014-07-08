@@ -71,9 +71,9 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
   def create_example(attrs = {})
     redis.hmset("redis_example:#{attrs[:id]}:attrs",
       {'name' => attrs[:name], 'email' => attrs[:email], 'active' => attrs[:active]}.to_a.flatten)
-    redis.sadd("redis_example::by_active:#{!!attrs[:active]}", attrs[:id])
-    redis.hset('redis_example::by_name', attrs[:name], attrs[:id])
-    redis.sadd('redis_example::ids', attrs[:id])
+    redis.sadd("redis_example::indices:by_active:#{!!attrs[:active]}", attrs[:id])
+    redis.hset('redis_example::indices:by_name', attrs[:name], attrs[:id])
+    redis.sadd('redis_example::attrs:ids', attrs[:id])
   end
 
   it "is invalid without a name" do
@@ -91,16 +91,16 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     expect(example).to be_valid
     expect(example.save).to be_truthy
 
-    expect(redis.keys('*')).to match_array(['redis_example::ids',
+    expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
                                'redis_example:1:attrs',
-                               'redis_example::by_name',
-                               'redis_example::by_active:true'])
-    expect(redis.smembers('redis_example::ids')).to eq(['1'])
+                               'redis_example::indices:by_name',
+                               'redis_example::indices:by_active:true'])
+    expect(redis.smembers('redis_example::attrs:ids')).to eq(['1'])
     expect(redis.hgetall('redis_example:1:attrs')).to eq(
       {'name' => 'John Smith', 'email' => 'jsmith@example.com', 'active' => 'true'}
     )
-    expect(redis.hgetall('redis_example::by_name')).to eq({'John Smith' => '1'})
-    expect(redis.smembers('redis_example::by_active:true')).to eq(
+    expect(redis.hgetall('redis_example::indices:by_name')).to eq({'John Smith' => '1'})
+    expect(redis.smembers('redis_example::indices:by_active:true')).to eq(
       ['1']
     )
   end
@@ -154,15 +154,15 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     example.email = 'jjanes@example.com'
     expect(example.save).to be_truthy
 
-    expect(redis.keys('*')).to match_array(['redis_example::ids',
+    expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
                                'redis_example:8:attrs',
-                               'redis_example::by_name',
-                               'redis_example::by_active:true'])
-    expect(redis.smembers('redis_example::ids')).to eq(['8'])
+                               'redis_example::indices:by_name',
+                               'redis_example::indices:by_active:true'])
+    expect(redis.smembers('redis_example::attrs:ids')).to eq(['8'])
     expect(redis.hgetall('redis_example:8:attrs')).to eq(
       {'name' => 'Jane Janes', 'email' => 'jjanes@example.com', 'active' => 'true'}
     )
-    expect(redis.smembers('redis_example::by_active:true')).to eq(
+    expect(redis.smembers('redis_example::indices:by_active:true')).to eq(
       ['8']
     )
   end
@@ -171,10 +171,10 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     create_example(:id => '8', :name => 'John Jones',
                    :email => 'jjones@example.com', :active => 'true')
 
-    expect(redis.keys('*')).to match_array(['redis_example::ids',
+    expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
                                'redis_example:8:attrs',
-                               'redis_example::by_name',
-                               'redis_example::by_active:true'])
+                               'redis_example::indices:by_name',
+                               'redis_example::indices:by_active:true'])
 
     example = Sandstorm::RedisExample.find_by_id('8')
     example.destroy
@@ -273,17 +273,17 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
   context "has_many" do
 
     def create_child(parent, attrs = {})
-      redis.sadd("redis_example:#{parent.id}:children_ids", attrs[:id])
+      redis.sadd("redis_example:#{parent.id}:assocs:children_ids", attrs[:id])
 
       redis.hmset("redis_example_child:#{attrs[:id]}:attrs",
                   {'name' => attrs[:name], 'important' => !!attrs[:important]}.to_a.flatten)
 
-      redis.hmset("redis_example_child:#{attrs[:id]}:belongs_to",
+      redis.hmset("redis_example_child:#{attrs[:id]}:assocs:belongs_to",
                   {'example_id' => parent.id}.to_a.flatten)
 
-      redis.sadd("redis_example_child::by_important:#{!!attrs[:important]}", attrs[:id])
+      redis.sadd("redis_example_child::indices:by_important:#{!!attrs[:important]}", attrs[:id])
 
-      redis.sadd('redis_example_child::ids', attrs[:id])
+      redis.sadd('redis_example_child::attrs:ids', attrs[:id])
     end
 
     it "sets a parent/child has_many relationship between two records in redis" do
@@ -296,25 +296,25 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       example = Sandstorm::RedisExample.find_by_id('8')
       example.children << child
 
-      expect(redis.keys('*')).to match_array(['redis_example::ids',
-                                 'redis_example::by_name',
-                                 'redis_example::by_active:true',
+      expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
+                                 'redis_example::indices:by_name',
+                                 'redis_example::indices:by_active:true',
                                  'redis_example:8:attrs',
-                                 'redis_example:8:children_ids',
-                                 'redis_example_child::ids',
+                                 'redis_example:8:assocs:children_ids',
+                                 'redis_example_child::attrs:ids',
                                  'redis_example_child:3:attrs',
-                                 'redis_example_child:3:belongs_to'])
+                                 'redis_example_child:3:assocs:belongs_to'])
 
-      expect(redis.smembers('redis_example::ids')).to eq(['8'])
-      expect(redis.smembers('redis_example::by_active:true')).to eq(
+      expect(redis.smembers('redis_example::attrs:ids')).to eq(['8'])
+      expect(redis.smembers('redis_example::indices:by_active:true')).to eq(
         ['8']
       )
       expect(redis.hgetall('redis_example:8:attrs')).to eq(
         {'name' => 'John Jones', 'email' => 'jjones@example.com', 'active' => 'true'}
       )
-      expect(redis.smembers('redis_example:8:children_ids')).to eq(['3'])
+      expect(redis.smembers('redis_example:8:assocs:children_ids')).to eq(['3'])
 
-      expect(redis.smembers('redis_example_child::ids')).to eq(['3'])
+      expect(redis.smembers('redis_example_child::attrs:ids')).to eq(['3'])
       expect(redis.hgetall('redis_example_child:3:attrs')).to eq(
         {'name' => 'Abel Tasman'}
       )
@@ -356,13 +356,13 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_child(example, :id => '3', :name => 'Abel Tasman')
       child = Sandstorm::RedisExampleChild.find_by_id('3')
 
-      expect(redis.smembers('redis_example_child::ids')).to eq(['3'])
-      expect(redis.smembers('redis_example:8:children_ids')).to eq(['3'])
+      expect(redis.smembers('redis_example_child::attrs:ids')).to eq(['3'])
+      expect(redis.smembers('redis_example:8:assocs:children_ids')).to eq(['3'])
 
       example.children.delete(child)
 
-      expect(redis.smembers('redis_example_child::ids')).to eq(['3'])    # child not deleted
-      expect(redis.smembers('redis_example:8:children_ids')).to eq([]) # but association is
+      expect(redis.smembers('redis_example_child::attrs:ids')).to eq(['3'])    # child not deleted
+      expect(redis.smembers('redis_example:8:assocs:children_ids')).to eq([]) # but association is
     end
 
     it "filters has_many records by indexed attribute values" do
@@ -419,21 +419,21 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_child(example, :id => '6', :name => 'Martin Luther King', :important => true)
       child = Sandstorm::RedisExampleChild.find_by_id('6')
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs',
-                            'redis_example:8:children_ids',
-                            'redis_example_child::ids',
-                            'redis_example_child::by_important:true',
+                            'redis_example:8:assocs:children_ids',
+                            'redis_example_child::attrs:ids',
+                            'redis_example_child::indices:by_important:true',
                             'redis_example_child:6:attrs',
-                            'redis_example_child:6:belongs_to'])
+                            'redis_example_child:6:assocs:belongs_to'])
 
       child.destroy
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs'])
     end
 
@@ -447,20 +447,20 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_child(example, :id => '6', :name => 'Martin Luther King', :important => true)
       child = Sandstorm::RedisExampleChild.find_by_id('6')
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs',
-                            'redis_example:8:children_ids',
-                            'redis_example_child::ids',
-                            'redis_example_child::by_important:true',
+                            'redis_example:8:assocs:children_ids',
+                            'redis_example_child::attrs:ids',
+                            'redis_example_child::indices:by_important:true',
                             'redis_example_child:6:attrs',
-                            'redis_example_child:6:belongs_to'])
+                            'redis_example_child:6:assocs:belongs_to'])
 
       example.destroy
 
-      expect(redis.keys).to match_array(['redis_example_child::ids',
-                            'redis_example_child::by_important:true',
+      expect(redis.keys).to match_array(['redis_example_child::attrs:ids',
+                            'redis_example_child::indices:by_important:true',
                             'redis_example_child:6:attrs'])
     end
 
@@ -469,16 +469,16 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
   context "has_sorted_set" do
 
     def create_datum(parent, attrs = {})
-      redis.zadd("redis_example:#{parent.id}:data_ids", attrs[:timestamp].to_i.to_f, attrs[:id])
+      redis.zadd("redis_example:#{parent.id}:assocs:data_ids", attrs[:timestamp].to_i.to_f, attrs[:id])
 
       redis.hmset("redis_example_datum:#{attrs[:id]}:attrs",
                   {'summary' => attrs[:summary], 'timestamp' => attrs[:timestamp].to_i.to_f,
                    'emotion' => attrs[:emotion]}.to_a.flatten)
 
-      redis.sadd("redis_example_datum::by_emotion:#{attrs[:emotion]}", attrs[:id])
-      redis.hset("redis_example_datum:#{attrs[:id]}:belongs_to", 'example_id', parent.id)
+      redis.sadd("redis_example_datum::indices:by_emotion:#{attrs[:emotion]}", attrs[:id])
+      redis.hset("redis_example_datum:#{attrs[:id]}:assocs:belongs_to", 'example_id', parent.id)
 
-      redis.sadd('redis_example_datum::ids', attrs[:id])
+      redis.sadd('redis_example_datum::attrs:ids', attrs[:id])
     end
 
     it "sets a parent/child has_sorted_set relationship between two records in redis" do
@@ -494,24 +494,24 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       example = Sandstorm::RedisExample.find_by_id('8')
       example.data << data
 
-      expect(redis.keys('*')).to match_array(['redis_example::ids',
-                                 'redis_example::by_name',
-                                 'redis_example::by_active:true',
+      expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
+                                 'redis_example::indices:by_name',
+                                 'redis_example::indices:by_active:true',
                                  'redis_example:8:attrs',
-                                 'redis_example:8:data_ids',
-                                 'redis_example_datum::ids',
+                                 'redis_example:8:assocs:data_ids',
+                                 'redis_example_datum::attrs:ids',
                                  'redis_example_datum:4:attrs',
-                                 'redis_example_datum:4:belongs_to'])
+                                 'redis_example_datum:4:assocs:belongs_to'])
 
-      expect(redis.smembers('redis_example_datum::ids')).to eq(['4'])
+      expect(redis.smembers('redis_example_datum::attrs:ids')).to eq(['4'])
       expect(redis.hgetall('redis_example_datum:4:attrs')).to eq(
         {'summary' => 'hello!', 'timestamp' => time.to_f.to_s}
       )
-      expect(redis.hgetall('redis_example_datum:4:belongs_to')).to eq(
+      expect(redis.hgetall('redis_example_datum:4:assocs:belongs_to')).to eq(
         {'example_id' => '8'}
       )
 
-      result = redis.zrange('redis_example:8:data_ids', 0, -1,
+      result = redis.zrange('redis_example:8:assocs:data_ids', 0, -1,
         :with_scores => true) # .should == [['4', time.to_f]]
       expect(result.size).to eq(1)
       expect(result.first.first).to eq('4')
@@ -548,13 +548,13 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '4', :summary => 'well then', :timestamp => time)
       datum = Sandstorm::RedisExampleDatum.find_by_id('4')
 
-      expect(redis.smembers('redis_example_datum::ids')).to eq(['4'])
-      expect(redis.zrange('redis_example:8:data_ids', 0, -1)).to eq(['4'])
+      expect(redis.smembers('redis_example_datum::attrs:ids')).to eq(['4'])
+      expect(redis.zrange('redis_example:8:assocs:data_ids', 0, -1)).to eq(['4'])
 
       example.data.delete(datum)
 
-      expect(redis.smembers('redis_example_datum::ids')).to eq(['4'])        # child not deleted
-      expect(redis.zrange('redis_example:8:data_ids', 0, -1)).to eq([]) # but association is
+      expect(redis.smembers('redis_example_datum::attrs:ids')).to eq(['4'])    # child not deleted
+      expect(redis.zrange('redis_example:8:assocs.data_ids', 0, -1)).to eq([]) # but association is
     end
 
     it "filters has_sorted_set records by indexed attribute values" do
@@ -713,21 +713,21 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
         :emotion => 'upset')
       datum = Sandstorm::RedisExampleDatum.find_by_id('6')
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs',
-                            'redis_example:8:data_ids',
-                            'redis_example_datum::ids',
-                            'redis_example_datum::by_emotion:upset',
+                            'redis_example:8:assocs:data_ids',
+                            'redis_example_datum::attrs:ids',
+                            'redis_example_datum::indices:by_emotion:upset',
                             'redis_example_datum:6:attrs',
-                            'redis_example_datum:6:belongs_to'])
+                            'redis_example_datum:6:assocs:belongs_to'])
 
       datum.destroy
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs'])
     end
 
@@ -741,20 +741,20 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs',
-                            'redis_example:8:data_ids',
-                            'redis_example_datum::ids',
-                            'redis_example_datum::by_emotion:upset',
+                            'redis_example:8:assocs:data_ids',
+                            'redis_example_datum::attrs:ids',
+                            'redis_example_datum::indices:by_emotion:upset',
                             'redis_example_datum:6:attrs',
-                            'redis_example_datum:6:belongs_to'])
+                            'redis_example_datum:6:assocs:belongs_to'])
 
       example.destroy
 
-      expect(redis.keys).to match_array(['redis_example_datum::ids',
-                            'redis_example_datum::by_emotion:upset',
+      expect(redis.keys).to match_array(['redis_example_datum::attrs:ids',
+                            'redis_example_datum::indices:by_emotion:upset',
                             'redis_example_datum:6:attrs'])
     end
 
@@ -776,7 +776,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       has_one :special, :class_name => 'Sandstorm::RedisExampleSpecial'
     end
 
-    it "sets and retrives a record via a has_one association" do
+    it "sets and retrieves a record via a has_one association" do
       create_example(:id => '8', :name => 'John Jones',
                      :email => 'jjones@example.com', :active => 'true')
 
@@ -786,29 +786,30 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       example = Sandstorm::RedisExample.find_by_id('8')
       example.special = special
 
-      expect(redis.keys('*')).to match_array(['redis_example::ids',
-                                 'redis_example::by_name',
-                                 'redis_example::by_active:true',
+      expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
+                                 'redis_example::indices:by_name',
+                                 'redis_example::indices:by_active:true',
                                  'redis_example:8:attrs',
-                                 'redis_example:8:special_id',
-                                 'redis_example_special::ids',
+                                 'redis_example:8:assocs',
+                                 'redis_example_special::attrs:ids',
                                  'redis_example_special:22:attrs',
-                                 'redis_example_special:22:belongs_to'])
+                                 'redis_example_special:22:assocs:belongs_to'])
 
-      expect(redis.get('redis_example:8:special_id')).to eq('22')
+      expect(redis.hgetall('redis_example:8:assocs')).to eq("special_id" => "22")
 
-      expect(redis.smembers('redis_example_special::ids')).to eq(['22'])
+      expect(redis.smembers('redis_example_special::attrs:ids')).to eq(['22'])
       expect(redis.hgetall('redis_example_special:22:attrs')).to eq(
         {'name' => 'Bill Smith'}
       )
 
-      expect(redis.hgetall('redis_example_special:22:belongs_to')).to eq(
+      expect(redis.hgetall('redis_example_special:22:assocs:belongs_to')).to eq(
         {'example_id' => '8'}
       )
 
       example2 = Sandstorm::RedisExample.find_by_id('8')
       special2 = example2.special
       expect(special2).not_to be_nil
+
       expect(special2.id).to eq('22')
       expect(special2.example.id).to eq('8')
     end
@@ -816,10 +817,10 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     def create_special(parent, attrs = {})
       redis.hmset("redis_example_special:#{attrs[:id]}:attrs", {'name' => attrs[:name]}.to_a.flatten)
 
-      redis.hset("redis_example_special:#{attrs[:id]}:belongs_to", 'example_id', parent.id)
-      redis.set("redis_example:#{parent.id}:special_id", attrs[:id])
+      redis.hset("redis_example_special:#{attrs[:id]}:assocs:belongs_to", 'example_id', parent.id)
+      redis.hset("redis_example:#{parent.id}:assocs", 'special_id', attrs[:id])
 
-      redis.sadd('redis_example_special::ids', attrs[:id])
+      redis.sadd('redis_example_special::attrs:ids', attrs[:id])
     end
 
     it 'clears the belongs_to association when the child record is deleted' do
@@ -829,20 +830,20 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_special(example, :id => '3', :name => 'Another Jones')
       special = Sandstorm::RedisExampleSpecial.find_by_id('3')
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs',
-                            'redis_example:8:special_id',
-                            'redis_example_special::ids',
+                            'redis_example:8:assocs',
+                            'redis_example_special::attrs:ids',
                             'redis_example_special:3:attrs',
-                            'redis_example_special:3:belongs_to'])
+                            'redis_example_special:3:assocs:belongs_to'])
 
       special.destroy
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs'])
     end
 
@@ -852,18 +853,18 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       example = Sandstorm::RedisExample.find_by_id('8')
       create_special(example, :id => '3', :name => 'Another Jones')
 
-      expect(redis.keys).to match_array(['redis_example::ids',
-                            'redis_example::by_name',
-                            'redis_example::by_active:true',
+      expect(redis.keys).to match_array(['redis_example::attrs:ids',
+                            'redis_example::indices:by_name',
+                            'redis_example::indices:by_active:true',
                             'redis_example:8:attrs',
-                            'redis_example:8:special_id',
-                            'redis_example_special::ids',
+                            'redis_example:8:assocs',
+                            'redis_example_special::attrs:ids',
                             'redis_example_special:3:attrs',
-                            'redis_example_special:3:belongs_to'])
+                            'redis_example_special:3:assocs:belongs_to'])
 
       example.destroy
 
-      expect(redis.keys).to match_array(['redis_example_special::ids',
+      expect(redis.keys).to match_array(['redis_example_special::attrs:ids',
                             'redis_example_special:3:attrs'])
     end
 
@@ -873,7 +874,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
     def create_template(attrs = {})
       redis.hmset("template:#{attrs[:id]}:attrs", {'name' => attrs[:name]}.to_a.flatten)
-      redis.sadd('template::ids', attrs[:id])
+      redis.sadd('template::attrs:ids', attrs[:id])
     end
 
     before(:each) do
@@ -888,25 +889,25 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       example.templates << template
 
-      expect(redis.keys('*')).to match_array(['redis_example::ids',
-                                 'redis_example::by_name',
-                                 'redis_example::by_active:true',
+      expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
+                                 'redis_example::indices:by_name',
+                                 'redis_example::indices:by_active:true',
                                  'redis_example:8:attrs',
-                                 'redis_example:8:templates_ids',
-                                 'template::ids',
+                                 'redis_example:8:assocs:templates_ids',
+                                 'template::attrs:ids',
                                  'template:2:attrs',
-                                 'template:2:examples_ids'])
+                                 'template:2:assocs:examples_ids'])
 
-      expect(redis.smembers('redis_example::ids')).to eq(['8'])
-      expect(redis.smembers('redis_example::by_active:true')).to eq(['8'])
+      expect(redis.smembers('redis_example::attrs:ids')).to eq(['8'])
+      expect(redis.smembers('redis_example::indices:by_active:true')).to eq(['8'])
       expect(redis.hgetall('redis_example:8:attrs')).to eq(
         {'name' => 'John Jones', 'email' => 'jjones@example.com', 'active' => 'true'}
       )
-      expect(redis.smembers('redis_example:8:templates_ids')).to eq(['2'])
+      expect(redis.smembers('redis_example:8:assocs:templates_ids')).to eq(['2'])
 
-      expect(redis.smembers('template::ids')).to eq(['2'])
+      expect(redis.smembers('template::attrs:ids')).to eq(['2'])
       expect(redis.hgetall('template:2:attrs')).to eq({'name' => 'Template 1'})
-      expect(redis.smembers('template:2:examples_ids')).to eq(['8'])
+      expect(redis.smembers('template:2:assocs:examples_ids')).to eq(['8'])
     end
 
     it "loads a record from a has_and_belongs_to_many relationship" do
@@ -930,13 +931,13 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       template.examples << example
 
-      expect(redis.smembers('template::ids')).to eq(['2'])
-      expect(redis.smembers('redis_example:8:templates_ids')).to eq(['2'])
+      expect(redis.smembers('template::attrs:ids')).to eq(['2'])
+      expect(redis.smembers('redis_example:8:assocs:templates_ids')).to eq(['2'])
 
       example.templates.delete(template)
 
-      expect(redis.smembers('template::ids')).to eq(['2'])        # template not deleted
-      expect(redis.smembers('redis_example:8:templates_ids')).to eq([]) # but association is
+      expect(redis.smembers('template::attrs:ids')).to eq(['2'])        # template not deleted
+      expect(redis.smembers('redis_example:8:assocs:templates_ids')).to eq([]) # but association is
     end
 
     it "filters has_and_belongs_to_many records by indexed attribute values" do

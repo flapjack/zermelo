@@ -9,10 +9,11 @@ module Sandstorm
 
       def initialize(parent, name, options = {})
         @record_ids = Sandstorm::Records::Key.new(
-          :class => parent.class.send(:class_key),
-          :id    => parent.id,
-          :name  => 'belongs_to',
-          :type  => :hash
+          :class  => parent.class.send(:class_key),
+          :id     => parent.id,
+          :name   => 'belongs_to',
+          :type   => :hash,
+          :object => :association,
         )
 
         @parent = parent
@@ -34,17 +35,18 @@ module Sandstorm
       # intrinsically atomic, so no locking needed
       def value=(record)
         if record.nil?
-          Sandstorm.redis.hdel(redis_key(@record_ids), @inverse_key)
+          backend.delete(@record_ids, @inverse_key)
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
-          Sandstorm.redis.hset(redis_key(@record_ids), @inverse_key, record.id)
+          backend.add(@record_ids, @inverse_key => record.id)
         end
       end
 
       def value
         @parent.class.send(:lock, @parent.class, @associated_class) do
-          if id = Sandstorm.redis.hget(redis_key(@record_ids), @inverse_key)
+          # FIXME uses hgetall, need separate getter for hash/list/set
+          if id = backend.get(@record_ids)[@inverse_key.to_s]
             @associated_class.send(:load, id)
           else
             nil
@@ -54,15 +56,14 @@ module Sandstorm
 
       private
 
-      # TODO defined in backend, call there (or extract to key strategy)
-      def redis_key(key)
-        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
-      end
-
       # on remove already runs inside a lock
       def on_remove
         value.send("#{@inverse}_proxy".to_sym).send(:delete, @parent) unless value.nil?
-        Sandstorm.redis.del(redis_key(@record_ids))
+        backend.clear(@record_ids)
+      end
+
+      def backend
+        @backend ||= @parent.class.send(:backend)
       end
 
     end

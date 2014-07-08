@@ -33,7 +33,7 @@ describe Sandstorm::Backends::RedisBackend, :redis => true do
       example = Sandstorm::RedisLockExample.new(:name => 'temporary')
       example.save
 
-      example_keys = ["redis_lock_example::ids", "redis_lock_example:#{example.id}:attrs"]
+      example_keys = ["redis_lock_example::attrs:ids", "redis_lock_example:#{example.id}:attrs"]
       expect(redis.keys).to match_array(lock_keys + example_keys)
 
       unlocked = slock.unlock
@@ -58,8 +58,8 @@ describe Sandstorm::Backends::RedisBackend, :redis => true do
       another_example = Sandstorm::AnotherExample.new(:age => 36)
       another_example.save
 
-      example_keys = ["redis_lock_example::ids", "redis_lock_example:#{redis_lock_example.id}:attrs",
-        "another_example::ids", "another_example:#{another_example.id}:attrs"]
+      example_keys = ["redis_lock_example::attrs:ids", "redis_lock_example:#{redis_lock_example.id}:attrs",
+        "another_example::attrs:ids", "another_example:#{another_example.id}:attrs"]
       expect(redis.keys).to match_array(lock_keys + example_keys)
 
       unlocked = slock.unlock

@@ -47,7 +47,7 @@ module Sandstorm
 
       # nb: does lots of queries, should batch, but ensuring single operations are correct
       # for now
-      def get(*attr_keys)
+      def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
 
           esc_id = if attr_key.id.is_a?(Numeric)

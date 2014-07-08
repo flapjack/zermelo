@@ -108,10 +108,11 @@ module Sandstorm
         when Sandstorm::Associations::UniqueIndex
           idx_result = temp_set_name
           Sandstorm.redis.sadd(idx_result,
-            Sandstorm.redis.hget(@associated_class.send("#{att}_index", value).key, value))
+            Sandstorm.redis.hget(backend.key_to_redis_key(
+              @associated_class.send("#{att}_index", value).key), value))
           [idx_result, true]
         when Sandstorm::Associations::Index
-          [index.key, false]
+          [backend.key_to_redis_key(index.key), false]
         end
       end
 
@@ -208,7 +209,7 @@ module Sandstorm
       # takes a block and passes the name of the temporary set to it; deletes
       # the temporary set once done
       def resolve_steps(shortcut = nil, &block)
-        source_set = backend.redis_key(@initial_set)
+        source_set = backend.key_to_redis_key(@initial_set)
         ret = nil
 
         if @steps.empty?

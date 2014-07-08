@@ -7,10 +7,11 @@ module Sandstorm
 
       def initialize(parent, name, options = {})
         @record_id = Sandstorm::Records::Key.new(
-          :class => parent.class.send(:class_key),
-          :id    => parent.id,
-          :name  => "#{name}_id",
-          :type  => :hash
+          :class  => parent.class.send(:class_key),
+          :id     => parent.id,
+          :name   => "#{name}_id",
+          :type   => :string,
+          :object => :association,
         )
 
         @parent = parent
@@ -23,7 +24,7 @@ module Sandstorm
 
       def value
         @parent.class.send(:lock, @parent.class, @associated_class) do
-          if id = Sandstorm.redis.get(redis_key(@record_id))
+          if id = backend.get(@record_id)
             @associated_class.send(:load, id)
           else
             nil
@@ -38,7 +39,7 @@ module Sandstorm
           unless @inverse.nil?
             @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
           end
-          Sandstorm.redis.set(redis_key(@record_id), record.id)
+          backend.set(@record_id, record.id)
         end
       end
 
@@ -52,27 +53,25 @@ module Sandstorm
 
       private
 
-      # TODO defined in backend, call there (or extract to key strategy)
-      def redis_key(key)
-        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
-      end
-
       def delete_without_lock(record)
         unless @inverse.nil?
-          record_id = Sandstorm.redis.get(redis_key(@record_id))
-          @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
+          @associated_class.send(:load, backend.get(@record_id)).send("#{@inverse}=", nil)
         end
-        Sandstorm.redis.del(redis_key(@record_id))
+        backend.clear(@record_id)
       end
 
       # associated will be a belongs_to; on_remove already runs inside lock
       def on_remove
         unless @inverse.nil?
-          if record_id = Sandstorm.redis.get(redis_key(@record_id))
+          if record_id = backend.get(@record_id)
             @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
           end
         end
-        Sandstorm.redis.del(redis_key(@record_id))
+        backend.clear(@record_id)
+      end
+
+      def backend
+        @backend ||= @parent.class.send(:backend)
       end
 
     end

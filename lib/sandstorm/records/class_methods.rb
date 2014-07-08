@@ -117,7 +117,7 @@ module Sandstorm
 
       def ids_key
         @ids_key ||= Sandstorm::Records::Key.new(:class => class_key, :name => 'ids',
-          :type => :set)
+          :type => :set, :object => :attribute)
       end
 
       def class_key

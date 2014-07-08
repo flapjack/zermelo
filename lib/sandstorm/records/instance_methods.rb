@@ -47,10 +47,10 @@ module Sandstorm
 
           attrs_to_load = attr_types.collect do |name, type|
             Sandstorm::Records::Key.new(:class => class_key,
-              :id => self.id, :name => name, :type => type)
+              :id => self.id, :name => name, :type => type, :object => :attribute)
           end
 
-          attrs = backend.get(*attrs_to_load)[class_key][self.id]
+          attrs = backend.get_multiple(*attrs_to_load)[class_key][self.id]
         end
 
         # return false unless record_exists
@@ -86,7 +86,7 @@ module Sandstorm
               k == :id
             }.each_pair do |name, type|
               attr_key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
-                :id => self.id, :name => name, :type => type)
+                :id => self.id, :name => name, :type => type, :object => :attribute)
 
               value = @attributes[name.to_s]
               value.nil? ? backend.clear(attr_key) : backend.set(attr_key, value)
@@ -143,7 +143,7 @@ module Sandstorm
 
               self.class.attribute_types.each_pair {|name, type|
                 key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
-                  :id => self.id, :name => name.to_s, :type => type)
+                  :id => self.id, :name => name.to_s, :type => type, :object => :attribute)
                 backend.clear(key)
               }
 

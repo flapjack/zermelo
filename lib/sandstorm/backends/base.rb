@@ -8,6 +8,10 @@ module Sandstorm
 
       extend ActiveSupport::Concern
 
+      def get(attr_key)
+        get_multiple(attr_key)[attr_key.klass][attr_key.id][attr_key.name.to_s]
+      end
+
     end
 
   end

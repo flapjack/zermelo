@@ -7,7 +7,8 @@ module Sandstorm
       def initialize(parent, class_key, att)
         @indexers = {}
 
-        @parent = parent
+        @backend   = parent.send(:backend)
+        @parent    = parent
         @class_key = class_key
         @attribute = att
       end
@@ -21,35 +22,29 @@ module Sandstorm
       end
 
       def delete_id(id)
-        Sandstorm.redis.hdel(redis_key(indexer), @value)
+        @backend.delete(indexer, @value)
       end
 
       def add_id(id)
-        Sandstorm.redis.hset(redis_key(indexer), @value, id)
+        @backend.add(indexer, @value => id)
       end
 
       def move_id(id, indexer_to)
-        # TODO locking
-        Sandstorm.redis.hdel(redis_key(indexer), @value)
-        Sandstorm.redis.hset(redis_key(indexer), indexer_to.value, id)
+        @backend.move(indexer, {indexer_to.value => id}, indexer_to.key)
       end
 
       def key
-        redis_key(indexer)
+        indexer
       end
 
       private
 
-      # TODO defined in backend, call there (or extract to key strategy)
-      def redis_key(key)
-        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
-      end
-
       def indexer
         @indexer ||= Sandstorm::Records::Key.new(
-          :class => @class_key,
-          :name  => "by_#{@attribute}",
-          :type  => :hash
+          :class  => @class_key,
+          :name   => "by_#{@attribute}",
+          :type   => :hash,
+          :object => :index,
         )
       end
 

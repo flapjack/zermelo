@@ -16,6 +16,7 @@ module Sandstorm
         Sandstorm::Filters::RedisFilter.new(self, ids_key, record)
       end
 
+      # for hashes, lists, sets
       def add(key, value)
         change(:add, key, value)
       end
@@ -24,10 +25,16 @@ module Sandstorm
         change(:delete, key, value)
       end
 
+      def move(key, value, key_to)
+        change(:move, key, value, key_to)
+      end
+
       def clear(key)
         change(:clear, key)
       end
 
+      # works for both simple and complex types (i.e. strings, numbers, booleans,
+      #  hashes, lists, sets)
       def set(key, value)
         change(:set, key, value)
       end
@@ -36,27 +43,28 @@ module Sandstorm
         change(:purge, key)
       end
 
-      def get(*attr_keys)
+      def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
+
+          redis_attr_key = key_to_redis_key(attr_key)
 
           memo[attr_key.klass] ||= {}
           memo[attr_key.klass][attr_key.id] ||= {}
           memo[attr_key.klass][attr_key.id][attr_key.name.to_s] = if Sandstorm::COLLECTION_TYPES.has_key?(attr_key.type)
 
-            complex_attr_key = "#{key.klass}:#{key.id}:attrs:#{attr_key.name}"
-
             case attr_key.type
             when :list
-              Sandstorm.redis.lrange(complex_attr_key, 0, -1)
+              Sandstorm.redis.lrange(redis_attr_key, 0, -1)
             when :set
-              Set.new( Sandstorm.redis.smembers(complex_attr_key) )
+              Set.new( Sandstorm.redis.smembers(redis_attr_key) )
             when :hash
-              Sandstorm.redis.hgetall(complex_attr_key)
+              Sandstorm.redis.hgetall(redis_attr_key)
+            when :sorted_set
+              Sandstorm.redis.zrange(redis_attr_key, 0, -1)
             end
 
           else
-            value = Sandstorm.redis.hget("#{attr_key.klass}:#{attr_key.id}:attrs",
-                                         attr_key.name.to_s)
+            value = Sandstorm.redis.hget(redis_attr_key, attr_key.name.to_s)
 
             if value.nil?
               nil
@@ -89,13 +97,13 @@ module Sandstorm
       end
 
       def exists?(key)
-        Sandstorm.redis.exists(redis_key(key))
+        Sandstorm.redis.exists(key_to_redis_key(key))
       end
 
       def include?(key, id)
         case key.type
         when :set
-          Sandstorm.redis.sismember(redis_key(key), id)
+          Sandstorm.redis.sismember(key_to_redis_key(key), id)
         else
           raise "Not implemented"
         end
@@ -124,14 +132,26 @@ module Sandstorm
         @changes = []
       end
 
-      def redis_key(key)
-        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
+      # used by redis_filter
+      def key_to_redis_key(key)
+        obj = case key.object
+        when :attribute
+          'attrs'
+        when :association
+          'assocs'
+        when :index
+          'indices'
+        end
+
+        name = Sandstorm::COLLECTION_TYPES.has_key?(key.type) ? ":#{key.name}" : ''
+
+        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{obj}#{name}"
       end
 
       private
 
-      def change(op, key, value = nil)
-        ch = [op, key, value]
+      def change(op, key, value = nil, key_to = nil)
+        ch = [op, key, value, key_to]
         if @in_transaction
           @changes << ch
         else
@@ -144,19 +164,16 @@ module Sandstorm
 
         purges = []
 
-        # p changes
-
         changes.each do |ch|
-          op    = ch[0]
-          key   = ch[1]
-          value = ch[2]
+          op     = ch[0]
+          key    = ch[1]
+          value  = ch[2]
+          key_to = ch[3]
 
           # TODO check that collection types handle nil value for whole thing
           if Sandstorm::COLLECTION_TYPES.has_key?(key.type)
 
-            complex_attr_key = key.id.nil? ?
-              "#{key.klass}::#{key.name}" :
-              "#{key.klass}:#{key.id}:attrs:#{key.name}"
+            complex_attr_key = key_to_redis_key(key)
 
             case op
             when :add, :set
@@ -174,6 +191,21 @@ module Sandstorm
                   memo
                 end
                 Sandstorm.redis.hmset(complex_attr_key, *kv)
+              when :sorted_set
+                Sandstorm.redis.zadd(complex_attr_key, *value)
+              end
+            when :move
+              case key.type
+              when :set
+                Sandstorm.redis.smove(complex_attr_key, key_to_redis_key(key_to), value)
+              when :list
+                raise "Not yet implemented"
+              when :hash
+                values = value.to_a.flatten
+                Sandstorm.redis.hdel(complex_attr_key, values)
+                Sandstorm.redis.hset(key_to_redis_key(key_to), *values)
+              when :sorted_set
+                raise "Not yet implemented"
               end
             when :delete
               case key.type
@@ -183,15 +215,18 @@ module Sandstorm
                 Sandstorm.redis.srem(complex_attr_key, value)
               when :hash
                 Sandstorm.redis.hdel(complex_attr_key, value)
+              when :sorted_set
+                Sandstorm.redis.zrem(complex_attr_key, value)
               end
             when :clear
               Sandstorm.redis.del(complex_attr_key)
             end
 
           elsif :purge.eql?(op)
-            purges << "#{key.klass}:#{key.id}:attrs"
+            # TODO get keys for all assocs & indices, purge them too
+            purges << ["#{key.klass}:#{key.id}:attrs"]
           else
-            simple_attr_key = "#{key.klass}:#{key.id}:attrs"
+            simple_attr_key = key_to_redis_key(key)
             simple_attrs[simple_attr_key] ||= {}
 
             case op

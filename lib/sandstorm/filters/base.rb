@@ -92,7 +92,7 @@ module Sandstorm
         lock { _all.reject {|obj| block.call(obj)} }
       end
 
-      protected
+      private
 
       def _find_by_id(id)
         if !id.nil? && _exists?(id)

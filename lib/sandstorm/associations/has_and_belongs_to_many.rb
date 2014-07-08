@@ -23,7 +23,8 @@ module Sandstorm
           :class => parent.class.send(:class_key),
           :id    => parent.id,
           :name  => "#{name}_ids",
-          :type  => :set
+          :type  => :set,
+          :object => :association,
         )
 
         @name = name
@@ -70,38 +71,32 @@ module Sandstorm
 
       private
 
-      # TODO defined in backend, call there (or extract to key strategy)
-      def redis_key(key)
-        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{key.name}"
-      end
-
       def add_without_inverse(*records)
-        Sandstorm.redis.sadd(redis_key(@record_ids), records.map(&:id))
+        backend.add(@record_ids, records.map(&:id))
       end
 
       def delete_without_inverse(*records)
-        Sandstorm.redis.srem(redis_key(@record_ids), records.map(&:id))
+        backend.delete(@record_ids, records.map(&:id))
       end
 
       # associated will be the other side of the HaBTM; on_remove is always
       # called inside a lock
       def on_remove
-        Sandstorm.redis.smembers(redis_key(@record_ids)).each do |record_id|
+        ids.each do |record_id|
           @associated_class.send(:load, record_id).send(@inverse.to_sym).
             send(:delete_without_inverse, @parent)
         end
-        Sandstorm.redis.del(redis_key(@record_ids))
-      end
-
-      # TODO make generic to all backends
-      def backend
-        Sandstorm::Backends::RedisBackend.new
+        backend.purge(@record_ids)
       end
 
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
         backend.filter(@record_ids, @associated_class)
+      end
+
+      def backend
+        @backend ||= @parent.class.send(:backend)
       end
 
     end

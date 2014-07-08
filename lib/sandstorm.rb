@@ -4,6 +4,7 @@ require 'time'
 
 module Sandstorm
 
+  # acceptable class types, which will be normalized on a per-backend basis
   ATTRIBUTE_TYPES  = {:string     => [String],
                       :integer    => [Integer],
                       :float      => [Float],
@@ -15,6 +16,7 @@ module Sandstorm
   COLLECTION_TYPES = {:list       => [Enumerable],
                       :set        => [Set],
                       :hash       => [Hash],
+                      :sorted_set => [Enumerable]
                      }
 
   ALL_TYPES = ATTRIBUTE_TYPES.merge(COLLECTION_TYPES)
