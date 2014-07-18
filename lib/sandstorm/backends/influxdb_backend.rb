@@ -19,26 +19,6 @@ module Sandstorm
         Sandstorm::Filters::InfluxDBFilter.new(self, ids_key, record)
       end
 
-      def add(key, value)
-        change(:add, key, value)
-      end
-
-      def delete(key, value)
-        change(:delete, key, value)
-      end
-
-      def clear(key)
-        change(:clear, key)
-      end
-
-      def set(key, value)
-        change(:set, key, value)
-      end
-
-      def purge(key)
-        change(:purge, key)
-      end
-
       # TODO get filter calling this instead of using same logic
       def exists?(key)
         return if key.id.nil?
@@ -50,13 +30,15 @@ module Sandstorm
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
 
+          # todo extract id esacping out to a separate method, call from filter
           esc_id = if attr_key.id.is_a?(Numeric)
             attr_key.id
           else
             "'" + attr_key.id.gsub(/'/, "\\'").gsub(/\\/, "\\\\'") + "'"
           end
 
-          records = Sandstorm.influxdb.query("select #{attr_key.name} from #{attr_key.klass} where id = #{esc_id} limit 1")[attr_key.klass]
+          records = Sandstorm.influxdb.query("select #{attr_key.name} from " +
+            "#{attr_key.klass} where id = #{esc_id} limit 1")[attr_key.klass]
           value = (records && !records.empty?) ? records.first[attr_key.name.to_s] : nil
 
           memo[attr_key.klass] ||= {}

@@ -18,17 +18,12 @@ module Sandstorm
                        :all, :each, :collect, :select, :find_all, :reject,
                        :ids
 
-      def initialize(parent, name, options = {})
-        @record_ids = Sandstorm::Records::Key.new(
-          :class => parent.class.send(:class_key),
-          :id    => parent.id,
-          :name  => "#{name}_ids",
-          :type  => :set,
-          :object => :association
-        )
-
-        @name = name
+      def initialize(parent, name, record_ids_key, backend, options = {})
         @parent = parent
+        @name = name
+
+        @record_ids_key = record_ids_key
+        @backend = backend
 
         # TODO trap possible constantize error
         @associated_class = (options[:class_name] || name.classify).constantize
@@ -72,11 +67,15 @@ module Sandstorm
       private
 
       def add_without_inverse(*records)
-        backend.add(@record_ids, records.map(&:id))
+        new_txn = @backend.begin_transaction
+        @backend.add(@record_ids_key, records.map(&:id))
+        @backend.commit_transaction if new_txn
       end
 
       def delete_without_inverse(*records)
-        backend.delete(@record_ids, records.map(&:id))
+        new_txn = @backend.begin_transaction
+        @backend.delete(@record_ids_key, records.map(&:id))
+        @backend.commit_transaction if new_txn
       end
 
       # associated will be the other side of the HaBTM; on_remove is always
@@ -86,17 +85,13 @@ module Sandstorm
           @associated_class.send(:load, record_id).send(@inverse.to_sym).
             send(:delete_without_inverse, @parent)
         end
-        backend.purge(@record_ids)
+        @backend.purge(@record_ids_key)
       end
 
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
-        backend.filter(@record_ids, @associated_class)
-      end
-
-      def backend
-        @backend ||= @parent.class.send(:backend)
+        @backend.filter(@record_ids_key, @associated_class)
       end
 
     end

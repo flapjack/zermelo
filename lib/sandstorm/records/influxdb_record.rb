@@ -8,49 +8,44 @@ require 'sandstorm/records/base'
 
 # a save will delete (if required) and create the row
 
-# if time and sequence_number fields do not exist, they will be created automatically
-# ( this is done by influxdb ).
+# if time field does not exist, this will be created automatically by influxdb
 
 # indexing -- not really relevant until query building has been worked on, but
 # everything in the influxdb query language should be supportable, maybe those
 # just indicate what should be queryable?
 
-# TODO ensure time_precision is set for the incoming data
-
+# TODO: ensure time_precision is set for the incoming data
 
 # class level values are in other time series (with similar names to the
 # related redis sets)
 
-
 module Sandstorm
-
   module Records
-
     module InfluxDBRecord
-
       extend ActiveSupport::Concern
 
       include Sandstorm::Records::Base
 
       included do
         set_backend :influxdb
+
+        # define_attributes :time             => :timestamp
+                          # :sequence_number  => :float
+
       end
 
       def save
-        raise "InfluxDB records cannot be updated" if persisted? ||
-          (!self.id.nil? && self.class.exists?(self.id))
+        # raise 'InfluxDB records cannot be updated' if persisted? ||
+        #   (!id.nil? && self.class.exists?(id))
 
         super
       end
 
       def destroy
-        raise "InfluxDB records cannot be destroyed" if persisted? ||
-          (!self.id.nil? && self.class.exists?(self.id))
+        raise 'InfluxDB records cannot be destroyed' if persisted? ||
+          (!id.nil? && self.class.exists?(id))
         super
       end
-
     end
-
   end
-
 end

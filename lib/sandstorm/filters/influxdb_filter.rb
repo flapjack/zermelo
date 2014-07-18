@@ -1,9 +1,7 @@
 require 'sandstorm/filters/base'
 
 module Sandstorm
-
   module Filters
-
     class InfluxDBFilter
 
       include Sandstorm::Filters::Base
@@ -66,20 +64,50 @@ module Sandstorm
         query
       end
 
+      def escaped_id(id)
+        if id.is_a?(Numeric)
+          id
+        else
+          "'" + id.gsub(/'/, "\\'").gsub(/\\/, "\\\\'") + "'"
+        end
+      end
+
       def resolve_steps(result_type)
         query = case result_type
         when :ids
-          "SELECT id FROM #{@initial_set.klass}"
+          "SELECT DISTINCT(id) as id FROM #{@associated_class.send(:class_key)}"
         when :count
-          "SELECT COUNT(id) FROM #{@initial_set.klass}"
+          "SELECT COUNT(id) FROM #{@associated_class.send(:class_key)}"
+        end
+
+        unless @initial_set.id.nil?
+          query += ' WHERE '
+
+          ii_query = "SELECT #{@initial_set.name} FROM #{@initial_set.klass} " +
+            "WHERE id = #{escaped_id(@initial_set.id)} LIMIT 1"
+
+          initial_id_data =
+            Sandstorm.influxdb.query(ii_query)[@initial_set.klass]
+
+          inital_ids = initial_id_data.nil? ? nil :
+            initial_id_data.first[@initial_set.name]
+
+          if inital_ids.nil? || inital_ids.empty?
+            # make it impossible for the query to return anything
+            query += '(1 = 0)'
+          else
+            query += '((' + inital_ids.collect {|id|
+              "id = #{escaped_id(id)}"
+            }.join(') OR (') + '))'
+          end
         end
 
         unless @steps.empty?
 
-          query += ' WHERE '
-          step_count = 0
+          query += (@initial_set.id.nil? ? ' WHERE ' : ' AND ') +
+                   ('(' * (@steps.size / 3))
 
-          query += ('(' * (@steps.size / 3))
+          step_count = 0
 
           @steps.each_slice(3) do |step|
 
@@ -105,9 +133,14 @@ module Sandstorm
 
         end
 
+        case result_type
+        when :ids
+          query += " GROUP BY id"
+        end
+
         result = Sandstorm.influxdb.query(query)
 
-        data = result[@initial_set.klass]
+        data = result[@associated_class.send(:class_key)]
 
         case result_type
         when :ids
@@ -116,9 +149,6 @@ module Sandstorm
           data.nil? ? 0 : data.first['count']
         end
       end
-
     end
-
   end
-
 end

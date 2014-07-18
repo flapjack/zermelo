@@ -12,6 +12,20 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
                         :active => :boolean
 
       validates :name, :presence => true
+
+      has_many :children, :class_name => 'Sandstorm::InfluxDBExampleChild'
+
+    end
+
+    class InfluxDBExampleChild
+      include Sandstorm::Records::InfluxDBRecord
+
+      define_attributes :name => :string,
+                        :important => :boolean
+
+      belongs_to :example, :class_name => 'Sandstorm::InfluxDBExample', :inverse_of => :children
+
+      validates :name, :presence => true
     end
   end
 
@@ -65,7 +79,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
     expect(example.active).to be true
   end
 
-  it "cannot update a value in influxdb" do
+  it "can update a value in influxdb" do
     create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
       :active => 'true')
 
@@ -73,16 +87,11 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
     expect(example).not_to be_nil
 
     example.name = 'John Smith'
-    expect {example.save}.to raise_error
-  end
+    example.save
 
-  it "cannot write a point with an id that already exists for that time series" do
-    create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
-      :active => 'true')
-
-    example = Sandstorm::InfluxDBExample.new(:id => '1', :name => 'John Smith',
-      :email => 'jsmith@example.com', :active => true)
-    expect {example.save}.to raise_error
+    other_example = Sandstorm::InfluxDBExample.find_by_id('1')
+    expect(other_example).not_to be_nil
+    expect(other_example.name).to eq('John Smith')
   end
 
   # nb: can destroy point ranges -- not supported by sandstorm yet
@@ -121,7 +130,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(examples).not_to be_nil
       expect(examples).to be_an(Array)
       expect(examples.size).to eq(2)
-      expect(examples).to eq(['2', '1'])
+      expect(examples).to eq(['1', '2'])
     end
 
     it "returns a count of records" do
@@ -146,7 +155,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(examples).not_to be_nil
       expect(examples).to be_an(Array)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to eq(['2', '1'])
+      expect(examples.map(&:id)).to eq(['1', '2'])
     end
 
     it "filters all class records by attribute values" do
@@ -190,7 +199,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(example).not_to be_nil
       expect(example).to be_an(Array)
       expect(example.size).to eq(2)
-      expect(example.map(&:id)).to eq(['3', '1'])
+      expect(example.map(&:id)).to eq(['1', '3'])
     end
 
     it "chains an intersect and a diff filter together" do
@@ -206,6 +215,36 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(example).to be_an(Array)
       expect(example.size).to eq(1)
       expect(example.map(&:id)).to eq(['2'])
+    end
+
+  end
+
+  context 'has_many association' do
+
+    # def create_child(attrs = {})
+    #   Sandstorm.influxdb.write_point('influx_db_example_child', attrs)
+    # end
+
+    it "sets a parent/child has_many relationship between two records in influxdb" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+
+      child = Sandstorm::InfluxDBExampleChild.new(:id => '3', :name => 'Abel Tasman')
+      expect(child.save).to be_truthy
+
+      example = Sandstorm::InfluxDBExample.find_by_id('8')
+
+      children = example.children.all
+
+      expect(children).to be_an(Array)
+      expect(children).to be_empty
+
+      example.children << child
+
+      children = example.children.all
+
+      expect(children).to be_an(Array)
+      expect(children.size).to eq(1)
     end
 
   end

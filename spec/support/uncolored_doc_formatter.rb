@@ -7,9 +7,11 @@ module NoColorizer
 end
 
 class UncoloredDocFormatter < RSpec::Core::Formatters::BaseTextFormatter
-  RSpec::Core::Formatters.register self, :example_group_started, :example_group_finished,
-                                         :example_passed, :example_pending, :example_failed,
-                                         :dump_failures, :dump_pending, :dump_summary
+  RSpec::Core::Formatters.register(self, :example_group_started,
+                                   :example_group_finished,
+                                   :example_passed, :example_pending,
+                                   :example_failed, :dump_failures,
+                                   :dump_pending, :dump_summary)
 
   def initialize(output)
     super
@@ -32,11 +34,13 @@ class UncoloredDocFormatter < RSpec::Core::Formatters::BaseTextFormatter
   end
 
   def example_pending(pending)
-    output.puts "#{current_indentation}#{pending.example.description.strip} (PENDING: #{pending.example.execution_result.pending_message})"
+    output.puts "#{current_indentation}#{pending.example.description.strip} " +
+      "(PENDING: #{pending.example.execution_result.pending_message})"
   end
 
   def example_failed(failure)
-    output.puts "#{current_indentation}#{failure.example.description.strip} (FAILED - #{next_failure_index})"
+    output.puts "#{current_indentation}#{failure.example.description.strip} " +
+      "(FAILED - #{next_failure_index})"
   end
 
   def dump_failures(notification)
@@ -53,7 +57,7 @@ class UncoloredDocFormatter < RSpec::Core::Formatters::BaseTextFormatter
     output.puts notification.fully_formatted(NoColorizer)
   end
 
-private
+  private
 
   def next_failure_index
     @next_failure_index ||= 0
@@ -67,5 +71,4 @@ private
   def example_group_chain
     example_group.parent_groups.reverse
   end
-
 end

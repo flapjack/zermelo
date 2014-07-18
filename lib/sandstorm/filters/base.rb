@@ -72,6 +72,12 @@ module Sandstorm
       end
 
       def all
+        # puts 'all'
+        # p @backend
+        # p @initial_set
+        # p @associated_class
+        # p @steps
+
         lock { _all }
       end
 

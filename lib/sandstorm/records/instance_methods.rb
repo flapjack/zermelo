@@ -15,6 +15,8 @@ module Sandstorm
         attributes.each_pair do |k, v|
           self.send("#{k}=".to_sym, v)
         end
+
+        @association_keys = {}
       end
 
       def persisted?
@@ -40,7 +42,7 @@ module Sandstorm
         self.class.send(:lock) do
           class_key = self.class.send(:class_key)
 
-          # TODO check for record existence in backend-agnostic fashion
+          # TODO: check for record existence in backend-agnostic fashion
           @is_new = false
 
           attr_types = self.class.attribute_types.reject {|k, v| k == :id}
@@ -53,7 +55,7 @@ module Sandstorm
           attrs = backend.get_multiple(*attrs_to_load)[class_key][self.id]
         end
 
-        # return false unless record_exists
+        # TODO:? return false unless record_exists
 
         @attributes.update(attrs) if attrs.present?
 
@@ -82,20 +84,13 @@ module Sandstorm
           idx_attrs = self.class.send(:indexed_attributes)
 
           self.class.transaction do
-            self.class.attribute_types.reject {|k, v|
-              k == :id
-            }.each_pair do |name, type|
-              attr_key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
-                :id => self.id, :name => name, :type => type, :object => :attribute)
 
-              value = @attributes[name.to_s]
-              value.nil? ? backend.clear(attr_key) : backend.set(attr_key, value)
-            end
-
-            # update indices
             self.changes.each_pair do |att, old_new|
+              backend.set(attribute_keys[att], old_new.last) unless att.eql?('id')
+
               next unless idx_attrs.include?(att)
 
+              # update indices
               if old_new.first.nil?
                 # sadd
                 self.class.send("#{att}_index", old_new.last).add_id( @attributes['id'] )
@@ -132,7 +127,7 @@ module Sandstorm
           assoc_classes = self.class.send(:associated_classes)
 
           self.class.send(:lock, *assoc_classes) do
-            self.class.send(:remove_from_associated, self)
+            self.class.send(:with_associations, self) {|assoc| assoc.send(:on_remove) }
             index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes))
 
             self.class.transaction do
@@ -161,6 +156,16 @@ module Sandstorm
 
       def backend
         self.class.send(:backend)
+      end
+
+      def attribute_keys
+        @attribute_keys ||= self.class.attribute_types.reject {|k, v|
+          k == :id
+        }.inject({}) {|memo, (name, type)|
+          memo[name.to_s] = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
+            :id => self.id, :name => name.to_s, :type => type, :object => :attribute)
+          memo
+        }
       end
 
       # http://stackoverflow.com/questions/7613574/activemodel-fields-not-mapped-to-accessors

@@ -5,16 +5,12 @@ module Sandstorm
   module Associations
     class HasOne
 
-      def initialize(parent, name, options = {})
-        @record_id = Sandstorm::Records::Key.new(
-          :class  => parent.class.send(:class_key),
-          :id     => parent.id,
-          :name   => "#{name}_id",
-          :type   => :string,
-          :object => :association
-        )
-
+      def initialize(parent, name, record_id_key, backend, options = {})
         @parent = parent
+        @name = name
+
+        @record_id_key = record_id_key
+        @backend = backend
 
         # TODO trap possible constantize error
         @associated_class = (options[:class_name] || name.classify).constantize
@@ -24,7 +20,7 @@ module Sandstorm
 
       def value
         @parent.class.send(:lock, @parent.class, @associated_class) do
-          if id = backend.get(@record_id)
+          if id = @backend.get(@record_id_key)
             @associated_class.send(:load, id)
           else
             nil
@@ -39,7 +35,10 @@ module Sandstorm
           unless @inverse.nil?
             @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
           end
-          backend.set(@record_id, record.id)
+
+          new_txn = @backend.begin_transaction
+          @backend.set(@record_id_key, record.id)
+          @backend.commit_transaction if new_txn
         end
       end
 
@@ -55,23 +54,21 @@ module Sandstorm
 
       def delete_without_lock(record)
         unless @inverse.nil?
-          @associated_class.send(:load, backend.get(@record_id)).send("#{@inverse}=", nil)
+          @associated_class.send(:load, @backend.get(@record_id_key)).send("#{@inverse}=", nil)
         end
-        backend.clear(@record_id)
+        new_txn = @backend.begin_transaction
+        @backend.clear(@record_id_key)
+        @backend.commit_transaction if new_txn
       end
 
-      # associated will be a belongs_to; on_remove already runs inside lock
+      # associated will be a belongs_to; on_remove already runs inside lock and transaction
       def on_remove
         unless @inverse.nil?
-          if record_id = backend.get(@record_id)
+          if record_id = @backend.get(@record_id_key)
             @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
           end
         end
-        backend.clear(@record_id)
-      end
-
-      def backend
-        @backend ||= @parent.class.send(:backend)
+        @backend.clear(@record_id_key)
       end
 
     end

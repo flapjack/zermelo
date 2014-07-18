@@ -1,5 +1,7 @@
 require 'sandstorm/records/key'
 
+# NB index instances are all internal to sandstorm, not user-accessible
+
 module Sandstorm
   module Associations
     class Index

@@ -16,33 +16,6 @@ module Sandstorm
         Sandstorm::Filters::RedisFilter.new(self, ids_key, record)
       end
 
-      # for hashes, lists, sets
-      def add(key, value)
-        change(:add, key, value)
-      end
-
-      def delete(key, value)
-        change(:delete, key, value)
-      end
-
-      def move(key, value, key_to)
-        change(:move, key, value, key_to)
-      end
-
-      def clear(key)
-        change(:clear, key)
-      end
-
-      # works for both simple and complex types (i.e. strings, numbers, booleans,
-      #  hashes, lists, sets)
-      def set(key, value)
-        change(:set, key, value)
-      end
-
-      def purge(key)
-        change(:purge, key)
-      end
-
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
 
@@ -114,22 +87,28 @@ module Sandstorm
       end
 
       def begin_transaction
+        return false if @in_transaction
         Sandstorm.redis.multi
         @in_transaction = true
         @changes = []
+        true
       end
 
       def commit_transaction
+        return false unless @in_transaction
         apply_changes(@changes)
         Sandstorm.redis.exec
         @in_transaction = false
         @changes = []
+        true
       end
 
       def abort_transaction
+        return false unless @in_transaction
         Sandstorm.redis.discard
         @in_transaction = false
         @changes = []
+        true
       end
 
       # used by redis_filter

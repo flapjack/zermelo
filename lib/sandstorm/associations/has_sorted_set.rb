@@ -13,22 +13,16 @@ module Sandstorm
                        :all, :each, :collect, :select, :find_all, :reject,
                        :first, :last, :ids
 
-      def initialize(parent, name, options = {})
-        @backend = parent.class.send(:backend)
-        @record_ids = Sandstorm::Records::Key.new(
-          :class  => parent.class.send(:class_key),
-          :id     => parent.id,
-          :name   => "#{name}_ids",
-          :type   => :sorted_set,
-          :object => :association
-        )
-
-        @key = options[:key]
+      def initialize(parent, name, record_ids_key, backend, options = {})
         @parent = parent
         @name = name
 
-        @associated_class = (options[:class_name] || name.classify).constantize
+        @record_ids_key = record_ids_key
+        @backend = backend
 
+        @key = options[:key]
+
+        @associated_class = (options[:class_name] || name.classify).constantize
         @inverse = @associated_class.send(:inverse_of, name.to_sym, @parent.class)
       end
 
@@ -48,7 +42,10 @@ module Sandstorm
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
             end
           end
-          backend.add(@record_ids, (records.map {|r| [r.send(@key.to_sym).to_f, r.id]}.flatten))
+
+          new_txn = @backend.begin_transaction
+          @backend.add(@record_ids_key, (records.map {|r| [r.send(@key.to_sym).to_f, r.id]}.flatten))
+          @backend.commit_transaction if new_txn
         end
       end
 
@@ -62,13 +59,16 @@ module Sandstorm
               @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
             end
           end
-          backend.delete(@record_ids, records.map(&:id))
+
+          new_txn = @backend.begin_transaction
+          @backend.delete(@record_ids_key, records.map(&:id))
+          @backend.commit_transaction if new_txn
         end
       end
 
       private
 
-      # associated will be a belongs_to; on remove already runs inside a lock
+      # associated will be a belongs_to; on remove already runs inside a lock and transaction
       def on_remove
         unless @inverse.nil?
           self.ids.each do |record_id|
@@ -76,17 +76,13 @@ module Sandstorm
             @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
           end
         end
-        backend.clear(@record_ids)
+        @backend.clear(@record_ids_key)
       end
 
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
-        backend.filter(@record_ids, @associated_class)
-      end
-
-      def backend
-        @backend ||= @parent.class.send(:backend)
+        @backend.filter(@record_ids_key, @associated_class)
       end
 
     end

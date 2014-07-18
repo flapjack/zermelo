@@ -48,10 +48,13 @@ module Sandstorm
         visited
       end
 
-      def remove_from_associated(record)
+      # for each association: check whether it has changed
+        # need an instance-level hash with association name as key, boolean 'changed' value
+
+      def with_associations(record)
         @lock.synchronize do
-          @association_klasses.keys.each do |name|
-            record.send("#{name}_proxy".to_sym).send(:on_remove)
+           @association_klasses.keys.collect do |name|
+            yield record.send("#{name}_proxy".to_sym)
           end
         end
       end
@@ -129,25 +132,23 @@ module Sandstorm
       private
 
       def associate(klass, parent, name, args = {})
-        assoc = nil
+        return if name.nil?
         case klass.name
         when ::Sandstorm::Associations::Index.name, ::Sandstorm::Associations::UniqueIndex.name
 
           # TODO check method_defined? ( which relative to instance_eval ?)
 
-          unless name.nil?
-            assoc = %Q{
-              private
+          assoc = %Q{
+            private
 
-              def #{name}_index(value)
-                @#{name}_index ||=
-                  #{klass.name}.new(self, "#{class_key}", "#{name}")
-                @#{name}_index.value = value
-                @#{name}_index
-              end
-            }
-            instance_eval assoc, __FILE__, __LINE__
-          end
+            def #{name}_index(value)
+              @#{name}_index ||=
+                #{klass.name}.new(self, "#{class_key}", "#{name}")
+              @#{name}_index.value = value
+              @#{name}_index
+            end
+          }
+          instance_eval assoc, __FILE__, __LINE__
 
         when ::Sandstorm::Associations::HasMany.name, ::Sandstorm::Associations::HasSortedSet.name,
           ::Sandstorm::Associations::HasAndBelongsToMany.name
@@ -158,8 +159,13 @@ module Sandstorm
             assoc_args << %Q{:class_name => "#{args[:class_name]}"}
           end
 
-          if (klass == ::Sandstorm::Associations::HasSortedSet) && args[:key]
-            assoc_args << %Q{:key => "#{(args[:key] || :id).to_s}"}
+          if klass == ::Sandstorm::Associations::HasSortedSet
+            key_type = ':sorted_set'
+            if args[:key]
+              assoc_args << %Q{:key => "#{(args[:key] || :id).to_s}"}
+            end
+          else
+            key_type = ':set'
           end
 
           if (klass == ::Sandstorm::Associations::HasAndBelongsToMany) && args[:inverse_of]
@@ -168,25 +174,34 @@ module Sandstorm
 
           # TODO check method_defined? ( which relative to class_eval ? )
 
-          unless name.nil?
-            assoc = %Q{
-              def #{name}
-                #{name}_proxy
-              end
+          assoc = %Q{
+            def #{name}
+              #{name}_proxy
+            end
 
-              def #{name}_ids
-                #{name}_proxy.ids
-              end
+            def #{name}_ids
+              #{name}_proxy.ids
+            end
 
-              private
+            private
 
-              def #{name}_proxy
-                @#{name}_proxy ||=
-                  #{klass.name}.new(self, "#{name}", #{assoc_args.join(', ')})
-              end
-            }
-            class_eval assoc, __FILE__, __LINE__
-          end
+            def #{name}_proxy
+              raise "Associations cannot be invoked for records without an id" if self.id.nil?
+
+              @association_keys['#{name}'] ||= Sandstorm::Records::Key.new(
+                :class  => self.class.send(:class_key),
+                :id     => self.id,
+                :name   => '#{name}_ids',
+                :type   => #{key_type},
+                :object => :association
+              )
+
+              @#{name}_proxy ||=
+                #{klass.name}.new(self, '#{name}', @association_keys['#{name}'], backend,
+                  #{assoc_args.join(', ')})
+            end
+          }
+          class_eval assoc, __FILE__, __LINE__
 
         when ::Sandstorm::Associations::HasOne.name
           assoc_args = []
@@ -197,28 +212,39 @@ module Sandstorm
 
           # TODO check method_defined? ( which relative to class_eval ? )
 
-          unless name.nil?
-            assoc = %Q{
-              def #{name}
-                #{name}_proxy.value
-              end
+          # TODO would be fine as a 'has_one' hash
 
-              def #{name}=(obj)
-                if obj.nil?
-                  #{name}_proxy.delete(obj)
-                else
-                  #{name}_proxy.add(obj)
-                end
-              end
+          assoc = %Q{
+            def #{name}
+              #{name}_proxy.value
+            end
 
-              private
-
-              def #{name}_proxy
-                @#{name}_proxy ||= #{klass.name}.new(self, "#{name}", #{assoc_args.join(', ')})
+            def #{name}=(obj)
+              if obj.nil?
+                #{name}_proxy.delete(obj)
+              else
+                #{name}_proxy.add(obj)
               end
-            }
-            class_eval assoc, __FILE__, __LINE__
-          end
+            end
+
+            private
+
+            def #{name}_proxy
+              raise "Associations cannot be invoked for records without an id" if self.id.nil?
+
+              @association_keys['#{name}'] ||= Sandstorm::Records::Key.new(
+                :class  => self.class.send(:class_key),
+                :id     => self.id,
+                :name   => '#{name}_id',
+                :type   => :string,
+                :object => :association
+              )
+
+              @#{name}_proxy ||= #{klass.name}.new(self, '#{name}',
+                @association_keys['#{name}'], backend, #{assoc_args.join(', ')})
+            end
+          }
+          class_eval assoc, __FILE__, __LINE__
 
         when ::Sandstorm::Associations::BelongsTo.name
           assoc_args = []
@@ -233,25 +259,34 @@ module Sandstorm
 
           # TODO check method_defined? ( which relative to class_eval ? )
 
-          unless name.nil?
-            assoc = %Q{
-              def #{name}
-                #{name}_proxy.value
-              end
+          assoc = %Q{
+            def #{name}
+              #{name}_proxy.value
+            end
 
-              def #{name}=(obj)
-                #{name}_proxy.value = obj
-              end
+            def #{name}=(obj)
+              #{name}_proxy.value = obj
+            end
 
-              private
+            private
 
-              def #{name}_proxy
-                @#{name}_proxy ||= #{klass.name}.new(self, "#{name}", #{assoc_args.join(', ')})
-              end
-            }
+            def #{name}_proxy
+              raise "Associations cannot be invoked for records without an id" if self.id.nil?
 
-            class_eval assoc, __FILE__, __LINE__
-          end
+              @association_keys['belongs_to'] ||= Sandstorm::Records::Key.new(
+                :class  => self.class.send(:class_key),
+                :id     => self.id,
+                :name   => 'belongs_to',
+                :type   => :hash,
+                :object => :association
+              )
+
+              @#{name}_proxy ||= #{klass.name}.new(self, '#{name}',
+                @association_keys['belongs_to'], backend, #{assoc_args.join(', ')})
+            end
+          }
+
+          class_eval assoc, __FILE__, __LINE__
 
         end
 

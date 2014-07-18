@@ -37,5 +37,4 @@ module Sandstorm
     end
 
   end
-
 end

@@ -361,7 +361,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       example.children.delete(child)
 
-      expect(redis.smembers('redis_example_child::attrs:ids')).to eq(['3'])    # child not deleted
+      expect(redis.smembers('redis_example_child::attrs:ids')).to eq(['3'])   # child not deleted
       expect(redis.smembers('redis_example:8:assocs:children_ids')).to eq([]) # but association is
     end
 
