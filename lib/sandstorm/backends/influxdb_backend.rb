@@ -148,7 +148,7 @@ module Sandstorm
         records.each_pair do |klass, klass_records|
           klass_records.each_pair do |id, data|
             prior = Sandstorm.influxdb.query("select * from /#{klass}\\/#{id}/ limit 1")["#{klass}/#{id}"]
-            record = prior.nil? ? {} : prior.first.delete_if {|k| ["time", "sequence_number"].include?(k) }
+            record = prior.nil? ? {} : prior.first.delete_if {|k,v| ["time", "sequence_number"].include?(k) }
             Sandstorm.influxdb.write_point("#{klass}/#{id}", record.merge(data).merge(:id => id))
           end
         end

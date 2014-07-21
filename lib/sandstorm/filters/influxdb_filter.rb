@@ -136,13 +136,16 @@ module Sandstorm
         query += " LIMIT 1"
 
         result = Sandstorm.influxdb.query(query)
-        data = result.select {|k, v| k =~ /^#{@associated_class.send(:class_key)}\// }
+        data_keys = result.keys.select {|k| k =~ /^#{@associated_class.send(:class_key)}\// }
 
         case result_type
         when :ids
-          data.nil? ? [] : data.keys.collect {|k| k =~ /^#{@associated_class.send(:class_key)}\/(.+)$/; $1 }
+          data_keys.empty? ? [] : data_keys.collect {|k| k =~ /^#{@associated_class.send(:class_key)}\/(.+)$/; $1 }
         when :count
-          data.nil? ?  0 : data.values.inject(0) {|memo, d| memo += d.first['count']; memo}
+          data_keys.empty? ?  0 : data_keys.inject(0) do |memo, k|
+            memo += result[k].first['count']
+            memo
+          end
         end
       end
     end

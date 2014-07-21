@@ -131,7 +131,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(examples).not_to be_nil
       expect(examples).to be_an(Array)
       expect(examples.size).to eq(2)
-      expect(examples).to eq(['1', '2'])
+      expect(examples).to contain_exactly('2', '1')
     end
 
     it "returns a count of records" do
@@ -156,7 +156,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(examples).not_to be_nil
       expect(examples).to be_an(Array)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to eq(['1', '2'])
+      expect(examples.map(&:id)).to contain_exactly('2', '1')
     end
 
     it "filters all class records by attribute values" do
@@ -200,7 +200,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
       expect(example).not_to be_nil
       expect(example).to be_an(Array)
       expect(example.size).to eq(2)
-      expect(example.map(&:id)).to eq(['1', '3'])
+      expect(example.map(&:id)).to contain_exactly('3', '1')
     end
 
     it "chains an intersect and a diff filter together" do
