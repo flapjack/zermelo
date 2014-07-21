@@ -30,7 +30,7 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
   end
 
   def create_example(attrs = {})
-    Sandstorm.influxdb.write_point('influx_db_example', attrs)
+    Sandstorm.influxdb.write_point("influx_db_example/#{attrs[:id]}", attrs)
   end
 
   let(:influxdb) { Sandstorm.influxdb }
@@ -46,14 +46,15 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
   end
 
   it "adds a record's attributes to influxdb" do
-    data = Sandstorm.influxdb.query("select * from influx_db_example")['influx_db_example']
+    data = Sandstorm.influxdb.query("select * from /influx_db_example\\/1/")['influx_db_example/1']
+    expect(data).to be_nil
 
     example = Sandstorm::InfluxDBExample.new(:id => '1', :name => 'John Smith',
       :email => 'jsmith@example.com', :active => true)
     expect(example).to be_valid
     expect(example.save).to be_truthy
 
-    data = Sandstorm.influxdb.query("select * from influx_db_example")['influx_db_example']
+    data = Sandstorm.influxdb.query("select * from /influx_db_example\\/1/")['influx_db_example/1']
     expect(data).to be_an(Array)
     expect(data.size).to eql(1)
     record = data.first

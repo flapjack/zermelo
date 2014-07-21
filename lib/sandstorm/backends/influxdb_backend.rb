@@ -29,16 +29,8 @@ module Sandstorm
       # for now
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
-
-          # todo extract id esacping out to a separate method, call from filter
-          esc_id = if attr_key.id.is_a?(Numeric)
-            attr_key.id
-          else
-            "'" + attr_key.id.gsub(/'/, "\\'").gsub(/\\/, "\\\\'") + "'"
-          end
-
           records = Sandstorm.influxdb.query("select #{attr_key.name} from " +
-            "#{attr_key.klass} where id = #{esc_id} limit 1")[attr_key.klass]
+            "/#{attr_key.klass}\\/#{attr_key.id}/ limit 1")["#{attr_key.klass}/#{attr_key.id}"]
           value = (records && !records.empty?) ? records.first[attr_key.name.to_s] : nil
 
           memo[attr_key.klass] ||= {}
@@ -155,7 +147,9 @@ module Sandstorm
 
         records.each_pair do |klass, klass_records|
           klass_records.each_pair do |id, data|
-            Sandstorm.influxdb.write_point(klass, data.merge(:id => id))
+            prior = Sandstorm.influxdb.query("select * from /#{klass}\\/#{id}/ limit 1")["#{klass}/#{id}"]
+            record = prior.nil? ? {} : prior.first.delete_if {|k| ["time", "sequence_number"].include?(k) }
+            Sandstorm.influxdb.write_point("#{klass}/#{id}", record.merge(data).merge(:id => id))
           end
         end
       end

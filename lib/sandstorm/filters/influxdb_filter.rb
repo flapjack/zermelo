@@ -75,19 +75,19 @@ module Sandstorm
       def resolve_steps(result_type)
         query = case result_type
         when :ids
-          "SELECT DISTINCT(id) as id FROM #{@associated_class.send(:class_key)}"
+          "SELECT id FROM /#{@associated_class.send(:class_key)}\\/.*/"
         when :count
-          "SELECT COUNT(id) FROM #{@associated_class.send(:class_key)}"
+          "SELECT COUNT(id) FROM /#{@associated_class.send(:class_key)}\\/.*/"
         end
 
         unless @initial_set.id.nil?
           query += ' WHERE '
 
-          ii_query = "SELECT #{@initial_set.name} FROM #{@initial_set.klass} " +
-            "WHERE id = #{escaped_id(@initial_set.id)} LIMIT 1"
+          ii_query = "SELECT #{@initial_set.name} FROM /#{@initial_set.klass}\\/#{@initial_set.id}/ " +
+            "LIMIT 1"
 
           initial_id_data =
-            Sandstorm.influxdb.query(ii_query)[@initial_set.klass]
+            Sandstorm.influxdb.query(ii_query)["#{@initial_set.klass}/#{@initial_set.id}"]
 
           inital_ids = initial_id_data.nil? ? nil :
             initial_id_data.first[@initial_set.name]
@@ -133,20 +133,16 @@ module Sandstorm
 
         end
 
-        case result_type
-        when :ids
-          query += " GROUP BY id"
-        end
+        query += " LIMIT 1"
 
         result = Sandstorm.influxdb.query(query)
-
-        data = result[@associated_class.send(:class_key)]
+        data = result.select {|k, v| k =~ /^#{@associated_class.send(:class_key)}\// }
 
         case result_type
         when :ids
-          data.nil? ? [] : data.collect {|d| d['id']}
+          data.nil? ? [] : data.keys.collect {|k| k =~ /^#{@associated_class.send(:class_key)}\/(.+)$/; $1 }
         when :count
-          data.nil? ? 0 : data.first['count']
+          data.nil? ?  0 : data.values.inject(0) {|memo, d| memo += d.first['count']; memo}
         end
       end
     end
