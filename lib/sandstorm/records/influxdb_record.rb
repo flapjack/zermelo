@@ -28,24 +28,8 @@ module Sandstorm
 
       included do
         set_backend :influxdb
-
-        # define_attributes :time             => :timestamp
-                          # :sequence_number  => :float
-
       end
 
-      def save
-        # raise 'InfluxDB records cannot be updated' if persisted? ||
-        #   (!id.nil? && self.class.exists?(id))
-
-        super
-      end
-
-      def destroy
-        raise 'InfluxDB records cannot be destroyed' if persisted? ||
-          (!id.nil? && self.class.exists?(id))
-        super
-      end
     end
   end
 end

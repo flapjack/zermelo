@@ -22,15 +22,15 @@ module Sandstorm
       # TODO get filter calling this instead of using same logic
       def exists?(key)
         return if key.id.nil?
-        Sandstorm.influxdb.query("SELECT id from #{key.klass}")[key.klass].size > 0
+        Sandstorm.influxdb.query("SELECT id FROM /#{key.klass}\\/.*/ LIMIT 1").size > 0
       end
 
       # nb: does lots of queries, should batch, but ensuring single operations are correct
       # for now
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
-          records = Sandstorm.influxdb.query("select #{attr_key.name} from " +
-            "/#{attr_key.klass}\\/#{attr_key.id}/ limit 1")["#{attr_key.klass}/#{attr_key.id}"]
+          records = Sandstorm.influxdb.query("SELECT #{attr_key.name} FROM " +
+            "\"#{attr_key.klass}/#{attr_key.id}\" LIMIT 1")["#{attr_key.klass}/#{attr_key.id}"]
           value = (records && !records.empty?) ? records.first[attr_key.name.to_s] : nil
 
           memo[attr_key.klass] ||= {}
@@ -106,6 +106,8 @@ module Sandstorm
       def apply_changes(changes)
         records = {}
 
+        purges = []
+
         changes.each do |ch|
           op    = ch[0]
           key   = ch[1]
@@ -115,10 +117,6 @@ module Sandstorm
 
           records[key.klass]         ||= {}
           records[key.klass][key.id] ||= {}
-
-          unless [:set, :add].include?(op)
-            raise "Record updating, deletion not supported by InfluxDB backend"
-          end
 
           records[key.klass][key.id][key.name] = case op
           when :set
@@ -141,17 +139,21 @@ module Sandstorm
             when :set
               value.to_a
             end
+          when :purge
+            purges << "\"#{key.klass}/#{key.id}\""
           end
 
         end
 
         records.each_pair do |klass, klass_records|
           klass_records.each_pair do |id, data|
-            prior = Sandstorm.influxdb.query("select * from /#{klass}\\/#{id}/ limit 1")["#{klass}/#{id}"]
+            prior = Sandstorm.influxdb.query("SELECT * FROM \"#{klass}/#{id}\" LIMIT 1")["#{klass}/#{id}"]
             record = prior.nil? ? {} : prior.first.delete_if {|k,v| ["time", "sequence_number"].include?(k) }
             Sandstorm.influxdb.write_point("#{klass}/#{id}", record.merge(data).merge(:id => id))
           end
         end
+
+        purges.each {|purge| Sandstorm.influxdb.query("DROP SERIES #{purge}") }
       end
 
     end

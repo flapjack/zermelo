@@ -83,7 +83,7 @@ module Sandstorm
         unless @initial_set.id.nil?
           query += ' WHERE '
 
-          ii_query = "SELECT #{@initial_set.name} FROM /#{@initial_set.klass}\\/#{@initial_set.id}/ " +
+          ii_query = "SELECT #{@initial_set.name} FROM \"#{@initial_set.klass}/#{@initial_set.id}\" " +
             "LIMIT 1"
 
           initial_id_data =
@@ -110,7 +110,6 @@ module Sandstorm
           step_count = 0
 
           @steps.each_slice(3) do |step|
-
             step_type = step.first
 
             if step_count > 0
@@ -130,7 +129,6 @@ module Sandstorm
 
             step_count += 3
           end
-
         end
 
         query += " LIMIT 1"

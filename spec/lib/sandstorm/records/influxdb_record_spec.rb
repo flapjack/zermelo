@@ -95,14 +95,14 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
     expect(other_example.name).to eq('John Smith')
   end
 
-  # nb: can destroy point ranges -- not supported by sandstorm yet
-  it "cannot destroy a single point from influxdb" do
+  it "destroys a single record from influxdb" do
     create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
       :active => 'true')
 
-    example = Sandstorm::InfluxDBExample.new(:id => '1', :name => 'John Smith',
-      :email => 'jsmith@example.com', :active => true)
-    expect {example.destroy}.to raise_error
+    example = Sandstorm::InfluxDBExample.find_by_id('1')
+    example.destroy
+    example_chk = Sandstorm::InfluxDBExample.find_by_id('1')
+    expect(example_chk).to be_nil
   end
 
   it "resets changed state on refresh" do
