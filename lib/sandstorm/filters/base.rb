@@ -1,5 +1,7 @@
 require 'active_support/concern'
 
+require 'sandstorm/records/errors'
+
 module Sandstorm
 
   module Filters
@@ -55,6 +57,24 @@ module Sandstorm
         lock { _find_by_id(id) }
       end
 
+      def find_by_id!(id)
+        ret = lock { _find_by_id(id) }
+        raise ::Sandstorm::Records::Errors::RecordNotFound.new(@associated_class, id) if ret.nil?
+        ret
+      end
+
+      def find_by_ids(ids)
+        lock { _ids.collect {|id| _find_by_id(id) } }
+      end
+
+      def find_by_ids!(ids)
+        ret = lock { _ids.collect {|id| _find_by_id(id) } }
+        unless ids.length.eql?(ret.length)
+          raise ::Sandstorm::Records::Errors::RecordsNotFound.new(@associated_class, ids - ret.map(&:id))
+        end
+        ret
+      end
+
       def ids
         lock(false) { _ids }
       end
@@ -65,10 +85,6 @@ module Sandstorm
 
       def empty?
         lock(false) { _count == 0 }
-      end
-
-      def find_by_ids(ids)
-        lock { _ids.collect {|id| _find_by_id(id) } }
       end
 
       def all

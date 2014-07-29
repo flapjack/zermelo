@@ -75,17 +75,20 @@ module Sandstorm
       end
 
       def begin_transaction
+        return false if @in_transaction
         @in_transaction = true
         @changes = []
       end
 
       def commit_transaction
+        return false unless @in_transaction
         apply_changes(@changes)
         @in_transaction = false
         @changes = []
       end
 
       def abort_transaction
+        return false unless @in_transaction
         @in_transaction = false
         @changes = []
       end

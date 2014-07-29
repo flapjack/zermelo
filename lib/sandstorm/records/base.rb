@@ -34,6 +34,8 @@ module Sandstorm
         extend ActiveModel::Callbacks
         include ActiveModel::Dirty
         include ActiveModel::Validations
+        include ActiveModel::Validations::Callbacks
+
         # include ActiveModel::MassAssignmentSecurity
 
         @lock = Monitor.new
