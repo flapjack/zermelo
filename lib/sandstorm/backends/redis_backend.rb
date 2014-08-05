@@ -162,7 +162,14 @@ module Sandstorm
                 Sandstorm.redis.rpush(complex_attr_key, value)
               when :set
                 Sandstorm.redis.del(complex_attr_key) if :set.eql?(op)
-                Sandstorm.redis.sadd(complex_attr_key, value)
+                case value
+                when Set
+                  Sandstorm.redis.sadd(complex_attr_key, value.to_a) unless value.empty?
+                when Array
+                  Sandstorm.redis.sadd(complex_attr_key, value) unless value.empty?
+                else
+                  Sandstorm.redis.sadd(complex_attr_key, value)
+                end
               when :hash
                 Sandstorm.redis.del(complex_attr_key) if :set.eql?(op)
                 kv = value.inject([]) do |memo, (k, v)|

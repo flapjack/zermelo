@@ -34,7 +34,7 @@ module Sandstorm
       def move_id(id, indexer_to)
         return unless indexer = indexer_for_value
 
-        @backend.move(indexer, indexer_to.key, id)
+        @backend.move(indexer, id, indexer_to.key)
       end
 
       def key

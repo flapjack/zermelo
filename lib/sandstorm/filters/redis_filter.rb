@@ -67,8 +67,8 @@ module Sandstorm
             Sandstorm.redis.zcard(set)
           }
         when :set, nil
-          # resolve_steps(:scard)
-          resolve_steps(:count)
+          resolve_steps(:scard)
+          # resolve_steps(:count)
         end
       end
 
