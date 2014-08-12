@@ -70,10 +70,6 @@ module Sandstorm
         end
       end
 
-      def lock(*klasses)
-        # no-op
-      end
-
       def begin_transaction
         return false if @in_transaction
         @in_transaction = true

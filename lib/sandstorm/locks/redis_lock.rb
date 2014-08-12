@@ -12,15 +12,16 @@ module Sandstorm
 
       attr_accessor :expires_at, :life, :sleep_in_ms
 
-      def initialize(*record_klasses)
-        @keys = record_klasses.map{|k| k.send(:class_key) }.sort.map{|k| "#{k}::lock" }
+      def initialize
         @owner_value = Thread.current.object_id
         @life        = 60
+        @timeout     = 10
         @sleep_in_ms = 125
       end
 
-      def lock( timeout = 10, &block)
-        do_lock_with_timeout(timeout) or raise Sandstorm::LockNotAcquired.new(@keys.join(", "))
+      def lock(*record_klasses, &block)
+        @keys = record_klasses.map{|k| k.send(:class_key) }.sort.map{|k| "#{k}::lock" }
+        do_lock_with_timeout(@timeout) or raise Sandstorm::LockNotAcquired.new(@keys.join(", "))
         result = true
         if block
           begin

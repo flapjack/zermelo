@@ -1,5 +1,4 @@
-require 'sandstorm'
-require 'sandstorm/records/key'
+require 'forwardable'
 
 module Sandstorm
   module Associations
@@ -38,7 +37,7 @@ module Sandstorm
         raise 'No records to add' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
-        @parent.class.send(:lock, @parent.class, @associated_class) do
+        @backend.lock(@parent.class, @associated_class) do
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
@@ -55,7 +54,7 @@ module Sandstorm
         raise 'No records to delete' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
-        @parent.class.send(:lock, @parent.class, @associated_class) do
+        @backend.lock(@parent.class, @associated_class) do
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", nil)

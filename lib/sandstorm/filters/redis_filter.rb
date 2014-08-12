@@ -52,14 +52,6 @@ module Sandstorm
 
       private
 
-      def lock(when_steps_empty = true, *klasses, &block)
-        if !when_steps_empty && @steps.empty?
-          return block.call
-        end
-        klasses = [@associated_class] if klasses.empty?
-        @associated_class.send(:lock, *klasses) { block.call }
-      end
-
       def _count
         case @initial_set.type
         when :sorted_set

@@ -1,7 +1,6 @@
 require 'sandstorm/backends/base'
 
 require 'sandstorm/filters/redis_filter'
-
 require 'sandstorm/locks/redis_lock'
 
 module Sandstorm
@@ -11,6 +10,10 @@ module Sandstorm
     class RedisBackend
 
       include Sandstorm::Backends::Base
+
+      def generate_lock
+        Sandstorm::Locks::RedisLock.new
+      end
 
       def filter(ids_key, record)
         Sandstorm::Filters::RedisFilter.new(self, ids_key, record)
@@ -80,10 +83,6 @@ module Sandstorm
         else
           raise "Not implemented"
         end
-      end
-
-      def lock(*klasses)
-        Sandstorm::Locks::RedisLock.new(*klasses)
       end
 
       def begin_transaction

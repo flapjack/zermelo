@@ -1,24 +1,23 @@
 require 'sandstorm/backends/base'
 
-require 'sandstorm/filters/moneta_filter'
+require 'sandstorm/filters/mysql_filter'
 
 module Sandstorm
 
   module Backends
 
-    class MonetaBackend
+    class MySQLBackend
 
       include Sandstorm::Backends::Base
 
       def filter(ids_key, record)
-        Sandstorm::Filters::MonetaFilter.new(self, ids_key, record)
+        Sandstorm::Filters::MySQLFilter.new(self, ids_key, record)
       end
 
       def exists?(key)
       end
 
       def get_multiple(*attr_keys)
-
       end
 
       def begin_transaction

@@ -108,6 +108,16 @@ module Sandstorm
         lock { _all.reject {|obj| block.call(obj)} }
       end
 
+      protected
+
+      def lock(when_steps_empty = true, *klasses, &block)
+        if !when_steps_empty && @steps.empty?
+          return block.call
+        end
+        klasses += [@associated_class] if !klasses.include?(@associated_class)
+        @backend.lock(*klasses, &block)
+      end
+
       private
 
       def _find_by_id(id)

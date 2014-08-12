@@ -1,8 +1,5 @@
 require 'forwardable'
 
-require 'sandstorm'
-require 'sandstorm/records/key'
-
 # much like a has_many, but with different add/remove behaviour, as it's paired
 # with another has_and_belongs_to_many association. both sides must set the
 # inverse association name.
@@ -42,7 +39,7 @@ module Sandstorm
         raise 'No records to add' if records.empty?
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
-        @parent.class.send(:lock, @parent.class, @associated_class) do
+        @backend.lock(@parent.class, @associated_class) do
           records.each do |record|
             @associated_class.send(:load, record.id).send(@inverse.to_sym).
               send(:add_without_inverse, @parent)
@@ -56,7 +53,7 @@ module Sandstorm
         raise 'No records to delete' if records.empty?
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
-        @parent.class.send(:lock, @parent.class, @associated_class) do
+        @backend.lock(@parent.class, @associated_class) do
           records.each do |record|
             @associated_class.send(:load, record.id).send(@inverse.to_sym).
               send(:delete_without_inverse, @parent)

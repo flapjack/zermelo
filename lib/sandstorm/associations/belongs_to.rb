@@ -1,6 +1,3 @@
-require 'sandstorm'
-require 'sandstorm/records/key'
-
 # The other side of a has_one, has_many, or has_sorted_set association
 
 module Sandstorm
@@ -44,7 +41,7 @@ module Sandstorm
       end
 
       def value
-        @parent.class.send(:lock, @parent.class, @associated_class) do
+        @backend.lock(@parent.class, @associated_class) do
           # FIXME uses hgetall, need separate getter for hash/list/set
           if id = @backend.get(@record_ids_key)[@inverse_key.to_s]
             @associated_class.send(:load, id)
