@@ -106,13 +106,13 @@ module Sandstorm
             # NB influxdb backend doesn't need this
             self.class.add_id(@attributes['id'])
           end
+
+          @is_new = false
         end
 
         # AM::Dirty
         @previously_changed = self.changes
         @changed_attributes.clear
-
-        @is_new = false
 
         true
       end
