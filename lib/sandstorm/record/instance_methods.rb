@@ -178,13 +178,13 @@ module Sandstorm
           self.class.add_id(@attributes['id'])
 
           Sandstorm.redis.exec
+
+          @is_new = false
         end
 
         # AM::Dirty
         @previously_changed = self.changes
         @changed_attributes.clear
-
-        @is_new = false
 
         true
       end
