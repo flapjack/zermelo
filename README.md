@@ -28,7 +28,7 @@ Or install it yourself as:
 
 ### Initialisation
 
-Firstly, you'll need to set up Sandstorm's Redis access, e.g.
+Firstly, you'll need to set up **sandstorm**'s Redis access, e.g.
 
 ```ruby
 Sandstorm.redis = Redis.new(:host => '127.0.0.1', :db => 8)
@@ -36,7 +36,7 @@ Sandstorm.redis = Redis.new(:host => '127.0.0.1', :db => 8)
 
 ### Class ids
 
-Include Sandstorm's Record module in the class you want to persist data from:
+Include **sandstorm**'s Record module in the class you want to persist data from:
 
 ```ruby
 class Post
@@ -60,7 +60,45 @@ SADD post::ids 'abcde'
 (along with a few others which we'll discuss shortly).
 
 ### Simple instance attributes
-TODO
+
+A data record without any actual data isn't very useful, so let's add a few simple data fields to the Post model:
+
+```ruby
+class Post
+  include Sandstorm:Record
+  define_attributes :title     => :string,
+                    :score     => :integer
+                    :timestamp => :timestamp,
+                    :published => :boolean
+end
+```
+
+and create and save an instance of that model class:
+
+```ruby
+post = Post.new(:title => 'Introduction to Sandstorm',
+  :score => 100, :timestamp => Time.now, :published => false)
+post.save
+```
+
+No id was passed, so **sandstorm** generates a UUID:
+
+```
+HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
+SADD post::ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
+```
+
+Sandstorm supports the following simple attribute types, and automatically
+validates that the values are of the correct class, casting if possible:
+
+| Type       |  Class                        | Notes |
+|------------|-------------------------------|-------|
+| :string    |  String                       |       |
+| :integer   |  Integer                      |       |
+| :float     |  Float                        |       |
+| :id        |  String                       |       |
+| :timestamp |  Integer or Time or DateTime  | Stored as a float value |
+| :boolean   |  TrueClass or FalseClass      | Stored as string 'true' or 'false' |
 
 ### Complex instance attributes
 TODO
@@ -98,6 +136,15 @@ TODO
 
 ### Queries against these indices
 TODO
+
+### Future
+
+Some possible changes:
+
+* pluggable key naming strategies
+* pluggable id generation strategies
+* instrumentation for benchmarking etc.
+* multiple data backends; there's an [experimental branch]() for this
 
 ## License
 
