@@ -67,7 +67,7 @@ A data record without any actual data isn't very useful, so let's add a few simp
 class Post
   include Sandstorm:Record
   define_attributes :title     => :string,
-                    :score     => :integer
+                    :score     => :integer,
                     :timestamp => :timestamp,
                     :published => :boolean
 end
@@ -110,7 +110,7 @@ So if we add tags to the Post data definition:
 class Post
   include Sandstorm:Record
   define_attributes :title     => :string,
-                    :score     => :integer
+                    :score     => :integer,
                     :timestamp => :timestamp,
                     :published => :boolean,
                     :tags      => :set
@@ -146,12 +146,39 @@ driver, thus String, Integer and Float. (TODO check this)
 Redis [sorted sets](http://redis.io/commands#sorted_set) are only supported through associations, for which see later on.
 
 ### Validations
-TODO
+
+All of the [validations](http://api.rubyonrails.org/classes/ActiveModel/Validations/ClassMethods.html) offered by ActiveModel are available in **sandstorm** objects.
+
+So an attribute which should be present:
+
+```ruby
+class Post
+  include Sandstorm:Record
+  define_attributes :title     => :string,
+                    :score     => :integer
+  validates :title, :presence => true
+end
+```
+
+but isn't:
+
+```ruby
+post = Post.new(:score => 85)
+post.valid? # == false
+
+post.errors.full_messages # == ["Title can't be blank"]
+post.save # calls valid? before saving, fails and returns false
+```
+
+produces the results you would expect.
 
 ### Callbacks
 TODO
 
 ### Detecting changes
+TODO
+
+### Locking around changes
 TODO
 
 ### Loading data
@@ -186,7 +213,7 @@ Some possible changes:
 * pluggable key naming strategies
 * pluggable id generation strategies
 * instrumentation for benchmarking etc.
-* multiple data backends; there's an [experimental branch](https://github.com/flapjack/sandstorm/tree/data_backends) for this
+* multiple data backends; there's an [experimental branch](https://github.com/flapjack/sandstorm/tree/data_backends) for this, which will probably end up being merged, if only for some of its architectural improvements.
 
 ## License
 
