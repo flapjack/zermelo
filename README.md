@@ -91,7 +91,7 @@ SADD post::ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
 Sandstorm supports the following simple attribute types, and automatically
 validates that the values are of the correct class, casting if possible:
 
-| Type       |  Class                        | Notes |
+| Type       |  Ruby class                        | Notes |
 |------------|-------------------------------|-------|
 | :string    |  String                       |       |
 | :integer   |  Integer                      |       |
@@ -101,7 +101,49 @@ validates that the values are of the correct class, casting if possible:
 | :boolean   |  TrueClass or FalseClass      | Stored as string 'true' or 'false' |
 
 ### Complex instance attributes
-TODO
+
+**Sandstorm** also provides mappings for the compound data structures supported by Redis.
+
+So if we add tags to the Post data definition:
+
+```ruby
+class Post
+  include Sandstorm:Record
+  define_attributes :title     => :string,
+                    :score     => :integer
+                    :timestamp => :timestamp,
+                    :published => :boolean,
+                    :tags      => :set
+end
+```
+
+and then create another
+
+```ruby
+post = Post.new(:id => 1, :tags => Set.new(['database', 'ORM']))
+post.save
+```
+
+which would run the following Redis commands:
+
+```
+SADD post:1:tags 'database' 'ORM'
+SADD post::ids 1
+```
+
+Sandstorm supports the following complex attribute types, and automatically
+validates that the values are of the correct class, casting if possible:
+
+| Type       |  Ruby class   | Notes                                                   |
+|------------|---------------|---------------------------------------------------------|
+| :list      |  Enumerable   | Stored as a Redis [LIST](http://redis.io/commands#list) |
+| :set       |  Array or Set | Stored as a Redis [SET](http://redis.io/commands#set)   |
+| :hash      |  Hash         | Stored as a Redis [HASH](http://redis.io/commands#hash) |
+
+Structure data members must be primitives that will cast OK to and from Redis via the
+driver, thus String, Integer and Float. (TODO check this)
+
+Redis [sorted sets](http://redis.io/commands#sorted_set) are only supported through associations, for which see later on.
 
 ### Validations
 TODO
@@ -144,7 +186,7 @@ Some possible changes:
 * pluggable key naming strategies
 * pluggable id generation strategies
 * instrumentation for benchmarking etc.
-* multiple data backends; there's an [experimental branch]() for this
+* multiple data backends; there's an [experimental branch](https://github.com/flapjack/sandstorm/tree/data_backends) for this
 
 ## License
 
