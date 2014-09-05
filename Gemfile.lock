@@ -2,25 +2,25 @@ PATH
   remote: .
   specs:
     sandstorm (0.0.1)
-      activemodel (~> 3.2.18)
+      activemodel (~> 3.2.19)
       redis
 
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (3.2.18)
-      activesupport (= 3.2.18)
+    activemodel (3.2.19)
+      activesupport (= 3.2.19)
       builder (~> 3.0.0)
-    activesupport (3.2.18)
+    activesupport (3.2.19)
       i18n (~> 0.6, >= 0.6.4)
       multi_json (~> 1.0)
     builder (3.0.4)
     diff-lcs (1.2.5)
     docile (1.1.3)
-    i18n (0.6.9)
+    i18n (0.6.11)
     multi_json (1.10.1)
     rake (10.1.1)
-    redis (3.0.7)
+    redis (3.1.0)
     rspec (3.0.0.rc1)
       rspec-core (= 3.0.0.rc1)
       rspec-expectations (= 3.0.0.rc1)
