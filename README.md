@@ -173,7 +173,16 @@ post.save # calls valid? before saving, fails and returns false
 produces the results you would expect.
 
 ### Callbacks
-TODO
+
+ActiveModel's [lifecycle callbacks](http://api.rubyonrails.org/classes/ActiveModel/Callbacks.html) are also supported, and **sandstorm** uses similar invocations to ActiveRecord's:
+
+```
+before_create,  around_create,  after_create,
+before_update,  around_update,  after_update,
+before_destroy, around_destroy, after_destroy
+```
+
+As noted in the linked documentation, you'll need to `yield` from within an `around_*` callback, or the original action won't be carried out.
 
 ### Detecting changes
 TODO
