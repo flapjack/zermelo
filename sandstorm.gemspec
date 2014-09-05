@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ['ali.graham@bulletproof.net']
   spec.description   = %q{ActiveModel-based ORM for Redis}
   spec.summary       = %q{}
-  spec.homepage      = 'https://github.com/ali-graham/sandstorm'
+  spec.homepage      = 'https://github.com/flapjack/sandstorm'
   spec.license       = 'MIT'
 
   # see http://yehudakatz.com/2010/12/16/clarifying-the-roles-of-the-gemspec-and-gemfile/
@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_dependency 'redis'
-  spec.add_dependency 'activemodel', '~> 3.2.18' # for Ruby 1.8 support
+  spec.add_dependency 'activemodel', '~> 3.2.19' # for Ruby 1.8 support
 
   spec.add_development_dependency 'bundler', '~> 1.3'
   spec.add_development_dependency 'rake'
