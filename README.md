@@ -77,15 +77,21 @@ and create and save an instance of that model class:
 
 ```ruby
 post = Post.new(:title => 'Introduction to Sandstorm',
-  :score => 100, :timestamp => Time.now, :published => false)
+  :score => 100, :timestamp => Time.parse('Jan 1 2000'), :published => false)
 post.save
 ```
 
-No id was passed, so **sandstorm** generates a UUID:
+An `:id => :string` attribute is implicitly defined, but in this case no id was passed, so **sandstorm** generates a UUID:
 
 ```
 HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
 SADD post::ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
+```
+
+which can then be verified by inspection of the object's attributes, e.g.:
+
+```ruby
+post.attributes.inpsect # == {:id => '03c839ac-24af-432e-aa58-fd1d4bf73f24', :title => 'Introduction to Sandstorm', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
 ```
 
 Sandstorm supports the following simple attribute types, and automatically
@@ -191,23 +197,118 @@ TODO
 TODO
 
 ### Loading data
-TODO
+
+Assuming a saved `Post` instance has been created:
+
+```ruby
+class Post
+  include Sandstorm:Record
+  define_attributes :title     => :string,
+                    :score     => :integer,
+                    :timestamp => :timestamp,
+                    :published => :boolean
+end
+
+post = Post.new(:id => '1234', :title => 'Introduction to Sandstorm',
+  :score => 100, :timestamp => Time.parse('Jan 1 2000')), :published => false)
+post.save
+```
+
+which executes the following Redis calls:
+
+```
+HMSET post:1234:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
+SADD post::ids 1234
+```
+
+This data can be loaded into a fresh `Post` instance using the `find_by_id(ID)` class method:
+
+```ruby
+same_post = Post.find_by_id('1234')
+same_post.attributes # == {:id => '1234', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
+```
+
+You can load more than one record using the `find_by_ids(ID, ID, ...)` class method (returns an array), and raise exceptions if records matching the ids are not found using `find_by_id!(ID)` and `find_by_ids!(ID, ID, ...)`.
 
 ### Class methods
-TODO methods from Filter
+TODO
+
+( :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!, :all, :each, :collect, :select, :find_all, :reject, :destroy_all, :ids, :count, :empty?, :exists? )
 
 ### Associations
 
-#### has_many
-TODO
-#### has_sorted_set
-TODO
-#### has_one
-TODO
-#### belongs_to
-TODO
-#### has_and_belongs_to_many
-TODO
+**Sandstorm** supports multiple association types, which are named similarly to those provided by ActiveRecord:
+
+|Name                     | Type                      | Redis data structure | Notes |
+|-------------------------|---------------------------|----------------------|-------|
+| has_many                | one-to-many               | [SET](http://redis.io/commands#set) | |
+| has_sorted_set          | one-to-many               | [ZSET](http://redis.io/commands#sorted_set) | |
+| has_one                 | one-to-one                | [HASH](http://redis.io/commands#hash) | |
+| belongs_to              | many-to-one or one-to-one | [HASH](http://redis.io/commands#hash) or [STRING](http://redis.io/commands#string)  | Inverse of any of the above three |
+| has_and_belongs_to_many | many-to-many              | 2 [SET](http://redis.io/commands#set)s | Mirrored by an inverse HaBtM association on the other side. |
+
+```ruby
+class Post
+  include Sandstorm:Record
+  has_many :comments, :class_name => 'Comment', :inverse_of => :post
+end
+
+class Comment
+  include Sandstorm:Record
+  belongs_to :post, :class_name => 'Post', :inverse_of => :comments
+end
+```
+
+Class names of the associated class are used, instead of a reference to the class itself, to avoid circular dependencies being established. The inverse association is provided in order that multiple associations between the same two classes can be created.
+
+Records are added and removed from their parent one-to-many or many-to-many associations like so:
+
+```ruby
+post.comments.add(comment) # or post.comments << comment
+```
+
+Associations' `.add` can also take more than one argument:
+
+```ruby
+post.comments.add(comment1, comment2, comment3)
+```
+
+`has_one` associations are simply set with an `=` method on the association:
+
+```ruby
+class User
+  include Sandstorm:Record
+  has_one :preferences, :class_name => 'Preferences', :inverse_of => :user
+end
+
+class Preferences
+  include Sandstorm:Record
+  belongs_to :user, :class_name => 'User', :inverse_of => :preferences
+end
+
+user  = User.new
+user.save
+prefs = Preferences.new
+prefs.save
+
+user.preferences = prefs
+```
+
+The class methods defined above can be applied to associations references as well, so the resulting data will be filtered by the data relationships applying in the association, e.g.
+
+```ruby
+post     = Post.new(:id => 'a')
+post.save
+comment1 = Comment.new(:id => '1')
+comment1.save
+comment2 = Comment.new(:id => '2')
+comment2.save
+
+p post.comments.ids # == []
+p Comment.ids       # == [1, 2]
+post.comments << comment1
+p post.comments.ids # == [1]
+```
 
 ### Class data indexing
 TODO
