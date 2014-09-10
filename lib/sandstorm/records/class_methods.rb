@@ -17,10 +17,10 @@ module Sandstorm
       extend Forwardable
 
       def_delegators :filter, :intersect, :union, :diff,
-        :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
-        :all, :each, :collect,
-        :select, :find_all, :reject, :destroy_all,
-        :ids, :count, :empty?, :exists?
+                       :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
+                       :all, :each, :collect,
+                       :select, :find_all, :reject, :destroy_all,
+                       :ids, :count, :empty?, :exists?
 
       def generate_id
         SecureRandom.hex(16)

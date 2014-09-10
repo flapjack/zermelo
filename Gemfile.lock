@@ -2,21 +2,21 @@ PATH
   remote: .
   specs:
     sandstorm (0.1.0)
-      activemodel (~> 3.2.17)
+      activemodel (~> 3.2.19)
 
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (3.2.17)
-      activesupport (= 3.2.17)
+    activemodel (3.2.19)
+      activesupport (= 3.2.19)
       builder (~> 3.0.0)
-    activesupport (3.2.17)
+    activesupport (3.2.19)
       i18n (~> 0.6, >= 0.6.4)
       multi_json (~> 1.0)
     builder (3.0.4)
     diff-lcs (1.2.5)
     docile (1.1.5)
-    i18n (0.6.9)
+    i18n (0.6.11)
     influxdb (0.1.8)
       json
     json (1.8.1)
