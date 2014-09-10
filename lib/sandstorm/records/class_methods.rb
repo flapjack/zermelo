@@ -1,6 +1,8 @@
 require 'forwardable'
 require 'securerandom'
 
+require 'sandstorm'
+
 require 'sandstorm/backends/influxdb_backend'
 require 'sandstorm/backends/mysql_backend'
 require 'sandstorm/backends/moneta_backend'
@@ -62,12 +64,17 @@ module Sandstorm
         raise "Transaction failed" if failed
       end
 
+      def backend
+        raise "No data storage backend set for #{self.name}" if @backend.nil?
+        @backend
+      end
+
       protected
 
       def define_attributes(options = {})
         options.each_pair do |key, value|
           raise "Unknown attribute type ':#{value}' for ':#{key}'" unless
-            Sandstorm::ALL_TYPES.include?(value)
+            Sandstorm.valid_type?(value)
           self.define_attribute_methods([key])
         end
         @lock.synchronize do
@@ -86,11 +93,6 @@ module Sandstorm
         when :redis
           Sandstorm::Backends::RedisBackend.new
         end
-      end
-
-      def backend
-        raise "No data storage backend set for #{self.name}" if @backend.nil?
-        @backend
       end
 
       private

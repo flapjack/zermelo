@@ -41,12 +41,7 @@ module Sandstorm
         get_multiple(attr_key)[attr_key.klass][attr_key.id][attr_key.name.to_s]
       end
 
-      def generate_lock
-        Sandstorm::Locks::NoLock.new
-      end
-
       def lock(*klasses, &block)
-        # klasses |= [self]
         ret = nil
         # doesn't handle re-entrant case for influxdb, which has no locking yet
         locking = Thread.current[:sandstorm_locking]
@@ -62,12 +57,12 @@ module Sandstorm
 
           lock_klass = case self
           when Sandstorm::Backends::RedisBackend
-
+            Sandstorm::Locks::RedisLock
           else
             Sandstorm::Locks::NoLock
           end
 
-          self.generate_lock.lock(*klasses, &lock_proc)
+          lock_klass.new.lock(*klasses, &lock_proc)
         else
           # accepts any subset of 'locking'
           unless (klasses - locking).empty?
