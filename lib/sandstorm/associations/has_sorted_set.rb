@@ -1,6 +1,4 @@
-require 'sandstorm'
-require 'sandstorm/filter'
-require 'sandstorm/redis_key'
+require 'forwardable'
 
 module Sandstorm
   module Associations
@@ -16,14 +14,16 @@ module Sandstorm
                        :ids, :count, :empty?, :exists?,
                        :first, :last
 
-      def initialize(parent, name, options = {})
-        @key = options[:key]
+      def initialize(parent, name, record_ids_key, backend, options = {})
         @parent = parent
         @name = name
 
-        @associated_class = (options[:class_name] || name.classify).constantize
-        @record_ids = Sandstorm::RedisKey.new("#{parent.record_key}:#{name}_ids", :sorted_set)
+        @record_ids_key = record_ids_key
+        @backend = backend
 
+        @key = options[:key]
+
+        @associated_class = (options[:class_name] || name.classify).constantize
         @inverse = @associated_class.send(:inverse_of, name.to_sym, @parent.class)
       end
 
@@ -37,13 +37,16 @@ module Sandstorm
         raise 'No records to add' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
-        @parent.class.send(:lock, @parent.class, @associated_class) do
+        @backend.lock(@parent.class, @associated_class) do
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
             end
           end
-          Sandstorm.redis.zadd(@record_ids.key, *(records.map {|r| [r.send(@key.to_sym).to_f, r.id]}.flatten))
+
+          new_txn = @backend.begin_transaction
+          @backend.add(@record_ids_key, (records.map {|r| [r.send(@key.to_sym).to_f, r.id]}.flatten))
+          @backend.commit_transaction if new_txn
         end
       end
 
@@ -51,33 +54,36 @@ module Sandstorm
         raise 'No records to delete' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
-        @parent.class.send(:lock, @parent.class, @associated_class) do
+        @backend.lock(@parent.class, @associated_class) do
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
             end
           end
-          Sandstorm.redis.zrem(@record_ids.key, *records.map(&:id))
+
+          new_txn = @backend.begin_transaction
+          @backend.delete(@record_ids_key, records.map(&:id))
+          @backend.commit_transaction if new_txn
         end
       end
 
       private
 
-      # associated will be a belongs_to; on remove already runs inside a lock
+      # associated will be a belongs_to; on remove already runs inside a lock and transaction
       def on_remove
         unless @inverse.nil?
-          Sandstorm.redis.zrange(@record_ids.key, 0, -1).each do |record_id|
+          self.ids.each do |record_id|
             # clear the belongs_to inverse value with this @parent.id
             @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
           end
         end
-        Sandstorm.redis.del(@record_ids.key)
+        @backend.clear(@record_ids_key)
       end
 
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
-        Sandstorm::Filter.new(@record_ids, @associated_class)
+        @backend.filter(@record_ids_key, @associated_class)
       end
 
     end

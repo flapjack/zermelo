@@ -1,4 +1,4 @@
-require 'sandstorm/redis_key'
+# NB index instances are all internal to sandstorm, not user-accessible
 
 module Sandstorm
   module Associations
@@ -7,7 +7,8 @@ module Sandstorm
       def initialize(parent, class_key, att)
         @indexers = {}
 
-        @parent = parent
+        @backend   = parent.send(:backend)
+        @parent    = parent
         @class_key = class_key
         @attribute = att
       end
@@ -21,21 +22,19 @@ module Sandstorm
       end
 
       def delete_id(id)
-        Sandstorm.redis.hdel(indexer.key, @value)
+        @backend.delete(indexer, @value)
       end
 
       def add_id(id)
-        Sandstorm.redis.hset(indexer.key, @value, id)
+        @backend.add(indexer, @value => id)
       end
 
       def move_id(id, indexer_to)
-        # TODO locking
-        Sandstorm.redis.hdel(indexer.key, @value)
-        Sandstorm.redis.hset(indexer.key, indexer_to.value, id)
+        @backend.move(indexer, {indexer_to.value => id}, indexer_to.key)
       end
 
       def key
-        indexer.key
+        indexer
       end
 
       # Raises RegexpError if the provided pattern is invalid
@@ -47,7 +46,12 @@ module Sandstorm
       private
 
       def indexer
-        @indexer ||= Sandstorm::RedisKey.new("#{@class_key}::by_#{@attribute}", :hash)
+        @indexer ||= Sandstorm::Records::Key.new(
+          :class  => @class_key,
+          :name   => "by_#{@attribute}",
+          :type   => :hash,
+          :object => :index
+        )
       end
 
     end

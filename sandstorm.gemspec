@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.version       = Sandstorm::VERSION
   spec.authors       = ['Ali Graham']
   spec.email         = ['ali.graham@bulletproof.net']
-  spec.description   = %q{ActiveModel-based ORM for Redis}
-  spec.summary       = %q{}
+  spec.description   = %q{ActiveModel-based ORM for Redis/InfluxDB}
+  spec.summary       = %q{ActiveModel-based ORM for Redis/InfluxDB}
   spec.homepage      = 'https://github.com/flapjack/sandstorm'
   spec.license       = 'MIT'
 
@@ -21,7 +21,6 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'redis'
   spec.add_dependency 'activemodel', '~> 3.2.19' # for Ruby 1.8 support
 
   spec.add_development_dependency 'bundler', '~> 1.3'

@@ -1,16 +1,18 @@
-require 'sandstorm'
-require 'sandstorm/redis_key'
-
 # The other side of a has_one, has_many, or has_sorted_set association
 
 module Sandstorm
   module Associations
     class BelongsTo
 
-      def initialize(parent, name, options = {})
-        @record_ids = Sandstorm::RedisKey.new("#{parent.record_key}:belongs_to", :hash)
+      # NB a single instance of this class doesn't need to care about the hash
+      # used for storage, that should be done in the save method of the parent
+
+      def initialize(parent, name, record_ids_key, backend, options = {})
         @parent = parent
         @name = name
+
+        @record_ids_key = record_ids_key
+        @backend = backend
 
         # TODO trap possible constantize error
         @associated_class = (options[:class_name] || name.classify).constantize
@@ -27,18 +29,21 @@ module Sandstorm
 
       # intrinsically atomic, so no locking needed
       def value=(record)
+        new_txn = @backend.begin_transaction
         if record.nil?
-          Sandstorm.redis.hdel(@record_ids.key, @inverse_key)
+          @backend.delete(@record_ids_key, @inverse_key)
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
-          Sandstorm.redis.hset(@record_ids.key, @inverse_key, record.id)
+          @backend.add(@record_ids_key, @inverse_key => record.id)
         end
+        @backend.commit_transaction if new_txn
       end
 
       def value
-        @parent.class.send(:lock, @parent.class, @associated_class) do
-          if id = Sandstorm.redis.hget(@record_ids.key, @inverse_key)
+        @backend.lock(@parent.class, @associated_class) do
+          # FIXME uses hgetall, need separate getter for hash/list/set
+          if id = @backend.get(@record_ids_key)[@inverse_key.to_s]
             @associated_class.send(:load, id)
           else
             nil
@@ -48,12 +53,10 @@ module Sandstorm
 
       private
 
-      # on remove already runs inside a lock
+      # on_remove already runs inside a lock & transaction
       def on_remove
-        if record = value
-          record.send("#{@inverse}_proxy".to_sym).send(:delete, @parent)
-        end
-        Sandstorm.redis.del(@record_ids.key)
+        value.send("#{@inverse}_proxy".to_sym).send(:delete, @parent) unless value.nil?
+        @backend.clear(@record_ids_key)
       end
 
     end
