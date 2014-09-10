@@ -464,6 +464,28 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
                             'redis_example_child:6:attrs'])
     end
 
+    it 'returns associated ids for multiple parent ids' do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example_8 = Sandstorm::RedisExample.find_by_id('8')
+
+      create_example(:id => '9', :name => 'Jane Johnson',
+                     :email => 'jjohnson@example.com', :active => 'true')
+      example_9 = Sandstorm::RedisExample.find_by_id('9')
+
+      create_example(:id => '10', :name => 'Jim Smith',
+                     :email => 'jsmith@example.com', :active => 'true')
+
+      create_child(example_8, :id => '3', :name => 'abc', :important => false)
+      create_child(example_9, :id => '4', :name => 'abc', :important => false)
+      create_child(example_9, :id => '5', :name => 'abc', :important => false)
+
+      assoc_ids = Sandstorm::RedisExample.associated_ids_for_children('8', '9', '10')
+      expect(assoc_ids).to eq('8'  => Set.new(['3']),
+                              '9'  => Set.new(['4', '5']),
+                              '10' => Set.new())
+    end
+
   end
 
   context "has_sorted_set" do
@@ -758,6 +780,33 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
                             'redis_example_datum:6:attrs'])
     end
 
+    it 'returns associated ids for multiple parent ids' do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example_8 = Sandstorm::RedisExample.find_by_id('8')
+
+      create_example(:id => '9', :name => 'Jane Johnson',
+                     :email => 'jjohnson@example.com', :active => 'true')
+
+      create_example(:id => '10', :name => 'Jim Smith',
+                     :email => 'jsmith@example.com', :active => 'true')
+      example_10 = Sandstorm::RedisExample.find_by_id('10')
+
+      time = Time.now.to_i
+
+      create_datum(example_8, :id => '3', :summary => 'aaargh', :timestamp => time.to_i + 20,
+        :emotion => 'ok')
+      create_datum(example_8, :id => '4', :summary => 'aaargh', :timestamp => time.to_i + 30,
+        :emotion => 'ok')
+      create_datum(example_10, :id => '5', :summary => 'aaargh', :timestamp => time.to_i + 40,
+        :emotion => 'not_ok')
+
+      assoc_ids = Sandstorm::RedisExample.associated_ids_for_data('8', '9', '10')
+      expect(assoc_ids).to eq('8'  => Set.new(['3', '4']),
+                              '9'  => Set.new(),
+                              '10' => Set.new(['5']))
+    end
+
   end
 
   context "has_one" do
@@ -866,6 +915,29 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       expect(redis.keys).to match_array(['redis_example_special::attrs:ids',
                             'redis_example_special:3:attrs'])
+    end
+
+    it 'returns associated ids for multiple parent ids' do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+
+      create_example(:id => '9', :name => 'Jane Johnson',
+                     :email => 'jjohnson@example.com', :active => 'true')
+      example_9 = Sandstorm::RedisExample.find_by_id('9')
+
+      create_example(:id => '10', :name => 'Jim Smith',
+                     :email => 'jsmith@example.com', :active => 'true')
+      example_10 = Sandstorm::RedisExample.find_by_id('10')
+
+      time = Time.now.to_i
+
+      create_special(example_9,  :id => '3', :name => 'jkl')
+      create_special(example_10, :id => '4', :name => 'pqr')
+
+      assoc_ids = Sandstorm::RedisExample.associated_ids_for_special('8', '9', '10')
+      expect(assoc_ids).to eq('8'  => nil,
+                              '9'  => '3',
+                              '10' => '4')
     end
 
   end
@@ -995,6 +1067,31 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     end
 
     it 'clears a has_and_belongs_to_many association when a record is deleted'
+
+    it 'returns associated ids for multiple parent ids' do
+      create_example(:id => '9', :name => 'Jane Johnson',
+                     :email => 'jjohnson@example.com', :active => 'true')
+      example_9 = Sandstorm::RedisExample.find_by_id('9')
+
+      create_example(:id => '10', :name => 'Jim Smith',
+                     :email => 'jsmith@example.com', :active => 'true')
+      example_10 = Sandstorm::RedisExample.find_by_id('10')
+
+      create_template(:id => '3', :name => 'Template 3')
+      create_template(:id => '4', :name => 'Template 4')
+
+      template_2 = Sandstorm::Template.find_by_id('2')
+      template_3 = Sandstorm::Template.find_by_id('3')
+      template_4 = Sandstorm::Template.find_by_id('4')
+
+      example_9.templates.add(template_2)
+      example_10.templates.add(template_3, template_4)
+
+      assoc_ids = Sandstorm::RedisExample.associated_ids_for_templates('8', '9', '10')
+      expect(assoc_ids).to eq('8'  => Set.new([]),
+                              '9'  => Set.new(['2']),
+                              '10' => Set.new(['3', '4']))
+    end
 
   end
 

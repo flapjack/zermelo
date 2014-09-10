@@ -80,12 +80,10 @@ module Sandstorm
         case @initial_set.type
         when :sorted_set
           resolve_steps {|set, order_desc|
-            # backend.ids(set)
             Sandstorm.redis.send((order_desc ? :zrevrange : :zrange), set, 0, -1)
           }
         when :set, nil
           resolve_steps(:smembers)
-          # resolve_steps(:ids)
         end
       end
 

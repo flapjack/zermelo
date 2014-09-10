@@ -183,13 +183,19 @@ module Sandstorm
               #{name}_proxy.ids
             end
 
-            # # FIXME
-            # def self.associated_ids_for_#{name}(this_ids)
-            #   this_ids.inject({}) do |memo, this_id|
-            #     memo[this_id] = Sandstorm.redis.smembers("#{class_key}:" + this_id + ":#{name.to_s}_ids")
-            #     memo
-            #   end
-            # end
+            def self.associated_ids_for_#{name}(*this_ids)
+              this_ids.inject({}) do |memo, this_id|
+                key = Sandstorm::Records::Key.new(
+                  :class  => class_key,
+                  :id     => this_id,
+                  :name   => '#{name}_ids',
+                  :type   => #{key_type},
+                  :object => :association
+                )
+                memo[this_id] = backend.get(key)
+                memo
+              end
+            end
 
             private
 
@@ -231,13 +237,19 @@ module Sandstorm
               #{name}_proxy.send(obj.nil? ? :delete : :add, obj)
             end
 
-            # # FIXME
-            # def self.associated_ids_for_#{name}(this_ids)
-            #   has_one_keys = this_ids.collect do |this_id|
-            #     "#{class_key}:" + this_id + ":#{name}_id"
-            #   end
-            #   this_ids.zip(Sandstorm.redis.mget(*has_one_keys))
-            # end
+            def self.associated_ids_for_#{name}(*this_ids)
+              this_ids.inject({}) do |memo, this_id|
+                key = Sandstorm::Records::Key.new(
+                  :class  => class_key,
+                  :id     => this_id,
+                  :name   => '#{name}_id',
+                  :type   => :string,
+                  :object => :association
+                )
+                memo[this_id] = backend.get(key)
+                memo
+              end
+            end
 
             private
 
@@ -280,13 +292,19 @@ module Sandstorm
               #{name}_proxy.value = obj
             end
 
-            # # FIXME
-            # def self.associated_ids_for_#{name}(this_ids)
-            #   this_ids.inject({}) do |memo, this_id|
-            #     memo[this_id] = Sandstorm.redis.hget("#{class_key}:" + this_id + ":belongs_to", "#{name}_id")
-            #     memo
-            #   end
-            # end
+            def self.associated_ids_for_#{name}(*this_ids)
+              this_ids.inject({}) do |memo, this_id|
+                key = Sandstorm::Records::Key.new(
+                  :class  => class_key,
+                  :id     => this_id,
+                  :name   => 'belongs_to',
+                  :type   => :hash,
+                  :object => :association
+                )
+                memo[this_id] = backend.get(key)['#{name}_id']
+                memo
+              end
+            end
 
             private
 

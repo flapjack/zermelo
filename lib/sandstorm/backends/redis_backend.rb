@@ -36,7 +36,7 @@ module Sandstorm
             when :hash
               Sandstorm.redis.hgetall(redis_attr_key)
             when :sorted_set
-              Sandstorm.redis.zrange(redis_attr_key, 0, -1)
+              Set.new( Sandstorm.redis.zrange(redis_attr_key, 0, -1) )
             end
 
           else
