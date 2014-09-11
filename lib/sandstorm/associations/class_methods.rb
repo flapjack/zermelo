@@ -136,9 +136,37 @@ module Sandstorm
         case klass.name
         when ::Sandstorm::Associations::Index.name, ::Sandstorm::Associations::UniqueIndex.name
 
-          # TODO check method_defined? ( which relative to instance_eval ?)
+          index = case klass.name
+          when ::Sandstorm::Associations::Index.name
+            # FIXME needs backend abstraction
+            %Q{
+              # Raises RegexpError if the provided pattern is invalid
+              def self.attributes_matching_#{name}(pattern)
+                return [] unless backend.is_a?(Sandstorm::Backends::RedisBackend)
 
-          assoc = %Q{
+                regexp = Regexp.new(pattern)
+                Sandstorm.redis.keys("#{class_key}::by_#{name}:*").inject([]) do |memo, k|
+                  if k =~ /^#{class_key}::by_#{name}:(.+)$/
+                    att = backend.unescape_key_name($1)
+                    memo << att if (regexp === att)
+                  end
+                  memo
+                end
+              end
+}
+          when ::Sandstorm::Associations::UniqueIndex.name
+            %Q{
+              # Raises RegexpError if the provided pattern is invalid
+              def self.attributes_matching_#{name}(pattern)
+                regexp = Regexp.new(pattern)
+                @#{name}_index ||=
+                  #{klass.name}.new(self, "#{class_key}", "#{name}")
+                backend.get(@#{name}_index.key).select {|a| regexp === a }
+              end
+}
+          end
+
+          index += %Q{
             private
 
             def #{name}_index(value)
@@ -148,9 +176,10 @@ module Sandstorm
               @#{name}_index
             end
           }
-          instance_eval assoc, __FILE__, __LINE__
+          instance_eval index, __FILE__, __LINE__
 
-        when ::Sandstorm::Associations::HasMany.name, ::Sandstorm::Associations::HasSortedSet.name,
+        when ::Sandstorm::Associations::HasMany.name,
+          ::Sandstorm::Associations::HasSortedSet.name,
           ::Sandstorm::Associations::HasAndBelongsToMany.name
 
           assoc_args = []
@@ -171,8 +200,6 @@ module Sandstorm
           if (klass == ::Sandstorm::Associations::HasAndBelongsToMany) && args[:inverse_of]
             assoc_args << %Q{:inverse_of => :#{args[:inverse_of].to_s}}
           end
-
-          # TODO check method_defined? ( which relative to class_eval ? )
 
           assoc = %Q{
             def #{name}
@@ -224,9 +251,7 @@ module Sandstorm
             assoc_args << %Q{:class_name => "#{args[:class_name]}"}
           end
 
-          # TODO check method_defined? ( which relative to class_eval ? )
-
-          # TODO would be fine as a 'has_one' hash
+          # TODO would be better as a 'has_one' hash
 
           assoc = %Q{
             def #{name}
@@ -280,8 +305,6 @@ module Sandstorm
           if args[:inverse_of]
             assoc_args << %Q{:inverse_of => :#{args[:inverse_of].to_s}}
           end
-
-          # TODO check method_defined? ( which relative to class_eval ? )
 
           assoc = %Q{
             def #{name}

@@ -37,12 +37,6 @@ module Sandstorm
         indexer
       end
 
-      # Raises RegexpError if the provided pattern is invalid
-      def attributes_matching(pattern)
-        regexp = Regexp.new(pattern)
-        Sandstorm.redis.hkeys(indexer.key).select {|a| regexp === a }
-      end
-
       private
 
       def indexer

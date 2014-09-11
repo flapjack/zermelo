@@ -10,6 +10,14 @@ module Sandstorm
 
       extend ActiveSupport::Concern
 
+      def escape_key_name(name)
+        name.gsub(/%/, '%%').gsub(/ /, '%20').gsub(/:/, '%3A')
+      end
+
+      def unescape_key_name(name)
+        name.gsub(/%3A/, ':').gsub(/%20/, ' ').gsub(/%%/, '%')
+      end
+
       # for hashes, lists, sets
       def add(key, value)
         change(:add, key, value)
