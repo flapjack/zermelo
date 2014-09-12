@@ -106,11 +106,9 @@ module Sandstorm
               :object => :index
             ))
 
-            matching_ids = Sandstorm.redis.hgetall(index_key).select {|k, v|
-              value === k
-            }
-
-            Sandstorm.redis.sadd(idx_result, *matching_ids.values) unless matching_ids.empty?
+            candidates = Sandstorm.redis.hgetall(index_key)
+            matching_ids = candidates.values_at(*candidates.keys.select {|k| value === k })
+            Sandstorm.redis.sadd(idx_result, *matching_ids) unless matching_ids.empty?
 
           when 'Sandstorm::Associations::Index'
 
