@@ -54,7 +54,7 @@ post.save
 Behind the scenes, this will run the following Redis command:
 
 ```
-SADD post::ids 'abcde'
+SADD post::attrs:ids 'abcde'
 ```
 
 (along with a few others which we'll discuss shortly).
@@ -85,7 +85,7 @@ An `:id => :string` attribute is implicitly defined, but in this case no id was 
 
 ```
 HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
-SADD post::ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
+SADD post::attrs:ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
 ```
 
 which can then be verified by inspection of the object's attributes, e.g.:
@@ -133,8 +133,8 @@ post.save
 which would run the following Redis commands:
 
 ```
-SADD post:1:tags 'database' 'ORM'
-SADD post::ids 1
+SADD post:1:attrs:tags 'database' 'ORM'
+SADD post::attrs:ids 1
 ```
 
 Sandstorm supports the following complex attribute types, and automatically
@@ -218,7 +218,7 @@ which executes the following Redis calls:
 
 ```
 HMSET post:1234:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
-SADD post::ids 1234
+SADD post::attrs:ids 1234
 ```
 
 This data can be loaded into a fresh `Post` instance using the `find_by_id(ID)` class method:
@@ -231,9 +231,29 @@ same_post.attributes # == {:id => '1234', :score => 100, :timestamp => '2000-01-
 You can load more than one record using the `find_by_ids(ID, ID, ...)` class method (returns an array), and raise exceptions if records matching the ids are not found using `find_by_id!(ID)` and `find_by_ids!(ID, ID, ...)`.
 
 ### Class methods
-TODO
 
-( :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!, :all, :each, :collect, :select, :find_all, :reject, :destroy_all, :ids, :count, :empty?, :exists? )
+Classes that include `Sandstorm::Record` have the following class methods made available to them.
+
+|Name                 | Arguments     | Returns |
+|---------------------|---------------|---------|
+|all                  |               | Returns an Array of all the records stored for this class |
+|each                 |               | Yields all records to the provided block, returns the same Array as .all(): [Array#each](http://ruby-doc.org/core-2.1.2/Array.html#method-i-each)   |
+|collect / map        |               | Yields all records to the provided block, returns an Array with the values returned from the block [Array#collect](http://ruby-doc.org/core-2.1.2/Array.html#method-i-collect)  |
+|select / find_all    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Array#select](http://ruby-doc.org/core-2.1.2/Array.html#method-i-select)  |
+|reject               |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Array#reject](http://ruby-doc.org/core-2.1.2/Array.html#method-i-reject)        |
+|ids                  |               | Returns an Array with the ids of all stored records |
+|count                |               | Returns an Integer count of the number of stored records |
+|empty?               |               | Returns true if no records are stored, false otherwise |
+|destroy_all          |               | Removes all stored records |
+|exists?              | ID            | Returns true if the record with the id is present, false if not |
+|find_by_id           | ID            | Returns the instantiated record for the id, or nil if not present |
+|find_by_ids          | ID, ID, ...   | Returns an Array of instantiated records for the ids, with nils if the respective record is not present |
+|find_by_id!          | ID            | Returns the instantiated record for the id, or raises a Sandstorm::Records::RecordNotFound exception if not present |
+|find_by_ids!         | ID, ID, ...   |  Returns an Array of instantiated records for the ids, or raises a Sandstorm::Records::RecordsNotFound exception if any are not present |
+
+### Instance methods
+
+TODO ( :refresh, :destroy ) + various ActiveModel attribute methods
 
 ### Associations
 
