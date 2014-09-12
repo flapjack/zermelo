@@ -98,8 +98,7 @@ module Sandstorm
         when Sandstorm::Associations::UniqueIndex
           idx_result = temp_set_name
           Sandstorm.redis.sadd(idx_result,
-            Sandstorm.redis.hget(backend.key_to_redis_key(
-              @associated_class.send("#{att}_index", value).key), value))
+            Sandstorm.redis.hget(backend.key_to_redis_key(index.key), value))
           [idx_result, true]
         when Sandstorm::Associations::Index
           [backend.key_to_redis_key(index.key), false]
