@@ -91,17 +91,59 @@ module Sandstorm
         "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
       end
 
-      def indexed_step_to_set(att, value)
-        index = @associated_class.send("#{att}_index", value)
+      def indexed_step_to_set(att, idx_class, value)
 
-        case index
-        when Sandstorm::Associations::UniqueIndex
+        case value
+        when Regexp
           idx_result = temp_set_name
-          Sandstorm.redis.sadd(idx_result,
-            Sandstorm.redis.hget(backend.key_to_redis_key(index.key), value))
+          case idx_class.name
+          when 'Sandstorm::Associations::UniqueIndex'
+
+            index_key = backend.key_to_redis_key(Sandstorm::Records::Key.new(
+              :class  => @associated_class.send(:class_key),
+              :name   => "by_#{att}",
+              :type   => :hash,
+              :object => :index
+            ))
+
+            matching_ids = Sandstorm.redis.hgetall(index_key).select {|k, v|
+              value === k
+            }
+
+            Sandstorm.redis.sadd(idx_result, *matching_ids.values) unless matching_ids.empty?
+
+          when 'Sandstorm::Associations::Index'
+
+            class_key = @associated_class.send(:class_key)
+
+            key_root = backend.key_to_redis_key(Sandstorm::Records::Key.new(
+              :class  => class_key,
+              :name   => nil,
+              :type   => :set,
+              :object => :index
+            )) + "by_#{att}:"
+
+            matching_sets = Sandstorm.redis.keys(key_root + "*").inject([]) do |memo, k|
+              k =~ /^#{key_root}(.+)$/
+              memo << k if value === $1
+              memo
+            end
+
+            Sandstorm.redis.sinterstore(idx_result, *matching_sets) unless matching_sets.empty?
+          end
           [idx_result, true]
-        when Sandstorm::Associations::Index
-          [backend.key_to_redis_key(index.key), false]
+        else
+          index = @associated_class.send("#{att}_index", value)
+
+          case index
+          when Sandstorm::Associations::UniqueIndex
+            idx_result = temp_set_name
+            Sandstorm.redis.sadd(idx_result,
+              Sandstorm.redis.hget(backend.key_to_redis_key(index.key), value))
+            [idx_result, true]
+          when Sandstorm::Associations::Index
+            [backend.key_to_redis_key(index.key), false]
+          end
         end
       end
 
@@ -112,13 +154,14 @@ module Sandstorm
         if [:intersect, :union, :diff].include?(step.first)
 
           source_keys += step.last.inject([]) do |memo, (att, value)|
-            raise "'#{att}' property is not indexed" unless idx_attrs.include?(att.to_s)
+            idx_class = idx_attrs[att.to_s]
+            raise "'#{att}' property is not indexed" if idx_class.nil?
 
             if value.is_a?(Enumerable)
               conditions_set = temp_set_name
               temp_idx_sets = []
               Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
-                idx_set, clear = indexed_step_to_set(att, val)
+                idx_set, clear = indexed_step_to_set(att, idx_class, val)
                 temp_idx_sets << idx_set if clear
                 idx_set
               })
@@ -126,7 +169,7 @@ module Sandstorm
               temp_sets << conditions_set
               memo << conditions_set
             else
-              idx_set, clear = indexed_step_to_set(att, value)
+              idx_set, clear = indexed_step_to_set(att, idx_class, value)
               temp_sets << idx_set if clear
               memo << idx_set
             end

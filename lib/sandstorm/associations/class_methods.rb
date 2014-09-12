@@ -21,8 +21,8 @@ module Sandstorm
       def indexed_attributes
         ret = nil
         @lock.synchronize do
-          @indexes ||= []
-          ret = @indexes.dup
+          @indices ||= {}
+          ret = @indices.dup
         end
         ret
       end
@@ -64,8 +64,8 @@ module Sandstorm
         args.each do |arg|
           index = associate(::Sandstorm::Associations::Index, self, arg)
           @lock.synchronize do
-            @indexes ||= []
-            @indexes << arg.to_s
+            @indices ||= {}
+            @indices[arg.to_s] = ::Sandstorm::Associations::Index
           end
         end
         nil
@@ -75,8 +75,8 @@ module Sandstorm
         args.each do |arg|
           index = associate(::Sandstorm::Associations::UniqueIndex, self, arg)
           @lock.synchronize do
-            @indexes ||= []
-            @indexes << arg.to_s
+            @indices ||= {}
+            @indices[arg.to_s] = ::Sandstorm::Associations::UniqueIndex
           end
         end
         nil
@@ -135,38 +135,7 @@ module Sandstorm
         return if name.nil?
         case klass.name
         when ::Sandstorm::Associations::Index.name, ::Sandstorm::Associations::UniqueIndex.name
-
-          index = case klass.name
-          when ::Sandstorm::Associations::Index.name
-            # FIXME needs backend abstraction
-            %Q{
-              # Raises RegexpError if the provided pattern is invalid
-              def self.attributes_matching_#{name}(pattern)
-                return [] unless backend.is_a?(Sandstorm::Backends::RedisBackend)
-
-                regexp = Regexp.new(pattern)
-                Sandstorm.redis.keys("#{class_key}::by_#{name}:*").inject([]) do |memo, k|
-                  if k =~ /^#{class_key}::by_#{name}:(.+)$/
-                    att = backend.unescape_key_name($1)
-                    memo << att if (regexp === att)
-                  end
-                  memo
-                end
-              end
-}
-          when ::Sandstorm::Associations::UniqueIndex.name
-            %Q{
-              # Raises RegexpError if the provided pattern is invalid
-              def self.attributes_matching_#{name}(pattern)
-                regexp = Regexp.new(pattern)
-                @#{name}_index ||=
-                  #{klass.name}.new(self, "#{class_key}", "#{name}")
-                backend.get(@#{name}_index.key).select {|a| regexp === a }
-              end
-}
-          end
-
-          index += %Q{
+          index = %Q{
             private
 
             def #{name}_index(value)
@@ -230,7 +199,7 @@ module Sandstorm
               raise "Associations cannot be invoked for records without an id" if self.id.nil?
 
               @association_keys['#{name}'] ||= Sandstorm::Records::Key.new(
-                :class  => self.class.send(:class_key),
+                :class  => "#{class_key}",
                 :id     => self.id,
                 :name   => '#{name}_ids',
                 :type   => #{key_type},
@@ -282,7 +251,7 @@ module Sandstorm
               raise "Associations cannot be invoked for records without an id" if self.id.nil?
 
               @association_keys['#{name}'] ||= Sandstorm::Records::Key.new(
-                :class  => self.class.send(:class_key),
+                :class  => "#{class_key}",
                 :id     => self.id,
                 :name   => '#{name}_id',
                 :type   => :string,
@@ -335,7 +304,7 @@ module Sandstorm
               raise "Associations cannot be invoked for records without an id" if self.id.nil?
 
               @association_keys['belongs_to'] ||= Sandstorm::Records::Key.new(
-                :class  => self.class.send(:class_key),
+                :class  => "#{class_key}",
                 :id     => self.id,
                 :name   => 'belongs_to',
                 :type   => :hash,

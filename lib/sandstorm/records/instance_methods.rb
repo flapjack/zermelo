@@ -86,17 +86,14 @@ module Sandstorm
             self.changes.each_pair do |att, old_new|
               backend.set(attribute_keys[att], old_new.last) unless att.eql?('id')
 
-              next unless idx_attrs.include?(att)
+              next unless idx_attrs.has_key?(att)
 
               # update indices
               if old_new.first.nil?
-                # sadd
                 self.class.send("#{att}_index", old_new.last).add_id( @attributes['id'] )
               elsif old_new.last.nil?
-                # srem
                 self.class.send("#{att}_index", old_new.first).delete_id( @attributes['id'] )
               else
-                # smove
                 self.class.send("#{att}_index", old_new.first).move_id( @attributes['id'],
                                 self.class.send("#{att}_index", old_new.last))
               end
@@ -126,13 +123,13 @@ module Sandstorm
 
           backend.lock(*assoc_classes) do
             self.class.send(:with_associations, self) {|assoc| assoc.send(:on_remove) }
-            index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes))
+            index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes).keys)
 
             self.class.transaction do
               self.class.delete_id(@attributes['id'])
-              index_attrs.each {|att|
+              index_attrs.each do |att|
                 self.class.send("#{att}_index", @attributes[att]).delete_id( @attributes['id'])
-              }
+              end
 
               self.class.attribute_types.each_pair {|name, type|
                 key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),

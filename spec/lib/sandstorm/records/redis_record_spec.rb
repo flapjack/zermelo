@@ -145,6 +145,36 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     expect(example.email).to eq('jjones@example.com')
   end
 
+  it 'finds records by regex match against a uniquely indexed value in redis' do
+    create_example(:id => '8', :name => 'John Jones',
+                   :email => 'jjones@example.com', :active => 'true')
+
+    examples = Sandstorm::RedisExample.intersect(:name => /ones/).all
+    expect(examples).not_to be_nil
+    expect(examples).to be_an(Array)
+    expect(examples.size).to eq(1)
+    example = examples.first
+    expect(example.id).to eq('8')
+    expect(example.name).to eq('John Jones')
+    expect(example.email).to eq('jjones@example.com')
+  end
+
+  it 'finds records by regex match against a indexed value in redis' do
+    create_example(:id => '8', :name => 'John Jones',
+                   :email => 'jjones@example.com', :active => true)
+    create_example(:id => '9', :name => 'James Brown',
+                   :email => 'jbrown@example.com', :active => false)
+
+    examples = Sandstorm::RedisExample.intersect(:active => /alse/).all
+    expect(examples).not_to be_nil
+    expect(examples).to be_an(Array)
+    expect(examples.size).to eq(1)
+    example = examples.first
+    expect(example.id).to eq('9')
+    expect(example.name).to eq('James Brown')
+    expect(example.email).to eq('jbrown@example.com')
+  end
+
   it "updates a record's attributes in redis" do
     create_example(:id => '8', :name => 'John Jones',
                    :email => 'jjones@example.com', :active => 'true')
