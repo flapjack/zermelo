@@ -234,38 +234,49 @@ You can load more than one record using the `find_by_ids(ID, ID, ...)` class met
 
 Classes that include `Sandstorm::Record` have the following class methods made available to them.
 
-|Name                 | Arguments     | Returns |
-|---------------------|---------------|---------|
-|all                  |               | Returns an Array of all the records stored for this class |
-|each                 |               | Yields all records to the provided block, returns the same Array as .all(): [Array#each](http://ruby-doc.org/core-2.1.2/Array.html#method-i-each)   |
-|collect / map        |               | Yields all records to the provided block, returns an Array with the values returned from the block [Array#collect](http://ruby-doc.org/core-2.1.2/Array.html#method-i-collect)  |
-|select / find_all    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Array#select](http://ruby-doc.org/core-2.1.2/Array.html#method-i-select)  |
-|reject               |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Array#reject](http://ruby-doc.org/core-2.1.2/Array.html#method-i-reject)        |
-|ids                  |               | Returns an Array with the ids of all stored records |
-|count                |               | Returns an Integer count of the number of stored records |
-|empty?               |               | Returns true if no records are stored, false otherwise |
-|destroy_all          |               | Removes all stored records |
-|exists?              | ID            | Returns true if the record with the id is present, false if not |
-|find_by_id           | ID            | Returns the instantiated record for the id, or nil if not present |
-|find_by_ids          | ID, ID, ...   | Returns an Array of instantiated records for the ids, with nils if the respective record is not present |
-|find_by_id!          | ID            | Returns the instantiated record for the id, or raises a Sandstorm::Records::RecordNotFound exception if not present |
-|find_by_ids!         | ID, ID, ...   |  Returns an Array of instantiated records for the ids, or raises a Sandstorm::Records::RecordsNotFound exception if any are not present |
+|Name                     | Arguments     | Returns |
+|-------------------------|---------------|---------|
+|`all`                    |               | Returns an Array of all the records stored for this class |
+|`each`                   |               | Yields all records to the provided block, returns the same Array as .all(): [Array#each](http://ruby-doc.org/core-2.1.2/Array.html#method-i-each)   |
+|`collect` / `map`        |               | Yields all records to the provided block, returns an Array with the values returned from the block: [Array#collect](http://ruby-doc.org/core-2.1.2/Array.html#method-i-collect)  |
+|`select` / `find_all`    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Array#select](http://ruby-doc.org/core-2.1.2/Array.html#method-i-select)  |
+|`reject`                 |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Array#reject](http://ruby-doc.org/core-2.1.2/Array.html#method-i-reject)        |
+|`ids`                    |               | Returns an Array with the ids of all stored records |
+|`count`                  |               | Returns an Integer count of the number of stored records |
+|`empty?`                 |               | Returns true if no records are stored, false otherwise |
+|`destroy_all`            |               | Removes all stored records |
+|`exists?`                | ID            | Returns true if the record with the id is present, false if not |
+|`find_by_id`             | ID            | Returns the instantiated record for the id, or nil if not present |
+|`find_by_ids`            | ID, ID, ...   | Returns an Array of instantiated records for the ids, with nils if the respective record is not present |
+|`find_by_id!`            | ID            | Returns the instantiated record for the id, or raises a Sandstorm::Records::RecordNotFound exception if not present |
+|`find_by_ids!`           | ID, ID, ...   |  Returns an Array of instantiated records for the ids, or raises a Sandstorm::Records::RecordsNotFound exception if any are not present |
 
 ### Instance methods
 
-TODO ( :refresh, :destroy ) + various ActiveModel attribute methods
+Instances of classes including `Sandstorm::Record` have the following methods:
+
+|Name                 | Arguments     | Returns |
+|---------------------|---------------|---------|
+|`persisted?`         |               | returns true if the record has been saved, false if not |
+|`load`               | ID            | loads the record with the provided ID, discarding current state |
+|`refresh`            |               | refreshes the record from saved data, discarding current changes |
+|`save`               |               | returns false if validations fail, true and saves data if valid |
+|`update_attributes`  | HASH          | mass assignment of attribute accessors, calls `save()` after attribute changes have been applied |
+|`destroy`            |              | removes the saved data for the record |
+
+Instances also have attribute accessors and the various methods included from the ActiveModel classes mentioned earlier.
 
 ### Associations
 
 **Sandstorm** supports multiple association types, which are named similarly to those provided by ActiveRecord:
 
-|Name                     | Type                      | Redis data structure | Notes |
-|-------------------------|---------------------------|----------------------|-------|
-| has_many                | one-to-many               | [SET](http://redis.io/commands#set) | |
-| has_sorted_set          | one-to-many               | [ZSET](http://redis.io/commands#sorted_set) | |
-| has_one                 | one-to-one                | [HASH](http://redis.io/commands#hash) | |
-| belongs_to              | many-to-one or one-to-one | [HASH](http://redis.io/commands#hash) or [STRING](http://redis.io/commands#string)  | Inverse of any of the above three |
-| has_and_belongs_to_many | many-to-many              | 2 [SET](http://redis.io/commands#set)s | Mirrored by an inverse HaBtM association on the other side. |
+|Name                       | Type                      | Redis data structure | Notes |
+|---------------------------|---------------------------|----------------------|-------|
+| `has_many`                | one-to-many               | [SET](http://redis.io/commands#set) | |
+| `has_sorted_set`          | one-to-many               | [ZSET](http://redis.io/commands#sorted_set) | |
+| `has_one`                 | one-to-one                | [HASH](http://redis.io/commands#hash) | |
+| `belongs_to`              | many-to-one or one-to-one | [HASH](http://redis.io/commands#hash) or [STRING](http://redis.io/commands#string)  | Inverse of any of the above three |
+| `has_and_belongs_to_many` | many-to-many              | 2 [SET](http://redis.io/commands#set)s | Mirrored by an inverse HaBtM association on the other side. |
 
 ```ruby
 class Post
@@ -343,7 +354,7 @@ Some possible changes:
 * pluggable key naming strategies
 * pluggable id generation strategies
 * instrumentation for benchmarking etc.
-* multiple data backends; there's an [experimental branch](https://github.com/flapjack/sandstorm/tree/data_backends) for this, which will probably end up being merged, if only for some of its architectural improvements.
+* multiple data backends; there's currently an experimental InfluxDB backend, and more are planned.
 
 ## License
 
