@@ -21,6 +21,20 @@ module Sandstorm
         @steps            = []
       end
 
+      # # TODO implement
+      # # will probably need to scan and extract the last usage from steps
+      # def limit(amount)
+      #   @steps += [:limit, {:amount => amount}, {}]
+      #   self
+      # end
+
+      # # TODO implement
+      # def order(opts = {})
+      #   @steps += [:sort, {:order => opts.delete(:order),
+      #     :alphabetic => opts.delete(:alphabetic)}, {}]
+      #   self
+      # end
+
       def intersect(opts = {})
         @steps += [:intersect, {}, opts]
         self
@@ -44,6 +58,12 @@ module Sandstorm
 
       def union_range(start, finish, opts = {})
         @steps += [:union_range, {:start => start, :finish => finish,
+          :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
+        self
+      end
+
+      def diff_range(start, finish, opts = {})
+        @steps += [:diff_range, {:start => start, :finish => finish,
           :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
         self
       end
@@ -106,6 +126,10 @@ module Sandstorm
 
       def reject(&block)
         lock { _all.reject {|obj| block.call(obj)} }
+      end
+
+      def destroy_all
+        lock(*@associated_class.send(:associated_classes)) { _all.each {|r| r.destroy } }
       end
 
       protected

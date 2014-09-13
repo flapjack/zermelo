@@ -1,12 +1,6 @@
 require 'sandstorm/filters/base'
 
-# TODO escape ids and index_keys -- shouldn't allow bare :
-
-# TODO callbacks on before/after add/delete on association?
-
-# TODO optional sort via Redis SORT, first/last for has_many via those
-
-# TODO get DIFF working for exclusion case against ZSETs
+# TODO check escaping of ids and index_keys -- shouldn't allow bare :
 
 module Sandstorm
 
@@ -19,6 +13,7 @@ module Sandstorm
       # more step users
       def first
         raise 'Can\'t get first member of a non-sorted set' unless @initial_set.type == :sorted_set
+        # or if steps contain sort operation ?
         lock {
           first_id = resolve_steps{|set, order_desc|
             Sandstorm.redis.send(:zrange, set, 0, 0).first
@@ -33,6 +28,7 @@ module Sandstorm
 
       def last
         raise 'Can\'t get last member of a non-sorted set' unless @initial_set.type == :sorted_set
+        # or if steps contain sort operation ?
         lock {
           last_id = resolve_steps{|set, order_desc|
             Sandstorm.redis.send(:zrevrange, set, 0, 0).first
@@ -43,10 +39,6 @@ module Sandstorm
             _load(last_id)
           end
         }
-      end
-
-      def destroy_all
-        lock(*@associated_class.send(:associated_classes)) { _all.each {|r| r.destroy } }
       end
       # end step users
 
@@ -175,7 +167,7 @@ module Sandstorm
             memo
           end
 
-        elsif [:intersect_range, :union_range].include?(step.first)
+        elsif [:intersect_range, :union_range, :diff_range].include?(step.first)
           range_ids_set = temp_set_name
 
           options = step[1] || {}
@@ -272,12 +264,23 @@ module Sandstorm
 
             case @initial_set.type
             when :sorted_set
-              weights = [1.0] + ([0.0] * (source_keys.length - 1))
+              weights = case step.first
+              when :union, :union_range
+                [1.0] + ([0.0] * (source_keys.length - 1))
+              when :diff, :diff_range
+                [1.0] + ([-1.0] * (source_keys.length - 1))
+              end
+
               case step.first
               when :union, :union_range
                 Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
               when :intersect, :intersect_range
                 Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
+              when :diff, :diff_range
+                # 'zdiffstore' via weights, relies on non-zero scores being used
+                # see https://code.google.com/p/redis/issues/detail?id=579
+                Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'sum')
+                Sandstorm.redis.zremrangebyscore(dest_set, "0", "0")
               end
             when :set, nil
               case step.first

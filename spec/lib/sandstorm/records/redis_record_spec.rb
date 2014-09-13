@@ -734,6 +734,96 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(example.data.intersect(:emotion => 'upset').exists?('5')).to be_falsey
     end
 
+    it "retrieves the union of a sorted set by index"
+    it "retrieves a reversed union of a sorted set by index"
+
+    it "retrieves the union of a sorted set by score"
+    it "retrieves a reversed union of a sorted set by score"
+
+    it "retrieves the exclusion of a sorted set by index" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::RedisExample.find_by_id('8')
+
+      time = Time.now
+
+      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time,
+        :emotion => 'upset')
+      create_datum(example, :id => '5', :summary => 'ok', :timestamp => time.to_i + 10,
+        :emotion => 'happy')
+      create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+        :emotion => 'upset')
+
+      data = example.data.diff_range(0, 1).all
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(1)
+      expect(data.map(&:id)).to eq(['6'])
+    end
+
+    it "retrieves a reversed exclusion of a sorted set by index" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::RedisExample.find_by_id('8')
+
+      time = Time.now
+
+      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time,
+        :emotion => 'upset')
+      create_datum(example, :id => '5', :summary => 'ok', :timestamp => time.to_i + 10,
+        :emotion => 'happy')
+      create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+        :emotion => 'upset')
+
+      data = example.data.diff_range(0, 0, :order => 'desc').all
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(2)
+      expect(data.map(&:id)).to eq(['5', '4'])
+    end
+
+    it "retrieves the exclusion of a sorted set by score" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::RedisExample.find_by_id('8')
+
+      time = Time.now
+
+      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time,
+        :emotion => 'upset')
+      create_datum(example, :id => '5', :summary => 'ok', :timestamp => time.to_i + 10,
+        :emotion => 'happy')
+      create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+        :emotion => 'upset')
+
+      data = example.data.diff_range(time.to_i - 1, time.to_i + 15, :by_score => true).all
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(1)
+      expect(data.map(&:id)).to eq(['6'])
+    end
+
+    it "retrieves a reversed exclusion of a sorted set by score" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::RedisExample.find_by_id('8')
+
+      time = Time.now
+
+      create_datum(example, :id => '4', :summary => 'well then', :timestamp => time,
+        :emotion => 'upset')
+      create_datum(example, :id => '5', :summary => 'ok', :timestamp => time.to_i + 10,
+        :emotion => 'happy')
+      create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
+        :emotion => 'upset')
+
+      data = example.data.diff_range(time.to_i - 1, time.to_i + 8, :by_score => true, :order => 'desc').all
+      expect(data).not_to be_nil
+      expect(data).to be_an(Array)
+      expect(data.size).to eq(2)
+      expect(data.map(&:id)).to eq(['6', '5'])
+    end
+
     it "finds a record through a has_sorted_set filter" do
       create_example(:id => '8', :name => 'John Jones',
                      :email => 'jjones@example.com', :active => 'true')

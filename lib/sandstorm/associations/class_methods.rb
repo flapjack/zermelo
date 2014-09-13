@@ -6,9 +6,10 @@ require 'sandstorm/associations/has_sorted_set'
 require 'sandstorm/associations/index'
 require 'sandstorm/associations/unique_index'
 
-# TODO update other side of associations without having to load the record (?)
-
 # NB: this module gets mixed in to Sandstorm::Record as class methods
+
+# TODO update other side of associations without having to load the record (?)
+# TODO callbacks on before/after add/delete on association?
 
 module Sandstorm
 
@@ -18,6 +19,10 @@ module Sandstorm
 
       protected
 
+      # Returns a hash of indexed attribute names (as symbols) and their
+      # index class types. Used in queries, saving and deletion. Duplicated
+      # while synchronized as it's class-level data and direct access to it
+      # wouldn't be thread-safe otherwise.
       def indexed_attributes
         ret = nil
         @lock.synchronize do
@@ -27,6 +32,8 @@ module Sandstorm
         ret
       end
 
+      # Find the inverse mapping for a belongs_to association within the class
+      # this module is mixed into.
       def inverse_of(source, klass)
         ret = nil
         @lock.synchronize do
@@ -48,9 +55,9 @@ module Sandstorm
         visited
       end
 
-      # for each association: check whether it has changed
-        # need an instance-level hash with association name as key, boolean 'changed' value
-
+      # TODO for each association: check whether it has changed
+      # would need an instance-level hash with association name as key,
+      #   boolean 'changed' value
       def with_associations(record)
         @lock.synchronize do
            @association_klasses.keys.collect do |name|
