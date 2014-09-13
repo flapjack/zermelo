@@ -327,7 +327,7 @@ module Sandstorm
                   Sandstorm.redis.sunionstore(dest_set, *source_keys)
                   Sandstorm.redis.sort(dest_set, opts)
                 else
-                  Sandstorm.redis.sort(*source_keys, opts)
+                  Sandstorm.redis.sort(source_keys.first, opts)
                 end
 
                 # TODO 'dest_set' is now a list, not a set -- pass result
