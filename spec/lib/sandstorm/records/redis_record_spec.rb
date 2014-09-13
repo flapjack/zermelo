@@ -297,6 +297,14 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(example.map(&:id)).to eq(['9'])
     end
 
+    it 'sorts records by an attribute' do
+      example = Sandstorm::RedisExample.sort(:name, :order => 'alpha').all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(2)
+      expect(example.map(&:id)).to eq(['9', '8'])
+    end
+
   end
 
 

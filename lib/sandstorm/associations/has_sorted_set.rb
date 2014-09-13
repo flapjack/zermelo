@@ -6,7 +6,7 @@ module Sandstorm
 
       extend Forwardable
 
-      def_delegators :filter, :intersect, :union, :diff,
+      def_delegators :filter, :intersect, :union, :diff, :sort,
                        :intersect_range, :union_range, :diff_range,
                        :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
                        :all, :each, :collect, :map,

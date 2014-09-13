@@ -28,12 +28,11 @@ module Sandstorm
       #   self
       # end
 
-      # # TODO implement
-      # def order(opts = {})
-      #   @steps += [:sort, {:order => opts.delete(:order),
-      #     :alphabetic => opts.delete(:alphabetic)}, {}]
-      #   self
-      # end
+      # TODO implement
+      def sort(key, opts = {})
+        @steps += [:sort, {:key => key, :order => opts.delete(:order)}, {}]
+        self
+      end
 
       def intersect(opts = {})
         @steps += [:intersect, {}, opts]

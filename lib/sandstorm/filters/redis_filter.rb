@@ -80,7 +80,11 @@ module Sandstorm
       end
 
       def temp_set_name
-        "#{@associated_class.send(:class_key)}::tmp:#{SecureRandom.hex(16)}"
+        "#{class_key}::tmp:#{SecureRandom.hex(16)}"
+      end
+
+      def class_key
+        @class_key ||= @associated_class.send(:class_key)
       end
 
       def indexed_step_to_set(att, idx_class, value)
@@ -90,9 +94,8 @@ module Sandstorm
           idx_result = temp_set_name
           case idx_class.name
           when 'Sandstorm::Associations::UniqueIndex'
-
             index_key = backend.key_to_redis_key(Sandstorm::Records::Key.new(
-              :class  => @associated_class.send(:class_key),
+              :class  => class_key,
               :name   => "by_#{att}",
               :type   => :hash,
               :object => :index
@@ -103,9 +106,6 @@ module Sandstorm
             Sandstorm.redis.sadd(idx_result, *matching_ids) unless matching_ids.empty?
 
           when 'Sandstorm::Associations::Index'
-
-            class_key = @associated_class.send(:class_key)
-
             key_root = backend.key_to_redis_key(Sandstorm::Records::Key.new(
               :class  => class_key,
               :name   => nil,
@@ -258,7 +258,8 @@ module Sandstorm
 
           resolve_step(step, source_set, idx_attrs) do |source_keys|
             options = step[1] || {}
-            order_desc = order_desc ^ (options[:order] && 'desc'.eql?(options[:order].downcase))
+            order_opts = options[:order] ? options[:order].downcase.split : []
+            order_desc = order_desc ^ order_opts.include?('desc')
 
             smember_shortcut = :smembers.eql?(shortcut) && (step_num == @steps.size)
 
@@ -301,6 +302,39 @@ module Sandstorm
                   members = Sandstorm.redis.sdiff(*source_keys)
                 else
                   Sandstorm.redis.sdiffstore(dest_set, *source_keys)
+                end
+              when :sort
+                # TODO 'sort' takes limit option, check if included in main
+                # once that's implemented
+
+                sort_attr = options[:key].to_s
+
+                # sort by simple attribute -- hash member
+                # TODO check if complex attribute types or associations
+                # can be used for sorting
+                opts = {:by => "#{class_key}:*:attrs->#{sort_attr}", :store => dest_set}
+
+                order_parts = ['alpha', 'desc'].inject([]) do |memo, ord|
+                  memo << ord if order_opts.include?(ord)
+                  memo
+                end
+
+                unless order_parts.empty?
+                  opts.update(:order => order_parts.join(' '))
+                end
+
+                if source_keys.length > 1
+                  Sandstorm.redis.sunionstore(dest_set, *source_keys)
+                  Sandstorm.redis.sort(dest_set, opts)
+                else
+                  Sandstorm.redis.sort(*source_keys, opts)
+                end
+
+                # TODO 'dest_set' is now a list, not a set -- pass result
+                # type out and check called blocks all do the right thing
+
+                if smember_shortcut
+                  members = Sandstorm.redis.lrange(dest_set, 0, -1)
                 end
               end
             end
