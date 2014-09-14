@@ -1,6 +1,10 @@
 source 'https://rubygems.org'
 
-gemspec :name => 'sandstorm'
+if RUBY_VERSION.split('.')[0] == '1' && RUBY_VERSION.split('.')[1] == '8'
+  gemspec :name => 'sandstorm-ruby1.8'
+else
+  gemspec :name => 'sandstorm'
+end
 
 group :test do
   gem 'influxdb'
@@ -8,7 +12,11 @@ group :test do
   gem 'rspec', '>= 3.0.0'
   gem 'simplecov', :require => false
 
-  # force Gemfile.lock updates for builds, switching between Ruby versions
-  gem 'moneta', '> 0.7.2'
-  gem 'timecop', '> 0.6.1'
+  if RUBY_VERSION.split('.')[0] == '1' && RUBY_VERSION.split('.')[1] == '8'
+    gem 'moneta', '0.7.2'
+    gem 'timecop', '0.6.1'
+  else
+    gem 'moneta'
+    gem 'timecop'
+  end
 end

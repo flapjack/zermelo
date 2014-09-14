@@ -1,5 +1,5 @@
 PATH
-  remote: ..
+  remote: .
   specs:
     sandstorm-ruby1.8 (0.1.0)
       activemodel (~> 3.2.19)

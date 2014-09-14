@@ -2,8 +2,8 @@ language: ruby
 matrix:
   include:
     - rvm: 1.8.7
-      gemfile: gemfiles/Gemfile-ruby1.8
-      script: BUNDLE_GEMFILE=gemfiles/Gemfile-ruby1.8 bundle exec rspec spec
+      gemfile: Gemfile-ruby1.8
+      script: BUNDLE_GEMFILE=Gemfile-ruby1.8 bundle exec rspec spec
     - rvm: 1.9.3
       gemfile: Gemfile
       script: bundle exec rspec spec
