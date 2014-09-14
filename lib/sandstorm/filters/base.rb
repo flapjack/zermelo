@@ -2,6 +2,8 @@ require 'active_support/concern'
 
 require 'sandstorm/records/errors'
 
+require 'sandstorm/filters/step'
+
 module Sandstorm
 
   module Filters
@@ -24,46 +26,48 @@ module Sandstorm
       # # TODO implement
       # # will probably need to scan and extract the last usage from steps
       # def limit(amount)
-      #   @steps += [:limit, {:amount => amount}, {}]
+      #   @steps << Sandstorm::Filters::Step.new(:limit, {:amount => amount}, {})
       #   self
       # end
 
-      # TODO implement
-      def sort(key, opts = {})
-        @steps += [:sort, {:key => key, :order => opts.delete(:order)}, {}]
+      def sort(att, opts = {})
+        @steps << ::Sandstorm::Filters::Step.new(:sort, {:key => att, :order => opts.delete(:order)}, {})
         self
       end
 
-      def intersect(opts = {})
-        @steps += [:intersect, {}, opts]
+      def intersect(attrs = {})
+        @steps << ::Sandstorm::Filters::Step.new(:intersect, {}, attrs)
         self
       end
 
-      def union(opts = {})
-        @steps += [:union, {}, opts]
+      def union(attrs = {})
+        @steps << ::Sandstorm::Filters::Step.new(:union, {}, attrs)
         self
       end
 
-      def diff(opts = {})
-        @steps += [:diff, {}, opts]
+      def diff(attrs = {})
+        @steps << ::Sandstorm::Filters::Step.new(:diff, {}, attrs)
         self
       end
 
-      def intersect_range(start, finish, opts = {})
-        @steps += [:intersect_range, {:start => start, :finish => finish,
-          :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
+      def intersect_range(start, finish, attrs_opts = {})
+        @steps << ::Sandstorm::Filters::Step.new(:intersect_range, {:start => start, :finish => finish,
+          :order => attrs_opts.delete(:order),
+          :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
         self
       end
 
-      def union_range(start, finish, opts = {})
-        @steps += [:union_range, {:start => start, :finish => finish,
-          :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
+      def union_range(start, finish, attrs_opts = {})
+        @steps << ::Sandstorm::Filters::Step.new(:union_range, {:start => start, :finish => finish,
+          :order => attrs_opts.delete(:order),
+          :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
         self
       end
 
-      def diff_range(start, finish, opts = {})
-        @steps += [:diff_range, {:start => start, :finish => finish,
-          :order => opts.delete(:order), :by_score => opts.delete(:by_score)}, opts]
+      def diff_range(start, finish, attrs_opts = {})
+        @steps << ::Sandstorm::Filters::Step.new(:diff_range, {:start => start, :finish => finish,
+          :order => attrs_opts.delete(:order),
+          :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
         self
       end
 
