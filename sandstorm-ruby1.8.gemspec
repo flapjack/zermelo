@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'sandstorm/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'sandstorm'
+  spec.name          = 'sandstorm-ruby1.8'
   spec.version       = Sandstorm::VERSION
   spec.authors       = ['Ali Graham']
   spec.email         = ['ali.graham@bulletproof.net']
@@ -21,8 +21,8 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib']
 
-  required_ruby_version = '>= 1.9'
-  spec.add_dependency 'activemodel'
+  required_ruby_version = '~> 1.8.7'
+  spec.add_dependency 'activemodel', '~> 3.2.19' # Rails 4 requires Ruby 1.9
 
   spec.add_development_dependency 'bundler', '~> 1.3'
   spec.add_development_dependency 'rake'
