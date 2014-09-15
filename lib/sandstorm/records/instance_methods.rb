@@ -41,7 +41,7 @@ module Sandstorm
 
         attrs = nil
 
-        backend.lock(self.class) do
+        self.class.lock do
           class_key = self.class.send(:class_key)
 
           # TODO: check for record existence in backend-agnostic fashion
@@ -129,7 +129,7 @@ module Sandstorm
 
           assoc_classes = self.class.send(:associated_classes)
 
-          backend.lock(*assoc_classes) do
+          self.class.lock(*assoc_classes) do
             self.class.send(:with_associations, self) {|assoc| assoc.send(:on_remove) }
             index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes).keys)
 

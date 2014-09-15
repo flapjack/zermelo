@@ -41,7 +41,7 @@ module Sandstorm
       end
 
       def value
-        @backend.lock(@parent.class, @associated_class) do
+        @parent.class.lock(@associated_class) do
           # FIXME uses hgetall, need separate getter for hash/list/set
           if id = @backend.get(@record_ids_key)[@inverse_key.to_s]
             @associated_class.send(:load, id)

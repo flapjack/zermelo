@@ -39,7 +39,7 @@ module Sandstorm
         raise 'No records to add' if records.empty?
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
-        @backend.lock(@parent.class, @associated_class) do
+        @parent.class.lock(@associated_class) do
           records.each do |record|
             @associated_class.send(:load, record.id).send(@inverse.to_sym).
               send(:add_without_inverse, @parent)
@@ -53,7 +53,7 @@ module Sandstorm
         raise 'No records to delete' if records.empty?
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
-        @backend.lock(@parent.class, @associated_class) do
+        @parent.class.lock(@associated_class) do
           records.each do |record|
             @associated_class.send(:load, record.id).send(@inverse.to_sym).
               send(:delete_without_inverse, @parent)

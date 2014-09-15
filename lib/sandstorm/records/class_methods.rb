@@ -44,6 +44,11 @@ module Sandstorm
         ret
       end
 
+      def lock(*klasses, &block)
+        klasses += [self] unless klasses.include?(self)
+        backend.lock(*klasses, &block)
+      end
+
       def transaction(&block)
         failed = false
 
