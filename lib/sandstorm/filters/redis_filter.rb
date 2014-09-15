@@ -12,43 +12,43 @@ module Sandstorm
 
       # more step users
       def first
-        error = nil
-        first_obj = lock {
+        unless [:list, :sorted_set].include?(@initial_set.type) ||
+          @steps.map(&:action).include?(:sort)
+
+          raise "Can't get first member of a non-sorted set"
+        end
+
+        lock {
           first_id = resolve_steps {|redis_obj, redis_obj_type, order_desc|
             case redis_obj_type
             when :list
               Sandstorm.redis.lrange(redis_obj, 0, 0).first
-            when :set
-              error = "Can't get first member of a non-sorted set"
-              nil
             when :sorted_set
               Sandstorm.redis.zrange(redis_obj, 0, 0).first
             end
           }
           first_id.nil? ? nil : _load(first_id)
         }
-        raise error unless error.nil?
-        first_obj
       end
 
       def last
-        error = nil
-        last_obj = lock {
+        unless [:list, :sorted_set].include?(@initial_set.type) ||
+          @steps.map(&:action).include?(:sort)
+
+          raise "Can't get last member of a non-sorted set"
+        end
+
+        lock {
           last_id = resolve_steps {|redis_obj, redis_obj_type, order_desc|
             case redis_obj_type
             when :list
               Sandstorm.redis.lrevrange(redis_obj, 0, 0).first
-            when :set
-              error = "Can't get first member of a non-sorted set"
-              nil
             when :sorted_set
               Sandstorm.redis.zrevrange(redis_obj, 0, 0).first
             end
           }
           last_id.nil? ? nil : _load(last_id)
         }
-        raise error unless error.nil?
-        last_obj
       end
       # end step users
 
