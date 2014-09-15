@@ -8,15 +8,17 @@ Sandstorm is an [ActiveModel](http://yehudakatz.com/2010/01/10/activemodel-make-
 
 Add this line to your application's Gemfile:
 
-    gem 'sandstorm'
+    gem 'sandstorm', :github => 'flapjack/sandstorm', :branch => 'master'
 
 And then execute:
 
     $ bundle
 
+<!--
 Or install it yourself as:
 
     $ gem install sandstorm
+-->
 
 ## Requirements
 
@@ -191,10 +193,30 @@ before_destroy, around_destroy, after_destroy
 As noted in the linked documentation, you'll need to `yield` from within an `around_*` callback, or the original action won't be carried out.
 
 ### Detecting changes
-TODO
+
+Another feature added by ActiveModel is the ability to detect changed data in record instances using [ActiveModel::Dirty](http://api.rubyonrails.org/classes/ActiveModel/Dirty.html).
 
 ### Locking around changes
-TODO
+
+**Sandstorm** will lock operations to ensure that changes are applied consistently. The locking code is based on [redis-lock](https://github.com/mlanett/redis-lock), but has been extended and customeised to allow **sandstorm** to lock more than one class at a time. Record saving and destroying is implicitly locked, while if you want to carry out complex queries or changes without worring about what else may be changing data at the same time, you can use the `lock` class method as follows:
+
+```ruby
+class Author
+  include Sandstorm:Record
+end
+
+class Post
+  include Sandstorm:Record
+end
+
+class Comment
+  include Sandstorm:Record
+end
+
+Author.lock(Post, Comment) do
+  # ... complicated data operations ...
+end
+```
 
 ### Loading data
 
