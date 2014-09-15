@@ -27,9 +27,13 @@ module Sandstorm
       end
 
       def refresh
-        # resets AM::Dirty changed state
-        @previously_changed.clear unless @previously_changed.nil?
-        @changed_attributes.clear unless @changed_attributes.nil?
+        # AM::Dirty -- private method in 4.1.0+, internal state before that
+        if self.respond_to?(:reset_changes, true)
+          reset_changes
+        else
+          @previously_changed.clear unless @previously_changed.nil?
+          @changed_attributes.clear
+        end
 
         attr_types = self.class.attribute_types
 
@@ -107,9 +111,13 @@ module Sandstorm
           @is_new = false
         end
 
-        # AM::Dirty
-        @previously_changed = self.changes
-        @changed_attributes.clear
+        # AM::Dirty -- private method in 4.1.0+, internal state before that
+        if self.respond_to?(:changes_applied, true)
+          changes_applied
+        else
+          @previously_changed = changes
+          @changed_attributes.clear
+        end
 
         true
       end
