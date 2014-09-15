@@ -75,27 +75,9 @@ module Sandstorm
       end
 
       def _ids
-        if [:set].include?(@initial_set.type) &&
-        # if [:set, :sorted_set].include?(@initial_set.type) &&
-          @steps.none? {|s| :sort.eql?(s.action) }
-
-          # TODO ensure zrange is done as zrevrange if order == desc
-          # and, indeed, apply shortcut in this case in resolve_steps
-          resolve_steps(:set        => :smembers,
-                        :sorted_set => :zrange)
-
-        else
-          resolve_steps {|redis_obj, redis_obj_type, order_desc|
-            case redis_obj_type
-            when :list
-              Sandstorm.redis.lrange(redis_obj, 0, -1)
-            when :set
-              Sandstorm.redis.smembers(redis_obj)
-            when :sorted_set
-              Sandstorm.redis.send((order_desc ? :zrevrange : :zrange), redis_obj, 0, -1)
-            end
-          }
-        end
+        resolve_steps(:list       => :lrange,
+                      :set        => :smembers,
+                      :sorted_set => :zrange)
       end
 
       def temp_set_name
@@ -257,18 +239,17 @@ module Sandstorm
           ret = if shortcuts.empty?
             block ? block.call(source, source_type, false) : nil
           else
-            Sandstorm.redis.send(shortcuts[source_type], source)
+            if :sorted_set.eql?(source_type) && :zrange.eql?(shortcuts[source_type])
+              Sandstorm.redis.zrange(source, 0, -1)
+            else
+              Sandstorm.redis.send(shortcuts[source_type], source)
+            end
           end
           return ret
         end
 
-        dest_set = nil
         temp_sets = []
-
-        if shortcuts.empty?
-          dest_set = temp_set_name
-          temp_sets << dest_set
-        end
+        dest_set = nil
 
         idx_attrs = @associated_class.send(:indexed_attributes)
 
@@ -285,53 +266,69 @@ module Sandstorm
 
             case source_type
             when :set
-              case step.action
-              when :union
-                if (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
-                  members = Sandstorm.redis.sunion(*source_keys)
-                else
-                  Sandstorm.redis.sunionstore(dest_set, *source_keys)
-                end
-              when :intersect
-                if (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
-                  members = Sandstorm.redis.sinter(*source_keys)
-                else
-                  Sandstorm.redis.sinterstore(dest_set, *source_keys)
-                end
-              when :diff
-                if (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
-                  members = Sandstorm.redis.sdiff(*source_keys)
-                else
-                  Sandstorm.redis.sdiffstore(dest_set, *source_keys)
-                end
-              when :sort
-                # TODO 'sort' takes limit option, check if included in main
-                # once that's implemented
+              # TODO 'sort' takes limit option, check if included in main
+              # once that's implemented
 
-                sort_attr = options[:key].to_s
+              sort_set = if :sort.eql?(step.action)
 
-                # sort by simple attribute -- hash member
-                # TODO check if complex attribute types or associations
-                # can be used for sorting
-                opts = {:by => "#{class_key}:*:attrs->#{sort_attr}", :store => dest_set}
+                proc {
+                  sort_attr = options[:key].to_s
 
-                order_parts = ['alpha', 'desc'].inject([]) do |memo, ord|
-                  memo << ord if order_opts.include?(ord)
-                  memo
-                end
+                  # sort by simple attribute -- hash member
+                  # TODO check if complex attribute types or associations
+                  # can be used for sorting
+                  opts = {:by => "#{class_key}:*:attrs->#{sort_attr}", :store => dest_set}
 
-                unless order_parts.empty?
-                  opts.update(:order => order_parts.join(' '))
-                end
+                  order_parts = ['alpha', 'desc'].inject([]) do |memo, ord|
+                    memo << ord if order_opts.include?(ord)
+                    memo
+                  end
 
-                if source_keys.length > 1
+                  unless order_parts.empty?
+                    opts.update(:order => order_parts.join(' '))
+                  end
+
                   Sandstorm.redis.sunionstore(dest_set, *source_keys)
                   Sandstorm.redis.sort(dest_set, opts)
-                else
-                  Sandstorm.redis.sort(source_keys.first, opts)
+
+                  source_type = :list
+                }
+              else
+                nil
+              end
+
+              if (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
+                members = case step.action
+                when :union
+                  Sandstorm.redis.sunion(*source_keys)
+                when :intersect
+                  Sandstorm.redis.sinter(*source_keys)
+                when :diff
+                  Sandstorm.redis.sdiff(*source_keys)
+                when :sort
+                  dest_set = temp_set_name
+                  temp_sets << dest_set
+                  sort_set.call
+                  Sandstorm.redis.send((order_desc ? :lrevrange : :lrange),
+                                       dest_set, 0, -1)
+                end
+              else
+
+                dest_set = temp_set_name
+                temp_sets << dest_set
+
+                case step.action
+                when :union
+                  Sandstorm.redis.sunionstore(dest_set, *source_keys)
+                when :intersect
+                  Sandstorm.redis.sinterstore(dest_set, *source_keys)
+                when :diff
+                  Sandstorm.redis.sdiffstore(dest_set, *source_keys)
+                when :sort
+                  sort_set.call
                 end
 
-                source_type = :list
+                source = dest_set
               end
 
             when :list
@@ -347,6 +344,9 @@ module Sandstorm
                 [1.0] + ([-1.0] * (source_keys.length - 1))
               end
 
+              dest_set = temp_set_name
+              temp_sets << dest_set
+
               case step.action
               when :union, :union_range
                 Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
@@ -359,10 +359,20 @@ module Sandstorm
                 Sandstorm.redis.zremrangebyscore(dest_set, "0", "0")
               end
 
+              if (idx == (@steps.size - 1)) && :zrange.eql?(shortcuts[:sorted_set])
+                # supporting shortcut structures here as it helps preserve the
+                # win gained by the shortcut for empty steps, but this is
+                # no better than passing it through to a block would be; if
+                # Redis still supported ZINTER and ZUNION it would work better
+                members = Sandstorm.redis.send((order_desc ? :zrevrange : :zrange),
+                                               dest_set, 0, -1)
+              else
+                source = dest_set
+              end
+
             end
           end
 
-          source = dest_set
         end
 
         ret = if shortcuts.empty?
