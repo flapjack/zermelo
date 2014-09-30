@@ -522,6 +522,11 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(assoc_ids).to eq('8'  => Set.new(['3']),
                               '9'  => Set.new(['4', '5']),
                               '10' => Set.new())
+
+      assoc_parent_ids = Sandstorm::RedisExampleChild.associated_ids_for_example('3', '4', '5')
+      expect(assoc_parent_ids).to eq('3' => '8',
+                                     '4' => '9',
+                                     '5' => '9')
     end
 
   end
