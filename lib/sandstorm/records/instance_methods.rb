@@ -76,7 +76,7 @@ module Sandstorm
       end
 
       def save
-        return unless self.changed?
+        return unless @is_new || self.changed?
         return false unless valid?
 
         run_callbacks( (self.persisted? ? :update : :create) ) do
