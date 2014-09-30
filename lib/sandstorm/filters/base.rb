@@ -72,28 +72,28 @@ module Sandstorm
       end
 
       # step users
-      def exists?(id)
-        lock(false) { _exists?(id) }
+      def exists?(e_id)
+        lock(false) { _exists?(e_id) }
       end
 
-      def find_by_id(id)
-        lock { _find_by_id(id) }
+      def find_by_id(f_id)
+        lock { _find_by_id(f_id) }
       end
 
-      def find_by_id!(id)
-        ret = lock { _find_by_id(id) }
-        raise ::Sandstorm::Records::Errors::RecordNotFound.new(@associated_class, id) if ret.nil?
+      def find_by_id!(f_id)
+        ret = lock { _find_by_id(f_id) }
+        raise ::Sandstorm::Records::Errors::RecordNotFound.new(@associated_class, f_id) if ret.nil?
         ret
       end
 
-      def find_by_ids(*ids)
-        lock { _ids.collect {|id| _find_by_id(id) } }
+      def find_by_ids(*f_ids)
+        lock { f_ids.collect {|f_id| _find_by_id(f_id) } }
       end
 
-      def find_by_ids!(*ids)
-        ret = lock { _ids.collect {|id| _find_by_id(id) } }
-        unless ids.length.eql?(ret.length)
-          raise ::Sandstorm::Records::Errors::RecordsNotFound.new(@associated_class, ids - ret.map(&:id))
+      def find_by_ids!(*f_ids)
+        ret = lock { f_ids.collect {|f_id| _find_by_id(f_id) } }
+        unless f_ids.length.eql?(ret.length)
+          raise ::Sandstorm::Records::Errors::RecordsNotFound.new(@associated_class, f_ids - ret.map(&:id))
         end
         ret
       end
