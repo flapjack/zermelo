@@ -25,7 +25,12 @@ module Sandstorm
                        :ids, :count, :empty?, :exists?
 
       def generate_id
-        SecureRandom.uuid
+        return SecureRandom.uuid if SecureRandom.respond_to?(:uuid)
+        # from 1.9 stdlib
+        ary = SecureRandom.random_bytes(16).unpack("NnnnnN")
+        ary[2] = (ary[2] & 0x0fff) | 0x4000
+        ary[3] = (ary[3] & 0x3fff) | 0x8000
+        "%08x-%04x-%04x-%04x-%04x%08x" % ary
       end
 
       def add_id(id)
