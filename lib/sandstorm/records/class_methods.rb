@@ -25,7 +25,7 @@ module Sandstorm
                        :ids, :count, :empty?, :exists?
 
       def generate_id
-        SecureRandom.hex(16)
+        SecureRandom.uuid
       end
 
       def add_id(id)
