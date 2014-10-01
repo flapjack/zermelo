@@ -88,11 +88,13 @@ module Sandstorm
         @class_key ||= @associated_class.send(:class_key)
       end
 
-      def indexed_step_to_set(att, idx_class, value)
+      def indexed_step_to_set(att, idx_class, value, attr_type)
 
         case value
         when Regexp
+          raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
           idx_result = temp_set_name
+          starts_with_string_re = /^string:/
           case idx_class.name
           when 'Sandstorm::Associations::UniqueIndex'
             index_key = backend.key_to_redis_key(Sandstorm::Records::Key.new(
@@ -101,21 +103,22 @@ module Sandstorm
               :type   => :hash,
               :object => :index
             ))
-
             candidates = Sandstorm.redis.hgetall(index_key)
-            matching_ids = candidates.values_at(*candidates.keys.select {|k| value === k })
+            matching_ids = candidates.values_at(*candidates.keys.select {|k|
+              (starts_with_string_re === k) &&
+                (value === backend.unescape_key_name(k.sub(starts_with_string_re, '')))
+            })
             Sandstorm.redis.sadd(idx_result, *matching_ids) unless matching_ids.empty?
-
           when 'Sandstorm::Associations::Index'
             key_root = backend.key_to_redis_key(Sandstorm::Records::Key.new(
               :class  => class_key,
-              :name   => nil,
+              :name   => "by_#{att}:string",
               :type   => :set,
               :object => :index
-            )) + "by_#{att}:"
+            ))
 
-            matching_sets = Sandstorm.redis.keys(key_root + "*").inject([]) do |memo, k|
-              k =~ /^#{key_root}(.+)$/
+            matching_sets = Sandstorm.redis.keys(key_root + ":*").inject([]) do |memo, k|
+              k =~ /^#{key_root}:(.+)$/
               memo << k if value === $1
               memo
             end
@@ -130,7 +133,8 @@ module Sandstorm
           when Sandstorm::Associations::UniqueIndex
             idx_result = temp_set_name
             Sandstorm.redis.sadd(idx_result,
-              Sandstorm.redis.hget(backend.key_to_redis_key(index.key), value))
+              Sandstorm.redis.hget(backend.key_to_redis_key(index.key),
+                                   backend.index_keys(attr_type, value).join(':')))
             [idx_result, true]
           when Sandstorm::Associations::Index
             [backend.key_to_redis_key(index.key), false]
@@ -138,7 +142,7 @@ module Sandstorm
         end
       end
 
-      def resolve_step(step, source, idx_attrs, &block)
+      def resolve_step(step, source, idx_attrs, attr_types, &block)
         temp_sets   = []
         source_keys = [source]
 
@@ -152,7 +156,7 @@ module Sandstorm
               conditions_set = temp_set_name
               temp_idx_sets = []
               Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
-                idx_set, clear = indexed_step_to_set(att, idx_class, val)
+                idx_set, clear = indexed_step_to_set(att, idx_class, val, attr_types[att])
                 temp_idx_sets << idx_set if clear
                 idx_set
               })
@@ -160,7 +164,7 @@ module Sandstorm
               temp_sets << conditions_set
               memo << conditions_set
             else
-              idx_set, clear = indexed_step_to_set(att, idx_class, value)
+              idx_set, clear = indexed_step_to_set(att, idx_class, value, attr_types[att])
               temp_sets << idx_set if clear
               memo << idx_set
             end
@@ -251,7 +255,9 @@ module Sandstorm
         temp_sets = []
         dest_set = nil
 
+        # TODO merge these into one data structure
         idx_attrs = @associated_class.send(:indexed_attributes)
+        attr_types = @associated_class.send(:attribute_types)
 
         order_desc = nil
 
@@ -259,7 +265,7 @@ module Sandstorm
 
         @steps.each_with_index do |step, idx|
 
-          resolve_step(step, source, idx_attrs) do |source_keys|
+          resolve_step(step, source, idx_attrs, attr_types) do |source_keys|
             options = step.options || {}
             order_opts = options[:order] ? options[:order].downcase.split : []
             order_desc = order_desc ^ order_opts.include?('desc')

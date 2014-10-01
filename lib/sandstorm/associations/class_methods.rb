@@ -66,10 +66,10 @@ module Sandstorm
         end
       end
 
-      # NB: key must be a string or boolean type, TODO validate this
       def index_by(*args)
+        att_types = attribute_types
         args.each do |arg|
-          index = associate(::Sandstorm::Associations::Index, self, arg)
+          index = associate(::Sandstorm::Associations::Index, self, arg, :type => att_types[arg])
           @lock.synchronize do
             @indices ||= {}
             @indices[arg.to_s] = ::Sandstorm::Associations::Index
@@ -79,8 +79,9 @@ module Sandstorm
       end
 
       def unique_index_by(*args)
+        att_types = attribute_types
         args.each do |arg|
-          index = associate(::Sandstorm::Associations::UniqueIndex, self, arg)
+          index = associate(::Sandstorm::Associations::UniqueIndex, self, arg, :type => att_types[arg])
           @lock.synchronize do
             @indices ||= {}
             @indices[arg.to_s] = ::Sandstorm::Associations::UniqueIndex
@@ -147,7 +148,7 @@ module Sandstorm
 
             def #{name}_index(value)
               @#{name}_index ||=
-                #{klass.name}.new(self, "#{class_key}", "#{name}")
+                #{klass.name}.new(self, "#{class_key}", "#{name}", :#{args[:type]})
               @#{name}_index.value = value
               @#{name}_index
             end

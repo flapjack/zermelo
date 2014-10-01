@@ -4,13 +4,14 @@ module Sandstorm
   module Associations
     class UniqueIndex
 
-      def initialize(parent, class_key, att)
+      def initialize(parent, class_key, att_name, att_type)
         @indexers = {}
 
         @backend   = parent.send(:backend)
         @parent    = parent
         @class_key = class_key
-        @attribute = att
+        @attribute_name = att_name
+        @attribute_type = att_type
       end
 
       def value
@@ -22,15 +23,15 @@ module Sandstorm
       end
 
       def delete_id(id)
-        @backend.delete(indexer, @value)
+        @backend.delete(indexer, @backend.index_keys(@attribute_type, value).join(':'))
       end
 
       def add_id(id)
-        @backend.add(indexer, @value => id)
+        @backend.add(indexer, @backend.index_keys(@attribute_type, @value).join(':') => id)
       end
 
       def move_id(id, indexer_to)
-        @backend.move(indexer, {indexer_to.value => id}, indexer_to.key)
+        @backend.move(indexer, {@backend.index_keys(@attribute_type, indexer_to.value).join(':') => id}, indexer_to.key)
       end
 
       def key
@@ -42,7 +43,7 @@ module Sandstorm
       def indexer
         @indexer ||= Sandstorm::Records::Key.new(
           :class  => @class_key,
-          :name   => "by_#{@attribute}",
+          :name   => "by_#{@attribute_name}",
           :type   => :hash,
           :object => :index
         )

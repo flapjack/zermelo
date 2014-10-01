@@ -4,13 +4,14 @@ module Sandstorm
   module Associations
     class Index
 
-      def initialize(parent, class_key, att)
+      def initialize(parent, class_key, att_name, att_type)
         @indexers = {}
 
         @backend   = parent.send(:backend)
         @parent    = parent
         @class_key = class_key
-        @attribute = att
+        @attribute_name = att_name
+        @attribute_type = att_type
       end
 
       def value=(value)
@@ -42,15 +43,12 @@ module Sandstorm
       private
 
       def indexer_for_value
-        index_key = case @value
-        when String, Symbol, TrueClass, FalseClass
-          @backend.escape_key_name(@value.to_s)
-        end
-        return if index_key.nil?
+        index_keys = @backend.index_keys(@attribute_type, @value)
+        raise "Can't index '#{@value}' (#{@attribute_type}" if index_keys.nil?
 
-        @indexers[index_key] ||= Sandstorm::Records::Key.new(
+        @indexers[index_keys.join(":")] ||= Sandstorm::Records::Key.new(
           :class  => @class_key,
-          :name   => "by_#{@attribute}:#{index_key}",
+          :name   => "by_#{@attribute_name}:#{index_keys.join(':')}",
           :type   => :set,
           :object => :index
         )
