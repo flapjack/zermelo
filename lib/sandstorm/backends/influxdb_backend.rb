@@ -29,8 +29,15 @@ module Sandstorm
       # for now
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
+          begin
           records = Sandstorm.influxdb.query("SELECT #{attr_key.name} FROM " +
             "\"#{attr_key.klass}/#{attr_key.id}\" LIMIT 1")["#{attr_key.klass}/#{attr_key.id}"]
+          rescue InfluxDB::Error => ide
+            raise unless
+              /^Field #{attr_key.name} doesn't exist in series #{attr_key.klass}\/#{attr_key.id}$/ === ide.message
+
+            records = []
+          end
           value = (records && !records.empty?) ? records.first[attr_key.name.to_s] : nil
 
           memo[attr_key.klass] ||= {}
@@ -146,7 +153,14 @@ module Sandstorm
 
         records.each_pair do |klass, klass_records|
           klass_records.each_pair do |id, data|
-            prior = Sandstorm.influxdb.query("SELECT * FROM \"#{klass}/#{id}\" LIMIT 1")["#{klass}/#{id}"]
+            begin
+              prior = Sandstorm.influxdb.query("SELECT * FROM \"#{klass}/#{id}\" LIMIT 1")["#{klass}/#{id}"]
+            rescue InfluxDB::Error => ide
+              raise unless
+                /^Couldn't look up columns for series: #{klass}\/#{id}$/ === ide.message
+
+              prior = nil
+            end
             record = prior.nil? ? {} : prior.first.delete_if {|k,v| ["time", "sequence_number"].include?(k) }
             Sandstorm.influxdb.write_point("#{klass}/#{id}", record.merge(data).merge('id' => id))
           end

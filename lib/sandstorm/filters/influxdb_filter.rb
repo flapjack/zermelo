@@ -86,11 +86,19 @@ module Sandstorm
           ii_query = "SELECT #{@initial_set.name} FROM \"#{@initial_set.klass}/#{@initial_set.id}\" " +
             "LIMIT 1"
 
-          initial_id_data =
-            Sandstorm.influxdb.query(ii_query)["#{@initial_set.klass}/#{@initial_set.id}"]
+          begin
+            initial_id_data =
+              Sandstorm.influxdb.query(ii_query)["#{@initial_set.klass}/#{@initial_set.id}"]
+          rescue InfluxDB::Error => ide
+            raise unless
+              /^Field #{@initial_set.name} doesn't exist in series #{@initial_set.klass}\/#{@initial_set.id}$/ === ide.message
 
-          inital_ids = initial_id_data.nil? ? nil :
-            initial_id_data.first[@initial_set.name]
+            initial_id_data = nil
+          end
+
+          return [] if initial_id_data.nil?
+
+          inital_ids = initial_id_data.first[@initial_set.name]
 
           if inital_ids.nil? || inital_ids.empty?
             # make it impossible for the query to return anything
