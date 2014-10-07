@@ -134,7 +134,13 @@ module Sandstorm
 
         query += " LIMIT 1"
 
-        result = Sandstorm.influxdb.query(query)
+        begin
+          result = Sandstorm.influxdb.query(query)
+        rescue InfluxDB::Error => ide
+          raise unless /^Couldn't look up columns$/ === ide.message
+          result = {}
+        end
+
         data_keys = result.keys.select {|k| k =~ /^#{@associated_class.send(:class_key)}\// }
 
         case result_type

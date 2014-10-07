@@ -49,7 +49,9 @@ RSpec.configure do |config|
   config.around(:each, :influxdb => true) do |example|
     Sandstorm.influxdb = InfluxDB::Client.new 'sandstorm_test',
       :username => 'sandstorm', :password => 'sandstorm', :retry => false
-    Sandstorm.influxdb.query('DELETE FROM /.*/')
+    Sandstorm.influxdb.query('list series')['list_series_result'].each do |ser|
+      Sandstorm.influxdb.query("DELETE FROM \"#{ser['name']}\"")
+    end
     example.run
   end
 
