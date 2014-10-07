@@ -244,6 +244,14 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(example.map(&:id)).to eq(['8'])
     end
 
+    it 'filters by id attribute values' do
+      example = Sandstorm::RedisExample.intersect(:id => '9').all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['9'])
+    end
+
     it 'supports sequential intersection and union operations' do
       examples = Sandstorm::RedisExample.intersect(:active => true).union(:active => false).all
       expect(examples).not_to be_nil
@@ -272,6 +280,17 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(examples).to be_an(Array)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['9', '10'])
+    end
+
+    it 'filters by multiple id attribute values' do
+      create_example(:id => '10', :name => 'Jay Johns',
+                     :email => 'jjohns@example.com', :active => true)
+
+      example = Sandstorm::RedisExample.intersect(:id => ['8', '10']).all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(2)
+      expect(example.map(&:id)).to eq(['8', '10'])
     end
 
     it 'excludes particular records' do
@@ -402,6 +421,22 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(important_kids).to be_an(Array)
       expect(important_kids.size).to eq(2)
       expect(important_kids.map(&:id)).to match_array(['3', '4'])
+    end
+
+    it "filters has_many records by intersecting ids" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::RedisExample.find_by_id('8')
+
+      create_child(example, :id => '3', :name => 'Martin Luther King', :important => true)
+      create_child(example, :id => '4', :name => 'Julius Caesar', :important => true)
+      create_child(example, :id => '5', :name => 'John Smith', :important => false)
+
+      important_kids = example.children.intersect(:important => true, :id => ['4', '5']).all
+      expect(important_kids).not_to be_nil
+      expect(important_kids).to be_an(Array)
+      expect(important_kids.size).to eq(1)
+      expect(important_kids.map(&:id)).to match_array(['4'])
     end
 
     it "checks whether a record id exists through a has_many filter" do

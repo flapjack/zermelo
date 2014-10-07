@@ -149,24 +149,32 @@ module Sandstorm
         if [:intersect, :union, :diff].include?(step.action)
 
           source_keys += step.attributes.inject([]) do |memo, (att, value)|
-            idx_class = idx_attrs[att.to_s]
-            raise "'#{att}' property is not indexed" if idx_class.nil?
 
-            if value.is_a?(Enumerable)
-              conditions_set = temp_set_name
-              temp_idx_sets = []
-              Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
-                idx_set, clear = indexed_step_to_set(att, idx_class, val, attr_types[att])
-                temp_idx_sets << idx_set if clear
-                idx_set
-              })
-              Sandstorm.redis.del(temp_idx_sets) unless temp_idx_sets.empty?
-              temp_sets << conditions_set
-              memo << conditions_set
+            if :id.eql?(att)
+              ts = temp_set_name
+              temp_sets << ts
+              Sandstorm.redis.sadd(ts, value)
+              memo << ts
             else
-              idx_set, clear = indexed_step_to_set(att, idx_class, value, attr_types[att])
-              temp_sets << idx_set if clear
-              memo << idx_set
+              idx_class = idx_attrs[att.to_s]
+              raise "'#{att}' property is not indexed" if idx_class.nil?
+
+              if value.is_a?(Enumerable)
+                conditions_set = temp_set_name
+                temp_idx_sets = []
+                Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
+                  idx_set, clear = indexed_step_to_set(att, idx_class, val, attr_types[att])
+                  temp_idx_sets << idx_set if clear
+                  idx_set
+                })
+                Sandstorm.redis.del(temp_idx_sets) unless temp_idx_sets.empty?
+                temp_sets << conditions_set
+                memo << conditions_set
+              else
+                idx_set, clear = indexed_step_to_set(att, idx_class, value, attr_types[att])
+                temp_sets << idx_set if clear
+                memo << idx_set
+              end
             end
 
             memo
