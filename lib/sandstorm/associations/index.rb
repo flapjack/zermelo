@@ -14,36 +14,23 @@ module Sandstorm
         @attribute_type = att_type
       end
 
-      def value=(value)
-        @value = value
-      end
-
-      def delete_id(id)
-        return unless indexer = indexer_for_value
-
+      def delete_id(id, value)
+        return unless indexer = key(value)
         @backend.delete(indexer, id)
       end
 
-      def add_id(id)
-        return unless indexer = indexer_for_value
-
+      def add_id(id, value)
+        return unless indexer = key(value)
         @backend.add(indexer, id)
       end
 
-      def move_id(id, indexer_to)
-        return unless indexer = indexer_for_value
-
-        @backend.move(indexer, id, indexer_to.key)
+      def move_id(id, value_from, indexer_to, value_to)
+        return unless indexer = key(value_from)
+        @backend.move(indexer, id, indexer_to.key(value_to))
       end
 
-      def key
-        indexer_for_value
-      end
-
-      private
-
-      def indexer_for_value
-        index_keys = @backend.index_keys(@attribute_type, @value)
+      def key(value)
+        index_keys = @backend.index_keys(@attribute_type, value)
         raise "Can't index '#{@value}' (#{@attribute_type}" if index_keys.nil?
 
         @indexers[index_keys.join(":")] ||= Sandstorm::Records::Key.new(

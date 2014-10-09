@@ -14,33 +14,19 @@ module Sandstorm
         @attribute_type = att_type
       end
 
-      def value
-        @value
+      def delete_id(id, value)
+        @backend.delete(key, @backend.index_keys(@attribute_type, value).join(':'))
       end
 
-      def value=(value)
-        @value = value
+      def add_id(id, value)
+        @backend.add(key, @backend.index_keys(@attribute_type, value).join(':') => id)
       end
 
-      def delete_id(id)
-        @backend.delete(indexer, @backend.index_keys(@attribute_type, value).join(':'))
-      end
-
-      def add_id(id)
-        @backend.add(indexer, @backend.index_keys(@attribute_type, @value).join(':') => id)
-      end
-
-      def move_id(id, indexer_to)
-        @backend.move(indexer, {@backend.index_keys(@attribute_type, indexer_to.value).join(':') => id}, indexer_to.key)
+      def move_id(id, value_from, indexer_to, value_to)
+        @backend.move(key, {@backend.index_keys(@attribute_type, value_to).join(':') => id}, indexer_to.key)
       end
 
       def key
-        indexer
-      end
-
-      private
-
-      def indexer
         @indexer ||= Sandstorm::Records::Key.new(
           :class  => @class_key,
           :name   => "by_#{@attribute_name}",

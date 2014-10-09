@@ -146,10 +146,9 @@ module Sandstorm
           index = %Q{
             private
 
-            def #{name}_index(value)
+            def #{name}_index
               @#{name}_index ||=
                 #{klass.name}.new(self, "#{class_key}", "#{name}", :#{args[:type]})
-              @#{name}_index.value = value
               @#{name}_index
             end
           }

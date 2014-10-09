@@ -20,12 +20,8 @@ module Sandstorm
 
         lock {
           first_id = resolve_steps {|redis_obj, redis_obj_type, order_desc|
-            case redis_obj_type
-            when :list
-              Sandstorm.redis.lrange(redis_obj, 0, 0).first
-            when :sorted_set
-              Sandstorm.redis.zrange(redis_obj, 0, 0).first
-            end
+            op = {:list => :lrange, :sorted_set => :zrange}[redis_obj_type]
+            Sandstorm.redis.send(op, redis_obj, 0, 0).first
           }
           first_id.nil? ? nil : _load(first_id)
         }
@@ -40,12 +36,8 @@ module Sandstorm
 
         lock {
           last_id = resolve_steps {|redis_obj, redis_obj_type, order_desc|
-            case redis_obj_type
-            when :list
-              Sandstorm.redis.lrevrange(redis_obj, 0, 0).first
-            when :sorted_set
-              Sandstorm.redis.zrevrange(redis_obj, 0, 0).first
-            end
+            op = {:list => :lrevrange, :sorted_set => :zrevrange}[redis_obj_type]
+            Sandstorm.redis.send(op, redis_obj, 0, 0).first
           }
           last_id.nil? ? nil : _load(last_id)
         }
@@ -127,7 +119,7 @@ module Sandstorm
           end
           [idx_result, true]
         else
-          index = @associated_class.send("#{att}_index", value)
+          index = @associated_class.send("#{att}_index")
 
           case index
           when Sandstorm::Associations::UniqueIndex
@@ -137,7 +129,7 @@ module Sandstorm
                                    backend.index_keys(attr_type, value).join(':')))
             [idx_result, true]
           when Sandstorm::Associations::Index
-            [backend.key_to_redis_key(index.key), false]
+            [backend.key_to_redis_key(index.key(value)), false]
           end
         end
       end

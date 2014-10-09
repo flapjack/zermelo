@@ -94,12 +94,12 @@ module Sandstorm
 
               # update indices
               if old_new.first.nil?
-                self.class.send("#{att}_index", old_new.last).add_id( @attributes['id'] )
+                self.class.send("#{att}_index").add_id( @attributes['id'], old_new.last)
               elsif old_new.last.nil?
-                self.class.send("#{att}_index", old_new.first).delete_id( @attributes['id'] )
+                self.class.send("#{att}_index").delete_id( @attributes['id'], old_new.first)
               else
-                self.class.send("#{att}_index", old_new.first).move_id( @attributes['id'],
-                                self.class.send("#{att}_index", old_new.last))
+                self.class.send("#{att}_index").move_id( @attributes['id'], old_new.first,
+                                self.class.send("#{att}_index"), old_new.last)
               end
             end
 
@@ -136,7 +136,7 @@ module Sandstorm
             self.class.transaction do
               self.class.delete_id(@attributes['id'])
               index_attrs.each do |att|
-                self.class.send("#{att}_index", @attributes[att]).delete_id( @attributes['id'])
+                self.class.send("#{att}_index").delete_id( @attributes['id'], @attributes[att])
               end
 
               self.class.attribute_types.each_pair {|name, type|
