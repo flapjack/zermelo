@@ -117,6 +117,7 @@ module Sandstorm
       def collect(&block)
         lock { _ids.collect {|id| block.call(_load(id))} }
       end
+      alias_method :map, :collect
 
       def each(&block)
         lock { _ids.each {|id| block.call(_load(id)) } }

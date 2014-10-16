@@ -79,7 +79,9 @@ module Sandstorm
         return unless @is_new || self.changed?
         return false unless valid?
 
-        run_callbacks( (self.persisted? ? :update : :create) ) do
+        creating = !self.persisted?
+
+        run_callbacks( (creating ? :create : :update) ) do
 
           self.id ||= self.class.generate_id
 
@@ -87,19 +89,29 @@ module Sandstorm
 
           self.class.transaction do
 
-            self.changes.each_pair do |att, old_new|
-              backend.set(attribute_keys[att], old_new.last) unless att.eql?('id')
+            apply_attribute = proc {|att, attr_key, old_new|
+              backend.set(attr_key, old_new.last) unless att.eql?('id')
 
-              next unless idx_attrs.has_key?(att)
+              if idx_attrs.has_key?(att)
+                # update indices
+                if creating
+                  self.class.send("#{att}_index").add_id( @attributes['id'], old_new.last)
+                else
+                  self.class.send("#{att}_index").move_id( @attributes['id'], old_new.first,
+                                  self.class.send("#{att}_index"), old_new.last)
+                end
+              end
+            }
 
-              # update indices
-              if old_new.first.nil?
-                self.class.send("#{att}_index").add_id( @attributes['id'], old_new.last)
-              elsif old_new.last.nil?
-                self.class.send("#{att}_index").delete_id( @attributes['id'], old_new.first)
-              else
-                self.class.send("#{att}_index").move_id( @attributes['id'], old_new.first,
-                                self.class.send("#{att}_index"), old_new.last)
+            attr_keys = attribute_keys
+
+            if creating
+              attribute_keys.each_pair do |att, attr_key|
+                apply_attribute.call(att, attr_key, [nil, @attributes[att]])
+              end
+            else
+              self.changes.each_pair do |att, old_new|
+                apply_attribute.call(att, attr_keys[att], old_new)
               end
             end
 

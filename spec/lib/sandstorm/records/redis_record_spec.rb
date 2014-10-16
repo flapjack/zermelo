@@ -344,6 +344,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
                                  'redis_example:8:attrs',
                                  'redis_example:8:assocs:children_ids',
                                  'redis_example_child::attrs:ids',
+                                 'redis_example_child::indices:by_important:null:null',
                                  'redis_example_child:3:attrs',
                                  'redis_example_child:3:assocs:belongs_to'])
 
@@ -585,6 +586,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
                                  'redis_example:8:attrs',
                                  'redis_example:8:assocs:data_ids',
                                  'redis_example_datum::attrs:ids',
+                                 'redis_example_datum::indices:by_emotion:null:null',
                                  'redis_example_datum:4:attrs',
                                  'redis_example_datum:4:assocs:belongs_to'])
 

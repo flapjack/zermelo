@@ -151,11 +151,13 @@ module Sandstorm
               idx_class = idx_attrs[att.to_s]
               raise "'#{att}' property is not indexed" if idx_class.nil?
 
-              if value.is_a?(Enumerable)
+              val = value.is_a?(Set) ? value.to_a : value
+
+              if val.is_a?(Enumerable)
                 conditions_set = temp_set_name
                 temp_idx_sets = []
-                Sandstorm.redis.sunionstore(conditions_set, *value.collect {|val|
-                  idx_set, clear = indexed_step_to_set(att, idx_class, val, attr_types[att])
+                Sandstorm.redis.sunionstore(conditions_set, *val.collect {|v|
+                  idx_set, clear = indexed_step_to_set(att, idx_class, v, attr_types[att])
                   temp_idx_sets << idx_set if clear
                   idx_set
                 })
@@ -163,7 +165,7 @@ module Sandstorm
                 temp_sets << conditions_set
                 memo << conditions_set
               else
-                idx_set, clear = indexed_step_to_set(att, idx_class, value, attr_types[att])
+                idx_set, clear = indexed_step_to_set(att, idx_class, val, attr_types[att])
                 temp_sets << idx_set if clear
                 memo << idx_set
               end
