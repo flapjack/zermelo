@@ -216,7 +216,7 @@ module Sandstorm
 
             case op
             when :set
-              simple_attrs[simple_attr_key][key.name] = if value.blank?
+              simple_attrs[simple_attr_key][key.name] = if value.nil?
                 nil
               else
                 case key.type
