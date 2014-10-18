@@ -131,9 +131,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     expect(example.email).to eq('jjones@example.com')
   end
 
-  it 'finds records by regex match against an indexed value in redis' do
-
-  end
+  it 'finds records by regex match against an indexed value in redis'
 
   it 'finds records by regex match against a uniquely indexed value in redis' do
     create_example(:id => '8', :name => 'John Jones',
@@ -219,6 +217,30 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
   it "stores a list as an attribute value"
   it "stores a set as an attribute value"
   it "stores a hash as an attribute value"
+
+  context 'pagination' do
+
+    before do
+      create_example(:id => '1', :name => 'mno')
+      create_example(:id => '2', :name => 'abc')
+      create_example(:id => '3', :name => 'jkl')
+      create_example(:id => '4', :name => 'ghi')
+      create_example(:id => '5', :name => 'def')
+    end
+
+    it "returns paginated query responses" do
+      expect(Sandstorm::RedisExample.sort(:id).page(1, :per_page => 3).map(&:id)).to eq(['1','2', '3'])
+      expect(Sandstorm::RedisExample.sort(:id).page(2, :per_page => 2).map(&:id)).to eq(['3','4'])
+      expect(Sandstorm::RedisExample.sort(:id).page(3, :per_page => 2).map(&:id)).to eq(['5'])
+      expect(Sandstorm::RedisExample.sort(:id).page(3, :per_page => 3).map(&:id)).to eq([])
+
+      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(1, :per_page => 3).map(&:id)).to eq(['2','5', '4'])
+      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(2, :per_page => 2).map(&:id)).to eq(['4','3'])
+      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(3, :per_page => 2).map(&:id)).to eq(['1'])
+      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(3, :per_page => 3).map(&:id)).to eq([])
+    end
+
+  end
 
   context 'filters' do
 

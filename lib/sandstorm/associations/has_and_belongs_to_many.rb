@@ -12,7 +12,7 @@ module Sandstorm
 
       def_delegators :filter, :intersect, :union, :diff, :sort,
                        :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
-                       :all, :each, :collect, :map,
+                       :page, :all, :each, :collect, :map,
                        :select, :find_all, :reject, :destroy_all,
                        :ids, :count, :empty?, :exists?
 

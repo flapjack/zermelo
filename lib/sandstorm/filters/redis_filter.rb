@@ -285,6 +285,7 @@ module Sandstorm
                   # sort by simple attribute -- hash member
                   # TODO check if complex attribute types or associations
                   # can be used for sorting
+                  # FIXME we know attr type, so should use that to determine string or numeric
                   opts = {:by => "#{class_key}:*:attrs->#{sort_attr}", :store => dest_set}
 
                   order_parts = ['alpha', 'desc'].inject([]) do |memo, ord|

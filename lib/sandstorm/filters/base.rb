@@ -24,14 +24,14 @@ module Sandstorm
       end
 
       # # TODO implement
-      # # will probably need to scan and extract the last usage from steps
       # def limit(amount)
       #   @steps << Sandstorm::Filters::Step.new(:limit, {:amount => amount}, {})
       #   self
       # end
 
       def sort(att, opts = {})
-        @steps << ::Sandstorm::Filters::Step.new(:sort, {:key => att, :order => opts.delete(:order)}, {})
+        @steps << ::Sandstorm::Filters::Step.new(:sort,
+          {:key => att, :order => opts[:order]}, {})
         self
       end
 
@@ -112,6 +112,21 @@ module Sandstorm
 
       def all
         lock { _all }
+      end
+
+      # NB makes no sense to apply this without order clause
+      def page(num, opts = {})
+        ret = nil
+        per_page = opts[:per_page].to_i || 20
+        if (num > 0) && (per_page > 0)
+          lock do
+            start  = per_page * (num - 1)
+            finish = start + (per_page - 1)
+            page_ids = _ids[start..finish]
+            ret = page_ids.collect {|f_id| _load(f_id)} unless page_ids.nil?
+          end
+        end
+        ret || []
       end
 
       def collect(&block)
