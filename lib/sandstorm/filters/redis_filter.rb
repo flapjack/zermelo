@@ -446,10 +446,7 @@ module Sandstorm
                 limited = temp_set_name
                 temp_sets << limited
 
-                # but then see https://github.com/redis/redis-rb/issues/410 :(,
-                # can't rpush an array, so lpush the reverse of it
-                # Sandstorm.redis.rpush(limited, data)
-                Sandstorm.redis.lpush(limited, data.reverse)
+                Sandstorm.redis.rpush(limited, data)
 
                 dest_set = limited
               end
