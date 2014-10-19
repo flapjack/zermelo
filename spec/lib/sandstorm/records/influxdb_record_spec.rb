@@ -46,8 +46,13 @@ describe Sandstorm::Records::InfluxDBRecord, :influxdb => true do
   end
 
   it "adds a record's attributes to influxdb" do
-    data = Sandstorm.influxdb.query("select * from /influx_db_example\\/1/")['influx_db_example/1']
-    expect(data).to be_nil
+    begin
+      data = Sandstorm.influxdb.query("select * from /influx_db_example\\/1/")['influx_db_example/1']
+      expect(data).to be_nil
+    rescue InfluxDB::Error => ide
+      # only happens occasionally, with an empty time series by that name
+      raise unless /^Couldn't look up columns$/ === ide.message
+    end
 
     example = Sandstorm::InfluxDBExample.new(:id => '1', :name => 'John Smith',
       :email => 'jsmith@example.com', :active => true)
