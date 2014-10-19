@@ -157,7 +157,8 @@ module Sandstorm
               prior = Sandstorm.influxdb.query("SELECT * FROM \"#{klass}/#{id}\" LIMIT 1")["#{klass}/#{id}"]
             rescue InfluxDB::Error => ide
               raise unless
-                /^Couldn't look up columns for series: #{klass}\/#{id}$/ === ide.message
+                (/^Couldn't look up columns for series: #{klass}\/#{id}$/ === ide.message) ||
+                (/^Couldn't look up columns$/ === ide.message)
 
               prior = nil
             end
