@@ -247,6 +247,8 @@ module Sandstorm
           else
             if :sorted_set.eql?(source_type) && :zrange.eql?(shortcuts[source_type])
               Sandstorm.redis.zrange(source, 0, -1)
+            elsif :list.eql?(source_type) && :lrange.eql?(shortcuts[source_type])
+              Sandstorm.redis.lrange(source, 0, -1)
             else
               Sandstorm.redis.send(shortcuts[source_type], source)
             end
@@ -304,8 +306,8 @@ module Sandstorm
                     l = options[:limit]
 
                     if !(l.nil? && o.nil?)
-                      o = offset || 0
-                      l = limit  || (Sandstorm.redis.llen(dest_set) - o)
+                      o = o.nil? ? 0 : o.to_i
+                      l = (l.nil? || (l.to_i < 1)) ? (Sandstorm.redis.llen(dest_set) - o) : l
                       opts.update(:limit => [o, l])
                     end
 
@@ -422,17 +424,46 @@ module Sandstorm
 
           ret = if members.nil?
             if :list.eql?(source_type) && !(offset.nil? && limit.nil?)
+
               # TODO need a guaranteed non-existing key for non-sorting 'sort'
-              o = offset || 0
-              l = limit  || (Sandstorm.redis.llen(dest_set) - o)
-              Sandstorm.redis.sort(dest_set, :by => 'no_sort',
-                :limit => [o, l], :store => dest_set)
+              o = offset.to_i
+              l = limit.to_i
+              l = (Sandstorm.redis.llen(dest_set) - o) if (limit < 1)
+
+              opts = {:by => 'no_sort', :limit => [o, l]}
+
+              # # would use :store, but see https://github.com/antirez/redis/issues/2079
+              # # once/if that's fixed:
+              # opts.update(:store => dest_set)
+              # Sandstorm.redis.sort(dest_set, opts)
+
+              # until that's fixed, if it is:
+              data = Sandstorm.redis.sort(dest_set, opts)
+
+              if data.empty?
+                Sandstorm.redis.del(dest_set)
+              else
+                limited = temp_set_name
+                temp_sets << limited
+
+                # but then see https://github.com/redis/redis-rb/issues/410 :(,
+                # can't rpush an array, so lpush the reverse of it
+                # Sandstorm.redis.rpush(limited, data)
+                Sandstorm.redis.lpush(limited, data.reverse)
+
+                dest_set = limited
+              end
+              # end until
             end
 
             if shortcuts.empty?
               block ? block.call(dest_set, source_type, order_desc) : nil
+            elsif :sorted_set.eql?(source_type) && :zrange.eql?(shortcuts[source_type])
+              Sandstorm.redis.zrange(dest_set, 0, -1)
+            elsif :list.eql?(source_type) && :lrange.eql?(shortcuts[source_type])
+              Sandstorm.redis.lrange(dest_set, 0, -1)
             else
-               Sandstorm.redis.send(shortcuts[source_type], dest_set)
+              Sandstorm.redis.send(shortcuts[source_type], dest_set)
             end
 
           else

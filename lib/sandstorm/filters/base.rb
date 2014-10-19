@@ -40,7 +40,7 @@ module Sandstorm
 
       def sort(att, opts = {})
         @steps << ::Sandstorm::Filters::Step.new(:sort,
-          {:key => att, :order => opts[:order]}, {})
+          {:key => att, :order => opts[:order], :limit => opts[:limit], :offset => opts[:offset]}, {})
         self
       end
 
@@ -124,7 +124,6 @@ module Sandstorm
       end
 
       # NB makes no sense to apply this without order clause
-      # TODO append relevant offset and limit steps rather than getting a range from all ids
       def page(num, opts = {})
         ret = nil
         per_page = opts[:per_page].to_i || 20
@@ -132,7 +131,9 @@ module Sandstorm
           lock do
             start  = per_page * (num - 1)
             finish = start + (per_page - 1)
-            page_ids = _ids[start..finish]
+            @steps += [Sandstorm::Filters::Step.new(:offset, {:amount => start},    {}),
+                       Sandstorm::Filters::Step.new(:limit,  {:amount => per_page}, {})]
+            page_ids = _ids
             ret = page_ids.collect {|f_id| _load(f_id)} unless page_ids.nil?
           end
         end
