@@ -23,18 +23,6 @@ module Sandstorm
         @steps            = []
       end
 
-      # # TODO implement
-      # def limit(amount)
-      #   @steps << Sandstorm::Filters::Step.new(:limit, {:amount => amount}, {})
-      #   self
-      # end
-
-      def sort(att, opts = {})
-        @steps << ::Sandstorm::Filters::Step.new(:sort,
-          {:key => att, :order => opts[:order]}, {})
-        self
-      end
-
       def intersect(attrs = {})
         @steps << ::Sandstorm::Filters::Step.new(:intersect, {}, attrs)
         self
@@ -50,6 +38,25 @@ module Sandstorm
         self
       end
 
+      def sort(att, opts = {})
+        @steps << ::Sandstorm::Filters::Step.new(:sort,
+          {:key => att, :order => opts[:order]}, {})
+        self
+      end
+
+      # NB: set must have had :sort applied
+      def limit(amount)
+        @steps << Sandstorm::Filters::Step.new(:limit, {:amount => amount}, {})
+        self
+      end
+
+      # NB: set must have had :sort applied
+      def offset(amount)
+        @steps << Sandstorm::Filters::Step.new(:offset, {:amount => amount}, {})
+        self
+      end
+
+      # NB: sorted_set only
       def intersect_range(start, finish, attrs_opts = {})
         @steps << ::Sandstorm::Filters::Step.new(:intersect_range, {:start => start, :finish => finish,
           :order => attrs_opts.delete(:order),
@@ -57,6 +64,7 @@ module Sandstorm
         self
       end
 
+      # NB: sorted_set only
       def union_range(start, finish, attrs_opts = {})
         @steps << ::Sandstorm::Filters::Step.new(:union_range, {:start => start, :finish => finish,
           :order => attrs_opts.delete(:order),
@@ -64,6 +72,7 @@ module Sandstorm
         self
       end
 
+      # NB: sorted_set only
       def diff_range(start, finish, attrs_opts = {})
         @steps << ::Sandstorm::Filters::Step.new(:diff_range, {:start => start, :finish => finish,
           :order => attrs_opts.delete(:order),
@@ -115,6 +124,7 @@ module Sandstorm
       end
 
       # NB makes no sense to apply this without order clause
+      # TODO append relevant offset and limit steps rather than getting a range from all ids
       def page(num, opts = {})
         ret = nil
         per_page = opts[:per_page].to_i || 20
