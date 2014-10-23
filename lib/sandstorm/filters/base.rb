@@ -2,7 +2,15 @@ require 'active_support/concern'
 
 require 'sandstorm/records/errors'
 
-require 'sandstorm/filters/step'
+require 'sandstorm/filters/steps/diff_range_step'
+require 'sandstorm/filters/steps/diff_step'
+require 'sandstorm/filters/steps/intersect_range_step'
+require 'sandstorm/filters/steps/intersect_step'
+require 'sandstorm/filters/steps/limit_step'
+require 'sandstorm/filters/steps/offset_step'
+require 'sandstorm/filters/steps/sort_step'
+require 'sandstorm/filters/steps/union_range_step'
+require 'sandstorm/filters/steps/union_step'
 
 module Sandstorm
 
@@ -23,58 +31,57 @@ module Sandstorm
         @steps            = []
       end
 
+      # TODO each step type have class methods list its acceptable input types, and
+      # have a class method giving its output type
+
       def intersect(attrs = {})
-        @steps << ::Sandstorm::Filters::Step.new(:intersect, {}, attrs)
+        @steps << ::Sandstorm::Filters::Steps::IntersectStep.new({}, attrs)
         self
       end
 
       def union(attrs = {})
-        @steps << ::Sandstorm::Filters::Step.new(:union, {}, attrs)
+        @steps << ::Sandstorm::Filters::Steps::UnionStep.new({}, attrs)
         self
       end
 
       def diff(attrs = {})
-        @steps << ::Sandstorm::Filters::Step.new(:diff, {}, attrs)
+        @steps << ::Sandstorm::Filters::Steps::DiffStep.new({}, attrs)
         self
       end
 
       def sort(att, opts = {})
-        @steps << ::Sandstorm::Filters::Step.new(:sort,
-          {:key => att, :order => opts[:order], :limit => opts[:limit], :offset => opts[:offset]}, {})
+        @steps << ::Sandstorm::Filters::Steps::SortStep.new({:key => att,
+          :order => opts[:order], :limit => opts[:limit],
+          :offset => opts[:offset]}, {})
         self
       end
 
-      # NB: set must have had :sort applied
       def limit(amount)
-        @steps << Sandstorm::Filters::Step.new(:limit, {:amount => amount}, {})
+        @steps << Sandstorm::Filters::Steps::LimitStep.new({:amount => amount}, {})
         self
       end
 
-      # NB: set must have had :sort applied
       def offset(amount)
-        @steps << Sandstorm::Filters::Step.new(:offset, {:amount => amount}, {})
+        @steps << Sandstorm::Filters::Steps::OffsetStep({:amount => amount}, {})
         self
       end
 
-      # NB: sorted_set only
       def intersect_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Step.new(:intersect_range, {:start => start, :finish => finish,
+        @steps << ::Sandstorm::Filters::Steps::IntersectRangeStep.new({:start => start, :finish => finish,
           :order => attrs_opts.delete(:order),
           :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
         self
       end
 
-      # NB: sorted_set only
       def union_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Step.new(:union_range, {:start => start, :finish => finish,
+        @steps << ::Sandstorm::Filters::Steps::UnionRangeStep.new({:start => start, :finish => finish,
           :order => attrs_opts.delete(:order),
           :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
         self
       end
 
-      # NB: sorted_set only
       def diff_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Step.new(:diff_range, {:start => start, :finish => finish,
+        @steps << ::Sandstorm::Filters::Steps::DiffRangeStep.new({:start => start, :finish => finish,
           :order => attrs_opts.delete(:order),
           :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
         self
@@ -131,8 +138,8 @@ module Sandstorm
           lock do
             start  = per_page * (num - 1)
             finish = start + (per_page - 1)
-            @steps += [Sandstorm::Filters::Step.new(:offset, {:amount => start},    {}),
-                       Sandstorm::Filters::Step.new(:limit,  {:amount => per_page}, {})]
+            @steps += [Sandstorm::Filters::Steps::OffsetStep.new({:amount => start},    {}),
+                       Sandstorm::Filters::Steps::LimitStep.new({:amount => per_page}, {})]
             page_ids = _ids
             ret = page_ids.collect {|f_id| _load(f_id)} unless page_ids.nil?
           end

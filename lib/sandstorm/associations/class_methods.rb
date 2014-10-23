@@ -186,6 +186,7 @@ module Sandstorm
               #{name}_proxy.ids
             end
 
+            # TODO optimisation - work out how to do these gets in batches
             def self.associated_ids_for_#{name}(*this_ids)
               this_ids.inject({}) do |memo, this_id|
                 key = Sandstorm::Records::Key.new(

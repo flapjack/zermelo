@@ -8,37 +8,46 @@ module Sandstorm
 
     class RedisFilter
 
+     # abstraction for a set or list of record ids
+      class Collection
+        attr_reader :name, :type
+        def initialize(opts = {})
+          @name  = opts[:name]
+          @type  = opts[:type]
+        end
+      end
+
       include Sandstorm::Filters::Base
 
       # more step users
       def first
         unless [:list, :sorted_set].include?(@initial_set.type) ||
-          @steps.map(&:action).include?(:sort)
+          @steps.any? {|s| s.is_a?(Sandstorm::Filters::Steps::SortStep) }
 
           raise "Can't get first member of a non-sorted set"
         end
 
         lock {
-          first_id = resolve_steps {|redis_obj, redis_obj_type, order_desc|
-            op = {:list => :lrange, :sorted_set => :zrange}[redis_obj_type]
-            Sandstorm.redis.send(op, redis_obj, 0, 0).first
-          }
+          first_id = resolve_steps do |collection|
+            op = {:list => :lrange, :sorted_set => :zrange}[collection.type]
+            Sandstorm.redis.send(op, collection.name, 0, 0).first
+          end
           first_id.nil? ? nil : _load(first_id)
         }
       end
 
       def last
         unless [:list, :sorted_set].include?(@initial_set.type) ||
-          @steps.map(&:action).include?(:sort)
+          @steps.any? {|s| s.is_a?(Sandstorm::Filters::Steps::SortStep) }
 
           raise "Can't get last member of a non-sorted set"
         end
 
         lock {
-          last_id = resolve_steps {|redis_obj, redis_obj_type, order_desc|
-            op = {:list => :lrevrange, :sorted_set => :zrevrange}[redis_obj_type]
-            Sandstorm.redis.send(op, redis_obj, 0, 0).first
-          }
+          last_id = resolve_steps do |collection|
+            op = {:list => :lrevrange, :sorted_set => :zrevrange}[collection.type]
+            Sandstorm.redis.send(op, collection.name, 0, 0).first
+          end
           last_id.nil? ? nil : _load(last_id)
         }
       end
@@ -52,24 +61,24 @@ module Sandstorm
                       :sorted_set => :zcard)
       end
 
-      def _exists?(id)
-        return if id.nil?
-        resolve_steps {|redis_obj, redis_obj_type, order_desc|
-          case redis_obj_type
-          when :list
-            !Sandstorm.redis.lindex(redis_obj, id).nil?
-          when :set
-            Sandstorm.redis.sismember(redis_obj, id)
-          when :sorted_set
-            !Sandstorm.redis.zscore(redis_obj, id).nil?
-          end
-        }
-      end
-
       def _ids
         resolve_steps(:list       => :lrange,
                       :set        => :smembers,
                       :sorted_set => :zrange)
+      end
+
+      def _exists?(id)
+        return if id.nil?
+        resolve_steps do |collection|
+          case collection.type
+          when :list
+            !Sandstorm.redis.lindex(collection.name, id).nil?
+          when :set
+            Sandstorm.redis.sismember(collection.name, id)
+          when :sorted_set
+            !Sandstorm.redis.zscore(collection.name, id).nil?
+          end
+        end
       end
 
       def temp_set_name
@@ -82,7 +91,22 @@ module Sandstorm
 
       def indexed_step_to_set(att, idx_class, value, attr_type)
 
+        # TODO (maybe) if a filter from different backend, resolve to ids and
+        # put that in a Redis temp set
+
         case value
+        when Sandstorm::Filters::RedisFilter
+
+          collection, should_be_deleted = value.resolve_steps
+
+          if should_be_deleted
+            temp_sets << collection.name
+          end
+
+          unless :set.eql?(collection.type)
+            raise "Unsure as yet if non-sets are safe as Filter step values"
+          end
+
         when Regexp
           raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
           idx_result = temp_set_name
@@ -138,7 +162,10 @@ module Sandstorm
         temp_sets   = []
         source_keys = [source]
 
-        if [:intersect, :union, :diff].include?(step.action)
+        case step
+        when Sandstorm::Filters::Steps::IntersectStep,
+             Sandstorm::Filters::Steps::UnionStep,
+             Sandstorm::Filters::Steps::DiffStep
 
           source_keys += step.attributes.inject([]) do |memo, (att, value)|
 
@@ -174,7 +201,10 @@ module Sandstorm
             memo
           end
 
-        elsif [:intersect_range, :union_range, :diff_range].include?(step.action)
+        when Sandstorm::Filters::Steps::IntersectRangeStep,
+             Sandstorm::Filters::Steps::UnionRangeStep,
+             Sandstorm::Filters::Steps::DiffRangeStep
+
           range_ids_set = temp_set_name
 
           options = step.options || {}
@@ -233,17 +263,30 @@ module Sandstorm
         end
       end
 
-      # TODO possible candidate for moving to a stored Lua script in the redis server?
+      # TODO could parts of this move to a stored Lua script in the redis server?
 
-      # takes a block and passes the name of the temporary set to it; deletes
-      # the temporary set once done
+      # If called with a block --  takes a block and passes the name of a set to
+      # it; deletes all temporary sets once done
+
+      # If called with any arguments -- treats them as a hash of shortcuts
+
+      # If not called with any arguments -- returns two values, the first is
+      # the name of a set containing the filtered ids, the second is a boolean
+      # for whether or not to clear up that set once it's been used
+
       def resolve_steps(shortcuts = {}, &block)
         source      = backend.key_to_redis_key(@initial_set)
         source_type = @initial_set.type
 
         if @steps.empty?
           ret = if shortcuts.empty?
-            block ? block.call(source, source_type, false) : nil
+            data = Sandstorm::Filters::RedisFilter::Collection.new(
+              :name => source, :type => source_type)
+            if block.nil?
+              [data, false]
+            else
+              block.call(data)
+            end
           else
             if :sorted_set.eql?(source_type) && :zrange.eql?(shortcuts[source_type])
               Sandstorm.redis.zrange(source, 0, -1)
@@ -279,14 +322,18 @@ module Sandstorm
               order_opts = options[:order] ? options[:order].downcase.split : []
               order_desc = order_desc ^ order_opts.include?('desc')
 
+              # TODO check that current source type is in step.accepted_types
+
               case source_type
               when :set
-                if [:limit, :offset].include?(step.action)
-                  # custom exception class
-                  raise "Cannot apply ':#{setep.action.to_s}' to a set; use ':sort' first"
-                end
+                # if step.is_a?(Sandstorm::Filters::Steps::LimitStep) ||
+                #    step.is_a?(Sandstorm::Filters::Steps::OffsetStep)
 
-                sort_set = if :sort.eql?(step.action)
+                #   # TODO custom exception class
+                #   raise "Cannot apply '#{step.class.name}' to a set; use ':sort' first"
+                # end
+
+                sort_set = if step.is_a?(Sandstorm::Filters::Steps::SortStep)
 
                   proc {
                     sort_attr = options[:key].to_s
@@ -332,14 +379,14 @@ module Sandstorm
                 end
 
                 if (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
-                  members = case step.action
-                  when :union
+                  members = case step
+                  when Sandstorm::Filters::Steps::UnionStep
                     Sandstorm.redis.sunion(*source_keys)
-                  when :intersect
+                  when Sandstorm::Filters::Steps::IntersectStep
                     Sandstorm.redis.sinter(*source_keys)
-                  when :diff
+                  when Sandstorm::Filters::Steps::DiffStep
                     Sandstorm.redis.sdiff(*source_keys)
-                  when :sort
+                  when Sandstorm::Filters::Steps::SortStep
                     dest_set = temp_set_name
                     temp_sets << dest_set
                     sort_set.call
@@ -351,14 +398,14 @@ module Sandstorm
                   dest_set = temp_set_name
                   temp_sets << dest_set
 
-                  case step.action
-                  when :union
+                  case step
+                  when Sandstorm::Filters::Steps::UnionStep
                     Sandstorm.redis.sunionstore(dest_set, *source_keys)
-                  when :intersect
+                  when Sandstorm::Filters::Steps::IntersectStep
                     Sandstorm.redis.sinterstore(dest_set, *source_keys)
-                  when :diff
+                  when Sandstorm::Filters::Steps::DiffStep
                     Sandstorm.redis.sdiffstore(dest_set, *source_keys)
-                  when :sort
+                  when Sandstorm::Filters::Steps::SortStep
                     sort_set.call
                   end
 
@@ -370,36 +417,30 @@ module Sandstorm
                 # or application of :sort again to re-order. For now, YAGNI, and
                 # document the limitations.
 
-                case step.action
-                when :offset
+                case step
+                when Sandstorm::Filters::Steps::OffsetStep
                   offset = options[:amount]
-                when :limit
+                when Sandstorm::Filters::Steps::LimitStep
                   limit = options[:amount]
-                when :union, :intersect, :diff
-                  # TODO raise error
-                when :union_range, :intersect_range, :diff_range
-                  # TODO raise error
-                when :sort
-                  # TODO raise error
                 end
 
               when :sorted_set
-                weights = case step.action
-                when :union, :union_range
+                weights = case step
+                when Sandstorm::Filters::Steps::UnionStep, Sandstorm::Filters::Steps::UnionRangeStep
                   [1.0] + ([0.0] * (source_keys.length - 1))
-                when :diff, :diff_range
+                when Sandstorm::Filters::Steps::DiffStep, Sandstorm::Filters::Steps::DiffRangeStep
                   [1.0] + ([-1.0] * (source_keys.length - 1))
                 end
 
                 dest_set = temp_set_name
                 temp_sets << dest_set
 
-                case step.action
-                when :union, :union_range
+                case step
+                when Sandstorm::Filters::Steps::UnionStep, Sandstorm::Filters::Steps::UnionRangeStep
                   Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
-                when :intersect, :intersect_range
+                when Sandstorm::Filters::Steps::IntersectStep, Sandstorm::Filters::Steps::IntersectRangeStep
                   Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
-                when :diff, :diff_range
+                when Sandstorm::Filters::Steps::DiffStep, Sandstorm::Filters::Steps::DiffRangeStep
                   # 'zdiffstore' via weights, relies on non-zero scores being used
                   # see https://code.google.com/p/redis/issues/detail?id=579
                   Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'sum')
@@ -454,7 +495,14 @@ module Sandstorm
             end
 
             if shortcuts.empty?
-              block ? block.call(dest_set, source_type, order_desc) : nil
+              data = Sandstorm::Filters::RedisFilter::Collection.new(
+                :name => dest_set, :type => source_type)
+              if block.nil?
+                should_be_deleted = !temp_sets.delete(dest_set).nil?
+                [data, should_be_deleted]
+              else
+                block.call(data)
+              end
             elsif :sorted_set.eql?(source_type) && :zrange.eql?(shortcuts[source_type])
               Sandstorm.redis.zrange(dest_set, 0, -1)
             elsif :list.eql?(source_type) && :lrange.eql?(shortcuts[source_type])

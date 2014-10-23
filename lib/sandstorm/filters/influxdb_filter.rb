@@ -10,7 +10,7 @@ module Sandstorm
 
       def _exists?(id)
         return if id.nil?
-        @steps << Sandstorm::Filters::Step.new(:intersect, {}, {:id => id})
+        @steps << Sandstorm::Filters::Steps::IntersectStep.new({}, {:id => id})
         resolve_steps(:count) > 0
       end
 
@@ -30,12 +30,13 @@ module Sandstorm
       def resolve_step(step)
         query = ''
 
-        step_type = step.action
         options   = step.options || {}
         values    = step.attributes
 
-        case step_type
-        when :intersect, :union
+        case step
+        when Sandstorm::Filters::Steps::IntersectStep,
+             Sandstorm::Filters::Steps::UnionStep
+
           query += values.collect {|k, v|
             op, value = case v
             when String
@@ -46,7 +47,9 @@ module Sandstorm
 
            "#{k} #{op} #{value}"
           }.join(' AND ')
-        when :diff
+
+        when Sandstorm::Filters::Steps::DiffStep
+
           query += values.collect {|k, v|
             op, value = case v
             when String
@@ -116,13 +119,14 @@ module Sandstorm
 
           @steps.each_with_index do |step, idx|
             if idx > 0
-              case step.action
-              when :intersect, :diff
+              case step
+              when Sandstorm::Filters::Steps::IntersectStep,
+                   Sandstorm::Filters::Steps::DiffStep
                 query += ' AND '
-              when :union
+              when Sandstorm::Filters::Steps::UnionStep
                 query += ' OR '
               else
-                raise "Unhandled filter operation '#{step.action}'"
+                raise "Unhandled filter operation '#{step.class.name}'"
               end
             end
 
