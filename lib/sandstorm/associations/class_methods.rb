@@ -154,7 +154,7 @@ module Sandstorm
 
         # TODO have inverse be a reference (or copy) of the association data
         # record for that inverse association
-        inverse = if args[:inverse_of].nil? || args[:inverse_of].empty?
+        inverse = if args[:inverse_of].nil? || args[:inverse_of].to_s.empty?
           nil
         else
           args[:inverse_of].to_s

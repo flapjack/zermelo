@@ -4,6 +4,19 @@ require 'time'
 
 module Sandstorm
 
+  # backport for Ruby 1.8
+  unless Enumerable.instance_methods.include?(:each_with_object)
+    module ::Enumerable
+      def each_with_object(memo)
+        return to_enum :each_with_object, memo unless block_given?
+          each do |element|
+            yield element, memo
+          end
+        memo
+      end
+    end
+  end
+
   # acceptable class types, which will be normalized on a per-backend basis
   ATTRIBUTE_TYPES  = {:string     => [String],
                       :integer    => [Integer],
