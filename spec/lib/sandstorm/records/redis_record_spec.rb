@@ -15,10 +15,11 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       validates :name, :presence => true
 
-      has_many :children, :class_name => 'Sandstorm::RedisExampleChild'
+      has_many :children, :class_name => 'Sandstorm::RedisExampleChild',
+        :inverse_of => :example
 
       has_sorted_set :data, :class_name => 'Sandstorm::RedisExampleDatum',
-        :key => :timestamp
+        :key => :timestamp, :inverse_of => :example
 
       has_and_belongs_to_many :templates, :class_name => 'Sandstorm::Template',
         :inverse_of => :examples
@@ -561,12 +562,14 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_child(example_9, :id => '4', :name => 'abc', :important => false)
       create_child(example_9, :id => '5', :name => 'abc', :important => false)
 
-      assoc_ids = Sandstorm::RedisExample.associated_ids_for_children('8', '9', '10')
+      assoc_ids = Sandstorm::RedisExample.intersect(:id => [ '8', '9', '10']).
+        associated_ids_for(:children)
       expect(assoc_ids).to eq('8'  => Set.new(['3']),
                               '9'  => Set.new(['4', '5']),
                               '10' => Set.new())
 
-      assoc_parent_ids = Sandstorm::RedisExampleChild.associated_ids_for_example('3', '4', '5')
+      assoc_parent_ids = Sandstorm::RedisExampleChild.intersect(:id => ['3', '4', '5']).
+        associated_ids_for(:example)
       expect(assoc_parent_ids).to eq('3' => '8',
                                      '4' => '9',
                                      '5' => '9')
@@ -1000,7 +1003,8 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_datum(example_10, :id => '5', :summary => 'aaargh', :timestamp => time.to_i + 40,
         :emotion => 'not_ok')
 
-      assoc_ids = Sandstorm::RedisExample.associated_ids_for_data('8', '9', '10')
+      assoc_ids = Sandstorm::RedisExample.intersect(:id => ['8', '9', '10']).
+        associated_ids_for(:data)
       expect(assoc_ids).to eq('8'  => Set.new(['3', '4']),
                               '9'  => Set.new(),
                               '10' => Set.new(['5']))
@@ -1021,7 +1025,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
     end
 
     class Sandstorm::RedisExample
-      has_one :special, :class_name => 'Sandstorm::RedisExampleSpecial'
+      has_one :special, :class_name => 'Sandstorm::RedisExampleSpecial', :inverse_of => :example
     end
 
     it "sets and retrieves a record via a has_one association" do
@@ -1133,7 +1137,8 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_special(example_9,  :id => '3', :name => 'jkl')
       create_special(example_10, :id => '4', :name => 'pqr')
 
-      assoc_ids = Sandstorm::RedisExample.associated_ids_for_special('8', '9', '10')
+      assoc_ids = Sandstorm::RedisExample.intersect(:id => ['8', '9', '10']).
+        associated_ids_for(:special)
       expect(assoc_ids).to eq('8'  => nil,
                               '9'  => '3',
                               '10' => '4')
@@ -1286,7 +1291,8 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       example_9.templates.add(template_2)
       example_10.templates.add(template_3, template_4)
 
-      assoc_ids = Sandstorm::RedisExample.associated_ids_for_templates('8', '9', '10')
+      assoc_ids = Sandstorm::RedisExample.intersect(:id => ['8', '9', '10']).
+        associated_ids_for(:templates)
       expect(assoc_ids).to eq('8'  => Set.new([]),
                               '9'  => Set.new(['2']),
                               '10' => Set.new(['3', '4']))

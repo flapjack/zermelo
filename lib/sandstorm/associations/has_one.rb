@@ -2,21 +2,28 @@ module Sandstorm
   module Associations
     class HasOne
 
-      def initialize(parent, name, record_id_key, backend, options = {})
+      def initialize(parent, name)
         @parent = parent
-        @name = name
 
-        @record_id_key = record_id_key
-        @backend = backend
+        @backend = parent.send(:backend)
 
-        # TODO trap possible constantize error
-        @associated_class = (options[:class_name] || name.classify).constantize
+        # TODO would be better as a 'has_one' hash, a bit like belongs_to
+        @record_id_key = Sandstorm::Records::Key.new(
+          :class  => parent.class.send(:class_key),
+          :id     => parent.id,
+          :name   => "#{name}_id",
+          :type   => :string,
+          :object => :association
+        )
 
-        @inverse = @associated_class.send(:inverse_of, name.to_sym, @parent.class)
+        parent.class.send(:with_association_data, name.to_sym) do |data|
+          @associated_class = data.data_klass
+          @inverse          = data.inverse
+        end
       end
 
       def value
-        @backend.lock(@parent.class, @associated_class) do
+        @parent.class.lock(@associated_class) do
           if id = @backend.get(@record_id_key)
             @associated_class.send(:load, id)
           else
@@ -25,31 +32,29 @@ module Sandstorm
         end
       end
 
-      def add(record)
-        raise 'Invalid record class' unless record.is_a?(@associated_class)
-        raise 'Record must have been saved' unless record.persisted?
-        @parent.class.lock(@associated_class) do
-          unless @inverse.nil?
-            @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+      def value=(record)
+        if record.nil?
+          @parent.class.lock(@associated_class) do
+            delete_without_lock
           end
+        else
+          raise 'Invalid record class' unless record.is_a?(@associated_class)
+          raise 'Record must have been saved' unless record.persisted?
+          @parent.class.lock(@associated_class) do
+            unless @inverse.nil?
+              @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+            end
 
-          new_txn = @backend.begin_transaction
-          @backend.set(@record_id_key, record.id)
-          @backend.commit_transaction if new_txn
-        end
-      end
-
-      def delete(record)
-        raise 'Invalid record class' unless record.is_a?(@associated_class)
-        raise 'Record must have been saved' unless record.persisted?
-        @parent.class.lock(@associated_class) do
-          delete_without_lock(record)
+            new_txn = @backend.begin_transaction
+            @backend.set(@record_id_key, record.id)
+            @backend.commit_transaction if new_txn
+          end
         end
       end
 
       private
 
-      def delete_without_lock(record)
+      def delete_without_lock
         unless @inverse.nil?
           @associated_class.send(:load, @backend.get(@record_id_key)).send("#{@inverse}=", nil)
         end
@@ -66,6 +71,19 @@ module Sandstorm
           end
         end
         @backend.clear(@record_id_key)
+      end
+
+      def self.associated_ids_for(backend, class_key, name, *these_ids)
+        these_ids.each_with_object({}) do |this_id, memo|
+          key = Sandstorm::Records::Key.new(
+            :class  => class_key,
+            :id     => this_id,
+            :name   => "#{name}_id",
+            :type   => :string,
+            :object => :association
+          )
+          memo[this_id] = backend.get(key)
+        end
       end
 
     end

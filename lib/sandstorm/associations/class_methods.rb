@@ -1,3 +1,6 @@
+require 'sandstorm/associations/association_data'
+require 'sandstorm/associations/index_data'
+
 require 'sandstorm/associations/belongs_to'
 require 'sandstorm/associations/has_and_belongs_to_many'
 require 'sandstorm/associations/has_many'
@@ -12,45 +15,69 @@ require 'sandstorm/associations/unique_index'
 # TODO callbacks on before/after add/delete on association?
 
 module Sandstorm
-
   module Associations
-
     module ClassMethods
 
       protected
 
-      # Returns a hash of indexed attribute names (as symbols) and their
-      # index class types. Used in queries, saving and deletion. Duplicated
-      # while synchronized as it's class-level data and direct access to it
-      # wouldn't be thread-safe otherwise.
-      def indexed_attributes
-        ret = nil
-        @lock.synchronize do
-          @indices ||= {}
-          ret = @indices.dup
+      # used by classes including a Sandstorm Record to set up
+      # indices and associations
+      def index_by(*args)
+        att_types = attribute_types
+        args.each do |arg|
+          index(::Sandstorm::Associations::Index, arg, :type => att_types[arg])
         end
-        ret
+        nil
       end
 
-      # Find the inverse mapping for a belongs_to association within the class
-      # this module is mixed into.
-      def inverse_of(source, klass)
-        ret = nil
-        @lock.synchronize do
-          @inverses ||= {}
-          ret = @inverses["#{klass.name.demodulize.underscore}_#{source.to_s}"]
+      def unique_index_by(*args)
+        att_types = attribute_types
+        args.each do |arg|
+          index(::Sandstorm::Associations::UniqueIndex, arg, :type => att_types[arg])
         end
-        ret
+        nil
       end
+
+      def has_many(name, args = {})
+        associate(::Sandstorm::Associations::HasMany, name, args)
+        nil
+      end
+
+      def has_one(name, args = {})
+        associate(::Sandstorm::Associations::HasOne, name, args)
+        nil
+      end
+
+      def has_sorted_set(name, args = {})
+        associate(::Sandstorm::Associations::HasSortedSet, name, args)
+        nil
+      end
+
+      def has_and_belongs_to_many(name, args = {})
+        associate(::Sandstorm::Associations::HasAndBelongsToMany, name, args)
+        nil
+      end
+
+      def belongs_to(name, args = {})
+        associate(::Sandstorm::Associations::BelongsTo, name, args)
+        nil
+      end
+      # end used by client classes
+
+      # used internally by other parts of Sandstorm to implement the above
+      # configuration
 
       # Works out which classes should be locked when updating associations
       def associated_classes(visited = [], cascade = true)
         visited |= [self]
         return visited unless cascade
-        @association_klasses.each_pair do |assoc, klass_name|
-          klass = klass_name.constantize # not optimal
-          next if visited.include?(klass)
-          visited |= klass.associated_classes(visited, false)
+        @lock.synchronize do
+          @association_data ||= {}
+          @association_data.values.each do |data|
+            klass = data.data_klass
+            next if visited.include?(klass)
+            visited |= klass.associated_classes(visited, false)
+          end
         end
         visited
       end
@@ -60,230 +87,116 @@ module Sandstorm
       #   boolean 'changed' value
       def with_associations(record)
         @lock.synchronize do
-           @association_klasses.keys.collect do |name|
+          @association_data ||= {}
+          @association_data.keys.each do |name|
             yield record.send("#{name}_proxy".to_sym)
           end
         end
       end
 
-      def index_by(*args)
-        att_types = attribute_types
-        args.each do |arg|
-          index = associate(::Sandstorm::Associations::Index, self, arg, :type => att_types[arg])
-          @lock.synchronize do
-            @indices ||= {}
-            @indices[arg.to_s] = ::Sandstorm::Associations::Index
-          end
-        end
-        nil
-      end
-
-      def unique_index_by(*args)
-        att_types = attribute_types
-        args.each do |arg|
-          index = associate(::Sandstorm::Associations::UniqueIndex, self, arg, :type => att_types[arg])
-          @lock.synchronize do
-            @indices ||= {}
-            @indices[arg.to_s] = ::Sandstorm::Associations::UniqueIndex
-          end
-        end
-        nil
-      end
-
-      def has_many(name, args = {})
-        associate(::Sandstorm::Associations::HasMany, self, name, args)
+      def with_association_data(name = nil)
         @lock.synchronize do
-          @association_klasses ||= {}
-          @association_klasses[name] = args[:class_name]
+          @association_data ||= {}
+          assoc_data = name.nil? ? @association_data : @association_data[name]
+          yield assoc_data unless assoc_data.nil?
         end
-        nil
       end
 
-      def has_one(name, args = {})
-        associate(::Sandstorm::Associations::HasOne, self, name, args)
+      def with_index_data(name = nil)
         @lock.synchronize do
-          @association_klasses ||= {}
-          @association_klasses[name] = args[:class_name]
+          @index_data ||= {}
+          idx_data = name.nil? ? @index_data : @index_data[name]
+          yield idx_data unless idx_data.nil?
         end
-        nil
-      end
+       end
+      # end used internally within Sandstorm
 
-      def has_sorted_set(name, args = {})
-        associate(::Sandstorm::Associations::HasSortedSet, self, name, args)
-        @lock.synchronize do
-          @association_klasses ||= {}
-          @association_klasses[name] = args[:class_name]
-        end
-        nil
-      end
-
-      def has_and_belongs_to_many(name, args = {})
-        associate(::Sandstorm::Associations::HasAndBelongsToMany, self, name, args)
-        @lock.synchronize do
-          @association_klasses ||= {}
-          @association_klasses[name] = args[:class_name]
-        end
-        nil
-      end
-
-      def belongs_to(name, args = {})
-        associate(::Sandstorm::Associations::BelongsTo, self, name, args)
-        @lock.synchronize do
-          @association_klasses ||= {}
-          @association_klasses[name] = args[:class_name]
-          @inverses ||= {}
-          @inverses["#{args[:class_name].demodulize.underscore}_#{args[:inverse_of]}"] = name
-        end
-        nil
-      end
+      # # TODO  can remove need for some of the inverse mapping
+      # # was inverse_of(source, klass)
+      # with_association_data do |d|
+      #   d.detect {|name, data| data.klass == klass && data.inverse == source}
+      # end
 
       private
 
-      def associate(klass, parent, name, args = {})
+      def add_index_data(klass, name, args = {})
         return if name.nil?
-        case klass.name
-        when ::Sandstorm::Associations::Index.name, ::Sandstorm::Associations::UniqueIndex.name
-          index = %Q{
-            private
 
-            def #{name}_index
-              @#{name}_index ||=
-                #{klass.name}.new(self, "#{class_key}", "#{name}", :#{args[:type]})
-              @#{name}_index
-            end
-          }
-          instance_eval index, __FILE__, __LINE__
+        data = Sandstorm::Associations::IndexData.new(
+          :name            => name,
+          :type            => args[:type],
+          :index_klass     => klass
+        )
 
+        @lock.synchronize do
+          @index_data ||= {}
+          @index_data[name] = data
+        end
+      end
+
+      def index(klass, name, args = {})
+        return if name.nil?
+
+        add_index_data(klass, name, args)
+
+        idx = %Q{
+          private
+
+          def #{name}_index
+            @#{name}_index ||= #{klass.name}.new(self, '#{name}')
+            @#{name}_index
+          end
+        }
+        instance_eval idx, __FILE__, __LINE__
+      end
+
+      def add_association_data(klass, name, args = {})
+
+        # TODO have inverse be a reference (or copy) of the association data
+        # record for that inverse association
+        inverse = if args[:inverse_of].nil? || args[:inverse_of].empty?
+          nil
+        else
+          args[:inverse_of].to_s
+        end
+
+        data = Sandstorm::Associations::AssociationData.new(
+          :name            => name,
+          :data_klass_name => args[:class_name],
+          :type_klass      => klass,
+          :inverse         => inverse
+        )
+
+        if klass.name == 'Sandstorm::Associations::HasSortedSet'
+          data.sort_key = (args[:key] || :id)
+        end
+
+        @lock.synchronize do
+          @association_data ||= {}
+          @association_data[name] = data
+        end
+      end
+
+      def associate(klass, name, args = {})
+        return if name.nil?
+
+        add_association_data(klass, name, args)
+
+        assoc = case klass.name
         when ::Sandstorm::Associations::HasMany.name,
-          ::Sandstorm::Associations::HasSortedSet.name,
-          ::Sandstorm::Associations::HasAndBelongsToMany.name
+             ::Sandstorm::Associations::HasSortedSet.name,
+             ::Sandstorm::Associations::HasAndBelongsToMany.name
 
-          assoc_args = []
-
-          if args[:class_name]
-            assoc_args << %Q{:class_name => "#{args[:class_name]}"}
-          end
-
-          if klass == ::Sandstorm::Associations::HasSortedSet
-            key_type = ':sorted_set'
-            if args[:key]
-              assoc_args << %Q{:key => "#{(args[:key] || :id).to_s}"}
-            end
-          else
-            key_type = ':set'
-          end
-
-          if (klass == ::Sandstorm::Associations::HasAndBelongsToMany) && args[:inverse_of]
-            assoc_args << %Q{:inverse_of => :#{args[:inverse_of].to_s}}
-          end
-
-          assoc = %Q{
+          %Q{
             def #{name}
               #{name}_proxy
             end
-
-            def #{name}_ids
-              #{name}_proxy.ids
-            end
-
-            # TODO optimisation - work out how to do these gets in batches
-            def self.associated_ids_for_#{name}(*this_ids)
-              this_ids.inject({}) do |memo, this_id|
-                key = Sandstorm::Records::Key.new(
-                  :class  => class_key,
-                  :id     => this_id,
-                  :name   => '#{name}_ids',
-                  :type   => #{key_type},
-                  :object => :association
-                )
-                memo[this_id] = backend.get(key)
-                memo
-              end
-            end
-
-            private
-
-            def #{name}_proxy
-              raise "Associations cannot be invoked for records without an id" if self.id.nil?
-
-              @association_keys['#{name}'] ||= Sandstorm::Records::Key.new(
-                :class  => "#{class_key}",
-                :id     => self.id,
-                :name   => '#{name}_ids',
-                :type   => #{key_type},
-                :object => :association
-              )
-
-              @#{name}_proxy ||=
-                #{klass.name}.new(self, '#{name}', @association_keys['#{name}'], backend,
-                  #{assoc_args.join(', ')})
-            end
           }
-          class_eval assoc, __FILE__, __LINE__
 
-        when ::Sandstorm::Associations::HasOne.name
-          assoc_args = []
+        when ::Sandstorm::Associations::HasOne.name,
+             ::Sandstorm::Associations::BelongsTo.name
 
-          if args[:class_name]
-            assoc_args << %Q{:class_name => "#{args[:class_name]}"}
-          end
-
-          # TODO would be better as a 'has_one' hash
-
-          assoc = %Q{
-            def #{name}
-              #{name}_proxy.value
-            end
-
-            def #{name}=(obj)
-              #{name}_proxy.send(obj.nil? ? :delete : :add, obj)
-            end
-
-            def self.associated_ids_for_#{name}(*this_ids)
-              this_ids.inject({}) do |memo, this_id|
-                key = Sandstorm::Records::Key.new(
-                  :class  => class_key,
-                  :id     => this_id,
-                  :name   => '#{name}_id',
-                  :type   => :string,
-                  :object => :association
-                )
-                memo[this_id] = backend.get(key)
-                memo
-              end
-            end
-
-            private
-
-            def #{name}_proxy
-              raise "Associations cannot be invoked for records without an id" if self.id.nil?
-
-              @association_keys['#{name}'] ||= Sandstorm::Records::Key.new(
-                :class  => "#{class_key}",
-                :id     => self.id,
-                :name   => '#{name}_id',
-                :type   => :string,
-                :object => :association
-              )
-
-              @#{name}_proxy ||= #{klass.name}.new(self, '#{name}',
-                @association_keys['#{name}'], backend, #{assoc_args.join(', ')})
-            end
-          }
-          class_eval assoc, __FILE__, __LINE__
-
-        when ::Sandstorm::Associations::BelongsTo.name
-          assoc_args = []
-
-          if args[:class_name]
-            assoc_args << %Q{:class_name => "#{args[:class_name]}"}
-          end
-
-          if args[:inverse_of]
-            assoc_args << %Q{:inverse_of => :#{args[:inverse_of].to_s}}
-          end
-
-          assoc = %Q{
+          %Q{
             def #{name}
               #{name}_proxy.value
             end
@@ -291,47 +204,22 @@ module Sandstorm
             def #{name}=(obj)
               #{name}_proxy.value = obj
             end
-
-            def self.associated_ids_for_#{name}(*this_ids)
-              this_ids.inject({}) do |memo, this_id|
-                key = Sandstorm::Records::Key.new(
-                  :class  => class_key,
-                  :id     => this_id,
-                  :name   => 'belongs_to',
-                  :type   => :hash,
-                  :object => :association
-                )
-                memo[this_id] = backend.get(key)['#{name}_id']
-                memo
-              end
-            end
-
-            private
-
-            def #{name}_proxy
-              raise "Associations cannot be invoked for records without an id" if self.id.nil?
-
-              @association_keys['belongs_to'] ||= Sandstorm::Records::Key.new(
-                :class  => "#{class_key}",
-                :id     => self.id,
-                :name   => 'belongs_to',
-                :type   => :hash,
-                :object => :association
-              )
-
-              @#{name}_proxy ||= #{klass.name}.new(self, '#{name}',
-                @association_keys['belongs_to'], backend, #{assoc_args.join(', ')})
-            end
           }
-
-          class_eval assoc, __FILE__, __LINE__
-
         end
 
+        return if assoc.nil?
+
+        proxy = %Q{
+          def #{name}_proxy
+            raise "Associations cannot be invoked for records without an id" if self.id.nil?
+
+            @#{name}_proxy ||= #{klass.name}.new(self, '#{name}')
+          end
+          private :#{name}_proxy
+        }
+        class_eval proxy, __FILE__, __LINE__
+        class_eval assoc, __FILE__, __LINE__
       end
-
     end
-
   end
-
 end

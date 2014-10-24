@@ -4,14 +4,18 @@ module Sandstorm
   module Associations
     class Index
 
-      def initialize(parent, class_key, att_name, att_type)
+      def initialize(parent_klass, name)
+        @parent_klass   = parent_klass
+        @attribute_name = name
+
+        @backend   = parent_klass.send(:backend)
+        @class_key = parent_klass.send(:class_key)
+
         @indexers = {}
 
-        @backend   = parent.send(:backend)
-        @parent    = parent
-        @class_key = class_key
-        @attribute_name = att_name
-        @attribute_type = att_type
+        parent_klass.send(:with_index_data, name.to_sym) do |data|
+          @attribute_type = data.type
+        end
       end
 
       def delete_id(id, value)

@@ -67,23 +67,32 @@ module Sandstorm
       end
 
       def intersect_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Steps::IntersectRangeStep.new({:start => start, :finish => finish,
-          :order => attrs_opts.delete(:order),
-          :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
+        @steps << ::Sandstorm::Filters::Steps::IntersectRangeStep.new(
+          {:start => start, :finish => finish,
+           :order => attrs_opts.delete(:order),
+           :by_score => attrs_opts.delete(:by_score)},
+          attrs_opts
+        )
         self
       end
 
       def union_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Steps::UnionRangeStep.new({:start => start, :finish => finish,
-          :order => attrs_opts.delete(:order),
-          :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
+        @steps << ::Sandstorm::Filters::Steps::UnionRangeStep.new(
+          {:start => start, :finish => finish,
+           :order => attrs_opts.delete(:order),
+           :by_score => attrs_opts.delete(:by_score)},
+          attrs_opts
+        )
         self
       end
 
       def diff_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Steps::DiffRangeStep.new({:start => start, :finish => finish,
-          :order => attrs_opts.delete(:order),
-          :by_score => attrs_opts.delete(:by_score)}, attrs_opts)
+        @steps << ::Sandstorm::Filters::Steps::DiffRangeStep.new(
+          {:start => start, :finish => finish,
+           :order => attrs_opts.delete(:order),
+           :by_score => attrs_opts.delete(:by_score)},
+          attrs_opts
+        )
         self
       end
 
@@ -167,6 +176,17 @@ module Sandstorm
 
       def destroy_all
         lock(*@associated_class.send(:associated_classes)) { _all.each {|r| r.destroy } }
+      end
+
+      def associated_ids_for(name)
+        klass = @associated_class.send(:with_association_data, name.to_sym) do |data|
+          data.type_klass
+        end
+
+        lock {
+          klass.send(:associated_ids_for, @backend,
+            @associated_class.send(:class_key), name, *_ids)
+        }
       end
 
       protected

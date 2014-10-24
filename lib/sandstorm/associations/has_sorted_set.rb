@@ -14,17 +14,24 @@ module Sandstorm
                        :ids, :count, :empty?, :exists?,
                        :first, :last
 
-      def initialize(parent, name, record_ids_key, backend, options = {})
+      def initialize(parent, name)
         @parent = parent
-        @name = name
 
-        @record_ids_key = record_ids_key
-        @backend = backend
+        @backend = parent.send(:backend)
 
-        @key = options[:key]
+        @record_ids_key = Sandstorm::Records::Key.new(
+          :class  => parent.class.send(:class_key),
+          :id     => parent.id,
+          :name   => "#{name}_ids",
+          :type   => :sorted_set,
+          :object => :association
+        )
 
-        @associated_class = (options[:class_name] || name.classify).constantize
-        @inverse = @associated_class.send(:inverse_of, name.to_sym, @parent.class)
+        parent.class.send(:with_association_data, name.to_sym) do |data|
+          @associated_class = data.data_klass
+          @inverse          = data.inverse
+          @sort_key         = data.sort_key
+        end
       end
 
       def <<(record)
@@ -45,7 +52,7 @@ module Sandstorm
           end
 
           new_txn = @backend.begin_transaction
-          @backend.add(@record_ids_key, (records.map {|r| [r.send(@key.to_sym).to_f, r.id]}.flatten))
+          @backend.add(@record_ids_key, (records.map {|r| [r.send(@sort_key.to_sym).to_f, r.id]}.flatten))
           @backend.commit_transaction if new_txn
         end
       end
@@ -84,6 +91,19 @@ module Sandstorm
       # state for this particular filter chain
       def filter
         @backend.filter(@record_ids_key, @associated_class)
+      end
+
+      def self.associated_ids_for(backend, class_key, name, *these_ids)
+        these_ids.each_with_object({}) do |this_id, memo|
+          key = Sandstorm::Records::Key.new(
+            :class  => class_key,
+            :id     => this_id,
+            :name   => "#{name}_ids",
+            :type   => :sorted_set,
+            :object => :association
+          )
+          memo[this_id] = backend.get(key)
+        end
       end
 
     end

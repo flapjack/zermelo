@@ -7,24 +7,27 @@ module Sandstorm
       # NB a single instance of this class doesn't need to care about the hash
       # used for storage, that should be done in the save method of the parent
 
-      def initialize(parent, name, record_ids_key, backend, options = {})
+      def initialize(parent, name)
         @parent = parent
-        @name = name
+        @name   = name
 
-        @record_ids_key = record_ids_key
-        @backend = backend
+        @backend = parent.send(:backend)
 
-        # TODO trap possible constantize error
-        @associated_class = (options[:class_name] || name.classify).constantize
-        @class_name = options[:class_name].demodulize.underscore
+        @record_ids_key = Sandstorm::Records::Key.new(
+          :class  => parent.class.send(:class_key),
+          :id     => parent.id,
+          :name   => 'belongs_to',
+          :type   => :hash,
+          :object => :association
+        )
 
-        raise ':inverse_of must be set' if options[:inverse_of].nil?
-        @inverse = options[:inverse_of].to_s
-        @inverse_key = "#{@name}_id"
-      end
+        parent.class.send(:with_association_data, name.to_sym) do |data|
+          @associated_class = data.data_klass
+          @inverse          = data.inverse
+        end
 
-      def inverse_of?(source)
-        !source.nil? && (@inverse == source.to_s)
+        raise ':inverse_of must be set' if @inverse.nil?
+        @inverse_key = "#{name}_id"
       end
 
       # intrinsically atomic, so no locking needed
@@ -55,8 +58,30 @@ module Sandstorm
 
       # on_remove already runs inside a lock & transaction
       def on_remove
-        value.send("#{@inverse}_proxy".to_sym).send(:delete, @parent) unless value.nil?
+        unless value.nil?
+          assoc = value.send("#{@inverse}_proxy".to_sym)
+          if assoc.respond_to?(:delete)
+            assoc.send(:delete, @parent)
+          elsif assoc.respond_to?(:value=)
+            assoc.send(:value=, nil)
+          end
+        end
         @backend.clear(@record_ids_key)
+      end
+
+      # belongs_to only for now
+      def self.associated_ids_for(backend, class_key, name, *these_ids)
+        these_ids.each_with_object({}) do |this_id, memo|
+          key = Sandstorm::Records::Key.new(
+            :class  => class_key,
+            :id     => this_id,
+            :name   => 'belongs_to',
+            :type   => :hash,
+            :object => :association
+          )
+          # TODO backend getter for single hash value
+          memo[this_id] = backend.get(key)["#{name}_id"]
+        end
       end
 
     end

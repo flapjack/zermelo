@@ -13,8 +13,6 @@ module Sandstorm
         attributes.each_pair do |k, v|
           self.send("#{k}=".to_sym, v)
         end
-
-        @association_keys = {}
       end
 
       def persisted?
@@ -85,7 +83,11 @@ module Sandstorm
 
           self.id ||= self.class.generate_id
 
-          idx_attrs = self.class.send(:indexed_attributes)
+          idx_attrs = self.class.send(:with_index_data) do |d|
+            idx_attrs = d.each_with_object({}) do |(name, data), memo|
+              memo[name.to_s] = data.index_klass
+            end
+          end
 
           self.class.transaction do
 
@@ -140,15 +142,18 @@ module Sandstorm
         run_callbacks :destroy do
 
           assoc_classes = self.class.send(:associated_classes)
+          index_attrs   = self.class.send(:with_index_data) {|d| d.keys }
 
           self.class.lock(*assoc_classes) do
-            self.class.send(:with_associations, self) {|assoc| assoc.send(:on_remove) }
-            index_attrs = (self.attributes.keys & self.class.send(:indexed_attributes).keys)
+            self.class.send(:with_associations, self) do |assoc|
+              assoc.send(:on_remove)
+            end
 
             self.class.transaction do
               self.class.delete_id(@attributes['id'])
               index_attrs.each do |att|
-                self.class.send("#{att}_index").delete_id( @attributes['id'], @attributes[att])
+                idx = self.class.send("#{att}_index")
+                idx.delete_id( @attributes['id'], @attributes[att.to_s])
               end
 
               self.class.attribute_types.each_pair {|name, type|

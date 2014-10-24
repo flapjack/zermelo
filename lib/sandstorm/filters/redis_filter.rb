@@ -90,7 +90,6 @@ module Sandstorm
       end
 
       def indexed_step_to_set(att, idx_class, value, attr_type)
-
         # TODO (maybe) if a filter from different backend, resolve to ids and
         # put that in a Redis temp set
 
@@ -303,8 +302,12 @@ module Sandstorm
         dest_set = nil
         ret = nil
 
-        # TODO merge these into one data structure
-        idx_attrs = @associated_class.send(:indexed_attributes)
+        idx_attrs = @associated_class.send(:with_index_data) do |d|
+          d.each_with_object({}) do |(name, data), memo|
+            memo[name.to_s] = data.index_klass
+          end
+        end
+
         attr_types = @associated_class.send(:attribute_types)
 
         offset = nil
@@ -322,17 +325,12 @@ module Sandstorm
               order_opts = options[:order] ? options[:order].downcase.split : []
               order_desc = order_desc ^ order_opts.include?('desc')
 
-              # TODO check that current source type is in step.accepted_types
+              unless step.class.accepted_types.include?(source_type)
+                raise "'#{step.class.name}' does not accept input type #{source_type}"
+              end
 
               case source_type
               when :set
-                # if step.is_a?(Sandstorm::Filters::Steps::LimitStep) ||
-                #    step.is_a?(Sandstorm::Filters::Steps::OffsetStep)
-
-                #   # TODO custom exception class
-                #   raise "Cannot apply '#{step.class.name}' to a set; use ':sort' first"
-                # end
-
                 sort_set = if step.is_a?(Sandstorm::Filters::Steps::SortStep)
 
                   proc {
