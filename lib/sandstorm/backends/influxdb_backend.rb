@@ -158,7 +158,8 @@ module Sandstorm
             rescue InfluxDB::Error => ide
               raise unless
                 (/^Couldn't look up columns for series: #{klass}\/#{id}$/ === ide.message) ||
-                (/^Couldn't look up columns$/ === ide.message)
+                (/^Couldn't look up columns$/ === ide.message) ||
+                (/^Couldn't find series: #{klass}\/#{id}$/ === ide.message)
 
               prior = nil
             end
