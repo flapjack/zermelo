@@ -9,7 +9,7 @@ module Sandstorm
 
         # TODO would be better as a 'has_one' hash, a bit like belongs_to
         @record_id_key = Sandstorm::Records::Key.new(
-          :class  => parent.class.send(:class_key),
+          :klass  => parent.class.send(:class_key),
           :id     => parent.id,
           :name   => "#{name}_id",
           :type   => :string,
@@ -76,7 +76,7 @@ module Sandstorm
       def self.associated_ids_for(backend, class_key, name, *these_ids)
         these_ids.each_with_object({}) do |this_id, memo|
           key = Sandstorm::Records::Key.new(
-            :class  => class_key,
+            :klass  => class_key,
             :id     => this_id,
             :name   => "#{name}_id",
             :type   => :string,

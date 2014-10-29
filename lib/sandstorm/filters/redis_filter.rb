@@ -113,7 +113,7 @@ module Sandstorm
           case idx_class.name
           when 'Sandstorm::Associations::UniqueIndex'
             index_key = backend.key_to_redis_key(Sandstorm::Records::Key.new(
-              :class  => class_key,
+              :klass  => class_key,
               :name   => "by_#{att}",
               :type   => :hash,
               :object => :index
@@ -126,7 +126,7 @@ module Sandstorm
             Sandstorm.redis.sadd(idx_result, *matching_ids) unless matching_ids.empty?
           when 'Sandstorm::Associations::Index'
             key_root = backend.key_to_redis_key(Sandstorm::Records::Key.new(
-              :class  => class_key,
+              :klass  => class_key,
               :name   => "by_#{att}:string",
               :type   => :set,
               :object => :index
@@ -168,16 +168,16 @@ module Sandstorm
 
           source_keys += step.attributes.inject([]) do |memo, (att, value)|
 
+            val = value.is_a?(Set) ? value.to_a : value
+
             if :id.eql?(att)
               ts = temp_set_name
               temp_sets << ts
-              Sandstorm.redis.sadd(ts, value)
+              Sandstorm.redis.sadd(ts, val)
               memo << ts
             else
               idx_class = idx_attrs[att.to_s]
               raise "'#{att}' property is not indexed" if idx_class.nil?
-
-              val = value.is_a?(Set) ? value.to_a : value
 
               if val.is_a?(Enumerable)
                 conditions_set = temp_set_name

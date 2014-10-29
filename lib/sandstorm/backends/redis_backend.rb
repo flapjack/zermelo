@@ -21,7 +21,6 @@ module Sandstorm
 
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
-
           redis_attr_key = key_to_redis_key(attr_key)
 
           memo[attr_key.klass] ||= {}
@@ -30,13 +29,30 @@ module Sandstorm
 
             case attr_key.type
             when :list
-              Sandstorm.redis.lrange(redis_attr_key, 0, -1)
+              if attr_key.accessor.nil?
+                Sandstorm.redis.lrange(redis_attr_key, 0, -1)
+              else
+
+              end
             when :set
-              Set.new( Sandstorm.redis.smembers(redis_attr_key) )
+              if attr_key.accessor.nil?
+                Set.new( Sandstorm.redis.smembers(redis_attr_key) )
+              else
+
+              end
             when :hash
-              Sandstorm.redis.hgetall(redis_attr_key)
+              if attr_key.accessor.nil?
+                Sandstorm.redis.hgetall(redis_attr_key)
+              else
+
+              end
             when :sorted_set
-              Set.new( Sandstorm.redis.zrange(redis_attr_key, 0, -1) )
+              # TODO should this be something that preserves order?
+              if attr_key.accessor.nil?
+                Set.new( Sandstorm.redis.zrange(redis_attr_key, 0, -1) )
+              else
+
+              end
             end
 
           else
@@ -171,11 +187,13 @@ module Sandstorm
                 end
               when :hash
                 Sandstorm.redis.del(complex_attr_key) if :set.eql?(op)
-                kv = value.inject([]) do |memo, (k, v)|
-                  memo += [k, v]
-                  memo
+                unless value.nil?
+                  kv = value.inject([]) do |memo, (k, v)|
+                    memo += [k, v]
+                    memo
+                  end
+                  Sandstorm.redis.hmset(complex_attr_key, *kv)
                 end
-                Sandstorm.redis.hmset(complex_attr_key, *kv)
               when :sorted_set
                 Sandstorm.redis.zadd(complex_attr_key, *value)
               end
@@ -184,6 +202,9 @@ module Sandstorm
               when :set
                 Sandstorm.redis.smove(complex_attr_key, key_to_redis_key(key_to), value)
               when :list
+                # TODO would do via sort 'nosort', except for
+                # https://github.com/antirez/redis/issues/2079 -- instead,
+                # copy the workaround from redis_filter.rb
                 raise "Not yet implemented"
               when :hash
                 values = value.to_a.flatten

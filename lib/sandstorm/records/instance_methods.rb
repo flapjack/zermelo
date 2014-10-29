@@ -48,7 +48,7 @@ module Sandstorm
           attr_types = self.class.attribute_types.reject {|k, v| k == :id}
 
           attrs_to_load = attr_types.collect do |name, type|
-            Sandstorm::Records::Key.new(:class => class_key,
+            Sandstorm::Records::Key.new(:klass => class_key,
               :id => self.id, :name => name, :type => type, :object => :attribute)
           end
 
@@ -157,12 +157,12 @@ module Sandstorm
               end
 
               self.class.attribute_types.each_pair {|name, type|
-                key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
+                key = Sandstorm::Records::Key.new(:klass => self.class.send(:class_key),
                   :id => self.id, :name => name.to_s, :type => type, :object => :attribute)
                 backend.clear(key)
               }
 
-              record_key = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
+              record_key = Sandstorm::Records::Key.new(:klass => self.class.send(:class_key),
                   :id => self.id)
               backend.purge(record_key)
             end
@@ -182,7 +182,7 @@ module Sandstorm
         @attribute_keys ||= self.class.attribute_types.reject {|k, v|
           k == :id
         }.inject({}) {|memo, (name, type)|
-          memo[name.to_s] = Sandstorm::Records::Key.new(:class => self.class.send(:class_key),
+          memo[name.to_s] = Sandstorm::Records::Key.new(:klass => self.class.send(:class_key),
             :id => self.id, :name => name.to_s, :type => type, :object => :attribute)
           memo
         }

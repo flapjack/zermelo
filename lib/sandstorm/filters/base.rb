@@ -178,23 +178,28 @@ module Sandstorm
         lock(*@associated_class.send(:associated_classes)) { _all.each {|r| r.destroy } }
       end
 
-      def associated_ids_for(name)
+      def associated_ids_for(name, options = {})
         klass = @associated_class.send(:with_association_data, name.to_sym) do |data|
           data.type_klass
         end
 
         lock {
-          klass.send(:associated_ids_for, @backend,
-            @associated_class.send(:class_key), name, *_ids)
+          case klass.name
+          when ::Sandstorm::Associations::BelongsTo.name
+            klass.send(:associated_ids_for, @backend,
+              @associated_class.send(:class_key), name,
+              options[:inversed].is_a?(TrueClass), *_ids)
+          else
+            klass.send(:associated_ids_for, @backend,
+              @associated_class.send(:class_key), name, *_ids)
+          end
         }
       end
 
       protected
 
       def lock(when_steps_empty = true, *klasses, &block)
-        if !when_steps_empty && @steps.empty?
-          return block.call
-        end
+        return(block.call) if !when_steps_empty && @steps.empty?
         klasses += [@associated_class] if !klasses.include?(@associated_class)
         @backend.lock(*klasses, &block)
       end

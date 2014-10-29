@@ -32,7 +32,7 @@ module Sandstorm
 
       def key
         @indexer ||= Sandstorm::Records::Key.new(
-          :class  => @class_key,
+          :klass  => @class_key,
           :name   => "by_#{@attribute_name}",
           :type   => :hash,
           :object => :index

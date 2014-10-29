@@ -38,7 +38,7 @@ module Sandstorm
         raise "Can't index '#{@value}' (#{@attribute_type}" if index_keys.nil?
 
         @indexers[index_keys.join(":")] ||= Sandstorm::Records::Key.new(
-          :class  => @class_key,
+          :klass  => @class_key,
           :name   => "by_#{@attribute_name}:#{index_keys.join(':')}",
           :type   => :set,
           :object => :index

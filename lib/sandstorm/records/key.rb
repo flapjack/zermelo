@@ -1,22 +1,19 @@
-
 module Sandstorm
-
   module Records
-
     class Key
 
-      attr_reader :klass, :id, :name, :type, :object
+      # id       / if nil, it's a class variable
+      # object   / :association, :attribute or :index
+      # accessor / if a complex type, some way of getting sub-value
+      attr_reader :klass, :id, :name, :accessor, :type, :object
 
+      # TODO better validation of data, e.g. accessor valid for type, etc.
       def initialize(opts = {})
-        @klass  = opts[:class]
-        @id     = opts[:id]      # if id.nil?, it's a class variable
-        @name   = opts[:name]
-        @type   = opts[:type]
-        @object = opts[:object]  # :association, :attribute or :index
+        [:klass, :id, :name, :accessor, :type, :object].each do |iv|
+          instance_variable_set("@#{iv}", opts[iv])
+        end
       end
 
     end
-
   end
-
 end

@@ -14,7 +14,7 @@ module Sandstorm
         @backend = parent.send(:backend)
 
         @record_ids_key = Sandstorm::Records::Key.new(
-          :class  => parent.class.send(:class_key),
+          :klass  => parent.class.send(:class_key),
           :id     => parent.id,
           :name   => 'belongs_to',
           :type   => :hash,
@@ -47,6 +47,7 @@ module Sandstorm
         @parent.class.lock(@associated_class) do
           # FIXME uses hgetall, need separate getter for hash/list/set
           if id = @backend.get(@record_ids_key)[@inverse_key.to_s]
+          # if id = @backend.get_hash_value(@record_ids_key, @inverse_key.to_s)
             @associated_class.send(:load, id)
           else
             nil
@@ -69,18 +70,25 @@ module Sandstorm
         @backend.clear(@record_ids_key)
       end
 
-      # belongs_to only for now
-      def self.associated_ids_for(backend, class_key, name, *these_ids)
+      def self.associated_ids_for(backend, class_key, name, inversed, *these_ids)
         these_ids.each_with_object({}) do |this_id, memo|
           key = Sandstorm::Records::Key.new(
-            :class  => class_key,
+            :klass  => class_key,
             :id     => this_id,
             :name   => 'belongs_to',
             :type   => :hash,
             :object => :association
           )
-          # TODO backend getter for single hash value
-          memo[this_id] = backend.get(key)["#{name}_id"]
+
+          assoc_id = backend.get(key)["#{name}_id"]
+          # assoc_id = backend.get_hash_value(key, "#{name}_id")
+
+          if inversed
+            memo[assoc_id] ||= []
+            memo[assoc_id] << this_id
+          else
+            memo[this_id] = assoc_id
+          end
         end
       end
 
