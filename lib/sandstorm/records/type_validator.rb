@@ -1,8 +1,5 @@
-
 module Sandstorm
-
   module Records
-
     class TypeValidator < ActiveModel::Validator
       def validate(record)
         attr_types = record.class.attribute_types
@@ -19,7 +16,5 @@ module Sandstorm
         end
       end
     end
-
   end
-
 end

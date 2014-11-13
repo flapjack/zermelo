@@ -75,13 +75,12 @@ module Sandstorm
 
       def save
         return unless @is_new || self.changed?
+        self.id ||= self.class.generate_id
         return false unless valid?
 
         creating = !self.persisted?
 
         run_callbacks( (creating ? :create : :update) ) do
-
-          self.id ||= self.class.generate_id
 
           idx_attrs = self.class.send(:with_index_data) do |d|
             idx_attrs = d.each_with_object({}) do |(name, data), memo|
