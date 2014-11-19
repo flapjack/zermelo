@@ -31,6 +31,7 @@ module Sandstorm
           @associated_class = data.data_klass
           @inverse          = data.inverse
           @sort_key         = data.sort_key
+          @callbacks        = data.callbacks
         end
       end
 
@@ -45,6 +46,8 @@ module Sandstorm
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
         @parent.class.lock(@associated_class) do
+          ba = @callbacks[:before_add]
+          records.each {|r| r.send(ba) if r.respond_to?(ba) } unless ba.nil?
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
@@ -54,6 +57,8 @@ module Sandstorm
           new_txn = @backend.begin_transaction
           @backend.add(@record_ids_key, (records.map {|r| [r.send(@sort_key.to_sym).to_f, r.id]}.flatten))
           @backend.commit_transaction if new_txn
+          aa = @callbacks[:after_add]
+          records.each {|r| r.send(aa) if r.respond_to?(aa) } unless aa.nil?
         end
       end
 
@@ -62,6 +67,8 @@ module Sandstorm
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
         @parent.class.lock(@associated_class) do
+          br = @callbacks[:before_remove]
+          records.each {|r| r.send(br) if r.respond_to?(br) } unless br.nil?
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
@@ -71,6 +78,8 @@ module Sandstorm
           new_txn = @backend.begin_transaction
           @backend.delete(@record_ids_key, records.map(&:id))
           @backend.commit_transaction if new_txn
+          ar = @callbacks[:after_remove]
+          records.each {|r| r.send(ar) if r.respond_to?(ar) } unless ar.nil?
         end
       end
 
