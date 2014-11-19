@@ -16,7 +16,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       validates :name, :presence => true
 
       has_many :children, :class_name => 'Sandstorm::RedisExampleChild',
-        :inverse_of => :example
+        :inverse_of => :example, :before_add => :fail_if_roger
 
       has_sorted_set :data, :class_name => 'Sandstorm::RedisExampleDatum',
         :key => :timestamp, :inverse_of => :example
@@ -26,6 +26,10 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       index_by :active
       unique_index_by :name
+
+      def fail_if_roger(*childs)
+        raise "Not adding child" if childs.any? {|c| 'Roger'.eql?(c.name) }
+      end
     end
 
     class RedisExampleChild
@@ -338,13 +342,13 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
   context "has_many" do
 
     def create_child(parent, attrs = {})
-      redis.sadd("redis_example:#{parent.id}:assocs:children_ids", attrs[:id])
+      redis.sadd("redis_example:#{parent.id}:assocs:children_ids", attrs[:id]) unless parent.nil?
 
       redis.hmset("redis_example_child:#{attrs[:id]}:attrs",
                   {'name' => attrs[:name], 'important' => !!attrs[:important]}.to_a.flatten)
 
       redis.hmset("redis_example_child:#{attrs[:id]}:assocs:belongs_to",
-                  {'example_id' => parent.id}.to_a.flatten)
+                  {'example_id' => parent.id}.to_a.flatten) unless parent.nil?
 
       redis.sadd("redis_example_child::indices:by_important:boolean:#{!!attrs[:important]}", attrs[:id])
 
@@ -489,6 +493,21 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(martin).not_to be_nil
       expect(martin).to be_a(Sandstorm::RedisExampleChild)
       expect(martin.id).to eq('3')
+    end
+
+    it "does not add a child if the before_add callback raises an exception" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Sandstorm::RedisExample.find_by_id('8')
+
+      create_child(nil, :id => '6', :name => 'Roger', :important => true)
+      child = Sandstorm::RedisExampleChild.find_by_id('6')
+
+      expect(example.children).to be_empty
+      expect {
+        example.children << child
+      }.to raise_error
+      expect(example.children).to be_empty
     end
 
     it 'clears the belongs_to association when the child record is deleted' do

@@ -36,24 +36,24 @@ module Sandstorm
           @parent.class.lock(@associated_class) do
             r = @associated_class.send(:load, @backend.get(@record_ids_key)[@inverse_key.to_s])
             br = @callbacks[:before_remove]
-            r.send(br) if !br.nil? && r.respond_to?(br)
+            @parent.send(br, r) if !br.nil? && @parent.respond_to?(br)
             new_txn = @backend.begin_transaction
             @backend.delete(@record_ids_key, @inverse_key)
             @backend.commit_transaction if new_txn
             ar = @callbacks[:after_remove]
-            r.send(ar) if !ar.nil? && r.respond_to?(ar)
+            @parent.send(ar, r) if !ar.nil? && @parent.respond_to?(ar)
           end
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
           @parent.class.lock(@associated_class) do
             ba = @callbacks[:before_add]
-            record.send(ba) if !ba.nil? && record.respond_to?(ba)
+            @parent.send(ba, record) if !ba.nil? && @parent.respond_to?(ba)
             new_txn = @backend.begin_transaction
             @backend.add(@record_ids_key, @inverse_key => record.id)
             @backend.commit_transaction if new_txn
             aa = @callbacks[:after_add]
-            record.send(aa) if !aa.nil? && record.respond_to?(aa)
+            @parent.send(aa, record) if !aa.nil? && @parent.respond_to?(aa)
           end
         end
       end
