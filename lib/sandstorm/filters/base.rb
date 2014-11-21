@@ -49,9 +49,9 @@ module Sandstorm
         self
       end
 
-      def sort(att, opts = {})
-        @steps << ::Sandstorm::Filters::Steps::SortStep.new({:key => att,
-          :order => opts[:order], :limit => opts[:limit],
+      def sort(keys, opts = {})
+        @steps << ::Sandstorm::Filters::Steps::SortStep.new({:keys => keys,
+          :desc => opts[:desc], :limit => opts[:limit],
           :offset => opts[:offset]}, {})
         self
       end
@@ -62,14 +62,14 @@ module Sandstorm
       end
 
       def offset(amount)
-        @steps << Sandstorm::Filters::Steps::OffsetStep({:amount => amount}, {})
+        @steps << Sandstorm::Filters::Steps::OffsetStep.new({:amount => amount}, {})
         self
       end
 
       def intersect_range(start, finish, attrs_opts = {})
         @steps << ::Sandstorm::Filters::Steps::IntersectRangeStep.new(
           {:start => start, :finish => finish,
-           :order => attrs_opts.delete(:order),
+           :desc => attrs_opts.delete(:desc),
            :by_score => attrs_opts.delete(:by_score)},
           attrs_opts
         )
@@ -79,7 +79,7 @@ module Sandstorm
       def union_range(start, finish, attrs_opts = {})
         @steps << ::Sandstorm::Filters::Steps::UnionRangeStep.new(
           {:start => start, :finish => finish,
-           :order => attrs_opts.delete(:order),
+           :desc => attrs_opts.delete(:desc),
            :by_score => attrs_opts.delete(:by_score)},
           attrs_opts
         )
@@ -89,7 +89,7 @@ module Sandstorm
       def diff_range(start, finish, attrs_opts = {})
         @steps << ::Sandstorm::Filters::Steps::DiffRangeStep.new(
           {:start => start, :finish => finish,
-           :order => attrs_opts.delete(:order),
+           :desc => attrs_opts.delete(:desc),
            :by_score => attrs_opts.delete(:by_score)},
           attrs_opts
         )

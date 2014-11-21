@@ -211,7 +211,7 @@ module Sandstorm
           start = options[:start]
           finish = options[:finish]
 
-          order_desc = options[:order] && 'desc'.eql?(options[:order].downcase)
+          order_desc = options[:desc].is_a?(TrueClass)
 
           if options[:by_score]
             start = '-inf' if start.nil? || (start <= 0)
@@ -322,8 +322,8 @@ module Sandstorm
 
             resolve_step(step, source, idx_attrs, attr_types) do |source_keys|
               options = step.options || {}
-              order_opts = options[:order] ? options[:order].downcase.split : []
-              order_desc = order_desc ^ order_opts.include?('desc')
+
+              order_desc = order_desc ^ options[:desc].is_a?(TrueClass)
 
               unless step.class.accepted_types.include?(source_type)
                 raise "'#{step.class.name}' does not accept input type #{source_type}"
@@ -334,41 +334,61 @@ module Sandstorm
                 sort_set = if step.is_a?(Sandstorm::Filters::Steps::SortStep)
 
                   proc {
-                    sort_attr = options[:key].to_s
 
-                    # sort by id or by simple attribute -- hash member
+                    # TODO raise error in step construction if keys not
+                    # passed as expected below
+                    sort_attrs_and_orders = case options[:keys]
+                    when String, Symbol
+                      {options[:keys].to_s => options[:desc].is_a?(TrueClass) ? :desc : :asc}
+                    when Array
+                      options[:keys].each_with_object({}) do |k, memo|
+                        memo[k.to_sym] = (options[:desc].is_a?(TrueClass) ? :desc : :asc)
+                      end
+                    when Hash
+                      options[:keys]
+                    end
+
                     # TODO check if complex attribute types or associations
                     # can be used for sorting
-                    # FIXME we know attr type, so should use that to determine string or numeric
-
-                    opts = {}
-
-                    unless 'id'.eql?(sort_attr)
-                      opts.update(:by => "#{class_key}:*:attrs->#{sort_attr}")
-                    end
-
-                    o = options[:offset]
-                    l = options[:limit]
-
-                    if !(l.nil? && o.nil?)
-                      o = o.nil? ? 0 : o.to_i
-                      l = (l.nil? || (l.to_i < 1)) ? (Sandstorm.redis.llen(dest_set) - o) : l
-                      opts.update(:limit => [o, l])
-                    end
-
-                    order_parts = ['alpha', 'desc'].inject([]) do |memo, ord|
-                      memo << ord if order_opts.include?(ord)
-                      memo
-                    end
-
-                    unless order_parts.empty?
-                      opts.update(:order => order_parts.join(' '))
-                    end
-
-                    opts.update(:store => dest_set)
 
                     Sandstorm.redis.sunionstore(dest_set, *source_keys)
-                    Sandstorm.redis.sort(dest_set, opts)
+
+                    sort_attrs_and_orders.keys.reverse.each_with_index do |sort_attr, idx|
+
+                      order = sort_attrs_and_orders[sort_attr]
+
+                      opts = {}
+
+                      unless 'id'.eql?(sort_attr.to_s)
+                        opts.update(:by => "#{class_key}:*:attrs->#{sort_attr}")
+                      end
+
+                      if (idx + 1) == sort_attrs_and_orders.size
+                        # only apply offset & limit on the last sort
+                        o = options[:offset]
+                        l = options[:limit]
+
+                        if !(l.nil? && o.nil?)
+                          o = o.nil? ? 0 : o.to_i
+                          l = (l.nil? || (l.to_i < 1)) ? (Sandstorm.redis.llen(dest_set) - o) : l
+                          opts.update(:limit => [o, l])
+                        end
+                      end
+
+                      order_parts = []
+                      sort_attr_type = attr_types[sort_attr.to_sym]
+                      unless [:integer, :float, :timestamp].include?(sort_attr_type)
+                        order_parts << 'alpha'
+                      end
+                      order_parts << 'desc' if 'desc'.eql?(order.to_s)
+
+                      unless order_parts.empty?
+                        opts.update(:order => order_parts.join(' '))
+                      end
+
+                      opts.update(:store => dest_set)
+                      Sandstorm.redis.sort(dest_set, opts)
+                    end
 
                     source_type = :list
                   }

@@ -235,10 +235,10 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(Sandstorm::RedisExample.sort(:id).page(3, :per_page => 2).map(&:id)).to eq(['5'])
       expect(Sandstorm::RedisExample.sort(:id).page(3, :per_page => 3).map(&:id)).to eq([])
 
-      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(1, :per_page => 3).map(&:id)).to eq(['2','5', '4'])
-      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(2, :per_page => 2).map(&:id)).to eq(['4','3'])
-      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(3, :per_page => 2).map(&:id)).to eq(['1'])
-      expect(Sandstorm::RedisExample.sort(:name, :order => 'alpha').page(3, :per_page => 3).map(&:id)).to eq([])
+      expect(Sandstorm::RedisExample.sort(:name).page(1, :per_page => 3).map(&:id)).to eq(['2','5', '4'])
+      expect(Sandstorm::RedisExample.sort(:name).page(2, :per_page => 2).map(&:id)).to eq(['4','3'])
+      expect(Sandstorm::RedisExample.sort(:name).page(3, :per_page => 2).map(&:id)).to eq(['1'])
+      expect(Sandstorm::RedisExample.sort(:name).page(3, :per_page => 3).map(&:id)).to eq([])
     end
 
   end
@@ -747,7 +747,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      data = example.data.intersect_range(0, 1, :order => 'desc').all
+      data = example.data.intersect_range(0, 1, :desc => true).all
 
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
@@ -791,7 +791,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
         :emotion => 'upset')
 
       data = example.data.intersect_range(time.to_i - 1, time.to_i + 15,
-              :order => 'desc', :by_score => true).all
+              :desc => true, :by_score => true).all
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
       expect(data.size).to eq(2)
@@ -857,7 +857,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      data = example.data.diff_range(0, 0, :order => 'desc').all
+      data = example.data.diff_range(0, 0, :desc => true).all
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
       expect(data.size).to eq(2)
@@ -899,7 +899,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      data = example.data.diff_range(time.to_i - 1, time.to_i + 8, :by_score => true, :order => 'desc').all
+      data = example.data.diff_range(time.to_i - 1, time.to_i + 8, :by_score => true, :desc => true).all
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
       expect(data.size).to eq(2)
@@ -1142,6 +1142,27 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(assoc_ids).to eq('8'  => nil,
                               '9'  => '3',
                               '10' => '4')
+    end
+
+  end
+
+
+  context 'sorting by multiple keys' do
+
+    def create_template(attrs = {})
+      redis.hmset("template:#{attrs[:id]}:attrs", {'name' => attrs[:name]}.to_a.flatten)
+      redis.sadd('template::attrs:ids', attrs[:id])
+    end
+
+    before do
+      create_template(:id => '1', :name => 'abc')
+      create_template(:id => '2', :name => 'def')
+      create_template(:id => '3', :name => 'abc')
+      create_template(:id => '4', :name => 'def')
+    end
+
+    it 'sorts by multiple fields' do
+      expect(Sandstorm::Template.sort(:name => :asc, :id => :desc).map(&:id)).to eq(['3', '1', '4', '2'])
     end
 
   end
