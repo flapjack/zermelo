@@ -164,7 +164,11 @@ module Sandstorm
           :name            => name,
           :data_klass_name => args[:class_name],
           :type_klass      => klass,
-          :inverse         => inverse
+          :inverse         => inverse,
+          :callbacks       => [:before_add, :after_add,
+                               :before_remove, :after_remove].each_with_object({}) {|c, memo|
+                                memo[c] = args[c]
+                              }
         )
 
         if klass.name == 'Sandstorm::Associations::HasSortedSet'

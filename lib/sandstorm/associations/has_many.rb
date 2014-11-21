@@ -28,6 +28,7 @@ module Sandstorm
         parent.class.send(:with_association_data, name.to_sym) do |data|
           @associated_class = data.data_klass
           @inverse          = data.inverse
+          @callbacks        = data.callbacks
         end
       end
 
@@ -41,6 +42,8 @@ module Sandstorm
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent.class.lock(@associated_class) do
+          ba = @callbacks[:before_add]
+          @parent.send(ba, *records) if !ba.nil? && @parent.respond_to?(ba)
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
@@ -50,6 +53,8 @@ module Sandstorm
           new_txn = @backend.begin_transaction
           @backend.add(@record_ids_key, records.map(&:id))
           @backend.commit_transaction if new_txn
+          aa = @callbacks[:after_add]
+          @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
         end
       end
 
@@ -59,6 +64,8 @@ module Sandstorm
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent.class.lock(@associated_class) do
+          br = @callbacks[:before_remove]
+          @parent.send(br, *records) if !br.nil? && @parent.respond_to?(br)
           unless @inverse.nil?
             records.each do |record|
               @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
@@ -68,6 +75,8 @@ module Sandstorm
           new_txn = @backend.begin_transaction
           @backend.delete(@record_ids_key, records.map(&:id))
           @backend.commit_transaction if new_txn
+          ar = @callbacks[:after_remove]
+          @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
         end
       end
 

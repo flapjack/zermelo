@@ -19,6 +19,7 @@ module Sandstorm
         parent.class.send(:with_association_data, name.to_sym) do |data|
           @associated_class = data.data_klass
           @inverse          = data.inverse
+          @callbacks        = data.callbacks
         end
       end
 
@@ -35,12 +36,19 @@ module Sandstorm
       def value=(record)
         if record.nil?
           @parent.class.lock(@associated_class) do
-            delete_without_lock
+            r = @associated_class.send(:load, @backend.get(@record_id_key))
+            br = @callbacks[:before_remove]
+            @parent.send(br, r) if !br.nil? && @parent.respond_to?(br)
+            delete_without_lock(r)
+            ar = @callbacks[:after_remove]
+            @parent.send(ar, r) if !ar.nil? && @parent.respond_to?(ar)
           end
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
           @parent.class.lock(@associated_class) do
+            ba = @callbacks[:before_add]
+            @parent.send(ba, record) if !ba.nil? && @parent.respond_to?(ba)
             unless @inverse.nil?
               @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
             end
@@ -48,15 +56,17 @@ module Sandstorm
             new_txn = @backend.begin_transaction
             @backend.set(@record_id_key, record.id)
             @backend.commit_transaction if new_txn
+            aa = @callbacks[:after_add]
+            @parent.send(aa, record) if !aa.nil? && @parent.respond_to?(aa)
           end
         end
       end
 
       private
 
-      def delete_without_lock
+      def delete_without_lock(record)
         unless @inverse.nil?
-          @associated_class.send(:load, @backend.get(@record_id_key)).send("#{@inverse}=", nil)
+          record.send("#{@inverse}=", nil)
         end
         new_txn = @backend.begin_transaction
         @backend.clear(@record_id_key)

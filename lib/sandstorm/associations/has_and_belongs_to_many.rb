@@ -32,6 +32,7 @@ module Sandstorm
         parent.class.send(:with_association_data, name.to_sym) do |data|
           @associated_class = data.data_klass
           @inverse          = data.inverse
+          @callbacks        = data.callbacks
         end
       end
 
@@ -45,11 +46,15 @@ module Sandstorm
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.lock(@associated_class) do
+          ba = @callbacks[:before_add]
+          @parent.send(ba, *records) if !ba.nil? && @parent.respond_to?(ba)
           records.each do |record|
             @associated_class.send(:load, record.id).send(@inverse.to_sym).
               send(:add_without_inverse, @parent)
           end
           add_without_inverse(*records)
+          aa = @callbacks[:after_add]
+          @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
         end
       end
 
@@ -59,11 +64,15 @@ module Sandstorm
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.lock(@associated_class) do
+          br = @callbacks[:before_remove]
+          @parent.send(br, *records) if !br.nil? && @parent.respond_to?(br)
           records.each do |record|
             @associated_class.send(:load, record.id).send(@inverse.to_sym).
               send(:delete_without_inverse, @parent)
           end
           delete_without_inverse(*records)
+          ar = @callbacks[:after_remove]
+          @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
         end
       end
 
