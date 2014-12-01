@@ -72,7 +72,7 @@ module Sandstorm
         resolve_steps do |collection|
           case collection.type
           when :list
-            !Sandstorm.redis.lindex(collection.name, id).nil?
+            Sandstorm.redis.lrange(collection.name, 0, -1).include?(id)
           when :set
             Sandstorm.redis.sismember(collection.name, id)
           when :sorted_set
