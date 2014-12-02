@@ -37,27 +37,29 @@ module Sandstorm
         if record.nil?
           @parent.class.lock(@associated_class) do
             r = @associated_class.send(:load, @backend.get(@record_id_key))
-            br = @callbacks[:before_remove]
-            @parent.send(br, r) if !br.nil? && @parent.respond_to?(br)
-            delete_without_lock(r)
-            ar = @callbacks[:after_remove]
-            @parent.send(ar, r) if !ar.nil? && @parent.respond_to?(ar)
+            bc = @callbacks[:before_clear]
+            if bc.nil? || !@parent.respond_to?(bc) || !@parent.send(bc, r).is_a?(FalseClass)
+              delete_without_lock(r)
+              ac = @callbacks[:after_clear]
+              @parent.send(ac, r) if !ac.nil? && @parent.respond_to?(ac)
+            end
           end
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
           @parent.class.lock(@associated_class) do
-            ba = @callbacks[:before_add]
-            @parent.send(ba, record) if !ba.nil? && @parent.respond_to?(ba)
-            unless @inverse.nil?
-              @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
-            end
+            bs = @callbacks[:before_set]
+            if bs.nil? || !@parent.respond_to?(bs) || !@parent.send(bs, r).is_a?(FalseClass)
+              unless @inverse.nil?
+                @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+              end
 
-            new_txn = @backend.begin_transaction
-            @backend.set(@record_id_key, record.id)
-            @backend.commit_transaction if new_txn
-            aa = @callbacks[:after_add]
-            @parent.send(aa, record) if !aa.nil? && @parent.respond_to?(aa)
+              new_txn = @backend.begin_transaction
+              @backend.set(@record_id_key, record.id)
+              @backend.commit_transaction if new_txn
+              as = @callbacks[:after_set]
+              @parent.send(as, record) if !as.nil? && @parent.respond_to?(as)
+            end
           end
         end
       end

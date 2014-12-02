@@ -47,14 +47,15 @@ module Sandstorm
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.lock(@associated_class) do
           ba = @callbacks[:before_add]
-          @parent.send(ba, *records) if !ba.nil? && @parent.respond_to?(ba)
-          records.each do |record|
-            @associated_class.send(:load, record.id).send(@inverse.to_sym).
-              send(:add_without_inverse, @parent)
+          if ba.nil? || !@parent.respond_to?(ba) || !@parent.send(ba, *records).is_a?(FalseClass)
+            records.each do |record|
+              @associated_class.send(:load, record.id).send(@inverse.to_sym).
+                send(:add_without_inverse, @parent)
+            end
+            add_without_inverse(*records)
+            aa = @callbacks[:after_add]
+            @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
           end
-          add_without_inverse(*records)
-          aa = @callbacks[:after_add]
-          @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
         end
       end
 
@@ -65,14 +66,15 @@ module Sandstorm
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.lock(@associated_class) do
           br = @callbacks[:before_remove]
-          @parent.send(br, *records) if !br.nil? && @parent.respond_to?(br)
-          records.each do |record|
-            @associated_class.send(:load, record.id).send(@inverse.to_sym).
-              send(:delete_without_inverse, @parent)
+          if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
+            records.each do |record|
+              @associated_class.send(:load, record.id).send(@inverse.to_sym).
+                send(:delete_without_inverse, @parent)
+            end
+            delete_without_inverse(*records)
+            ar = @callbacks[:after_remove]
+            @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
           end
-          delete_without_inverse(*records)
-          ar = @callbacks[:after_remove]
-          @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
         end
       end
 

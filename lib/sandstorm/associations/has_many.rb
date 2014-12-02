@@ -43,18 +43,19 @@ module Sandstorm
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent.class.lock(@associated_class) do
           ba = @callbacks[:before_add]
-          @parent.send(ba, *records) if !ba.nil? && @parent.respond_to?(ba)
-          unless @inverse.nil?
-            records.each do |record|
-              @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+          if ba.nil? || !@parent.respond_to?(ba) || !@parent.send(ba, *records).is_a?(FalseClass)
+            unless @inverse.nil?
+              records.each do |record|
+                @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+              end
             end
-          end
 
-          new_txn = @backend.begin_transaction
-          @backend.add(@record_ids_key, records.map(&:id))
-          @backend.commit_transaction if new_txn
-          aa = @callbacks[:after_add]
-          @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
+            new_txn = @backend.begin_transaction
+            @backend.add(@record_ids_key, records.map(&:id))
+            @backend.commit_transaction if new_txn
+            aa = @callbacks[:after_add]
+            @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
+          end
         end
       end
 
@@ -65,18 +66,19 @@ module Sandstorm
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent.class.lock(@associated_class) do
           br = @callbacks[:before_remove]
-          @parent.send(br, *records) if !br.nil? && @parent.respond_to?(br)
-          unless @inverse.nil?
-            records.each do |record|
-              @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
+          if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
+            unless @inverse.nil?
+              records.each do |record|
+                @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
+              end
             end
-          end
 
-          new_txn = @backend.begin_transaction
-          @backend.delete(@record_ids_key, records.map(&:id))
-          @backend.commit_transaction if new_txn
-          ar = @callbacks[:after_remove]
-          @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
+            new_txn = @backend.begin_transaction
+            @backend.delete(@record_ids_key, records.map(&:id))
+            @backend.commit_transaction if new_txn
+            ar = @callbacks[:after_remove]
+            @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
+          end
         end
       end
 

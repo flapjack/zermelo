@@ -160,18 +160,29 @@ module Sandstorm
           args[:inverse_of].to_s
         end
 
+        callbacks = case klass.name
+        when ::Sandstorm::Associations::HasMany.name,
+             ::Sandstorm::Associations::HasSortedSet.name,
+             ::Sandstorm::Associations::HasAndBelongsToMany.name
+          [:before_add, :after_add, :before_remove, :after_remove]
+        when ::Sandstorm::Associations::HasOne.name,
+             ::Sandstorm::Associations::BelongsTo.name
+          [:before_set, :after_set, :before_clear, :after_clear]
+        else
+          []
+        end
+
         data = Sandstorm::Associations::AssociationData.new(
           :name            => name,
           :data_klass_name => args[:class_name],
           :type_klass      => klass,
           :inverse         => inverse,
-          :callbacks       => [:before_add, :after_add,
-                               :before_remove, :after_remove].each_with_object({}) {|c, memo|
+          :callbacks       => callbacks.each_with_object({}) {|c, memo|
                                 memo[c] = args[c]
                               }
         )
 
-        if klass.name == 'Sandstorm::Associations::HasSortedSet'
+        if klass.name == Sandstorm::Associations::HasSortedSet.name
           data.sort_key = (args[:key] || :id)
         end
 
