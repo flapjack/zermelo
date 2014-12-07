@@ -55,10 +55,8 @@ module Sandstorm
           attrs = backend.get_multiple(*attrs_to_load)[class_key][self.id]
         end
 
-        # TODO:? return false unless record_exists
-
-        @attributes.update(attrs) if attrs.present?
-
+        return false unless attrs.present?
+        @attributes.update(attrs)
         true
       end
 

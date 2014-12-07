@@ -36,12 +36,17 @@ module Sandstorm
       def value=(record)
         if record.nil?
           @parent.class.lock(@associated_class) do
-            r = @associated_class.send(:load, @backend.get(@record_id_key))
-            bc = @callbacks[:before_clear]
-            if bc.nil? || !@parent.respond_to?(bc) || !@parent.send(bc, r).is_a?(FalseClass)
-              delete_without_lock(r)
-              ac = @callbacks[:after_clear]
-              @parent.send(ac, r) if !ac.nil? && @parent.respond_to?(ac)
+           id = @backend.get(@record_id_key)
+           unless id.nil?
+             r = @associated_class.send(:load, id)
+             unless r.nil?
+               bc = @callbacks[:before_clear]
+               if bc.nil? || !@parent.respond_to?(bc) || !@parent.send(bc, r).is_a?(FalseClass)
+                  delete_without_lock(r)
+                  ac = @callbacks[:after_clear]
+                  @parent.send(ac, r) if !ac.nil? && @parent.respond_to?(ac)
+                end
+              end
             end
           end
         else

@@ -119,8 +119,7 @@ module Sandstorm
 
       def load(id)
         object = self.new
-        object.load(id)
-        object
+        object.load(id) ? object : nil
       end
 
       def filter
