@@ -243,7 +243,7 @@ module Sandstorm
                 case key.type
                 when :string, :integer
                   value.to_s
-                when :timestamp
+                when :float, :timestamp
                   value.to_f
                 when :boolean
                   (!!value).to_s
