@@ -287,6 +287,26 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       expect(examples.map(&:id)).to match_array(['8', '9'])
     end
 
+    it "ANDs multiple union arguments, not ORs them" do
+      create_example(:id => '10', :name => 'Jay Johns',
+                     :email => 'jjohns@example.com', :active => true)
+      examples = Sandstorm::RedisExample.intersect(:id => ['8']).union(:id => ['9', '10'], :active => true).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '10'])
+    end
+
+    it 'supports a regex as argument in union after intersect' do
+      create_example(:id => '10', :name => 'Jay Johns',
+                     :email => 'jjohns@example.com', :active => true)
+      examples = Sandstorm::RedisExample.intersect(:id => ['8']).union(:id => ['9', '10'], :name => [nil, /^Jam/]).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '9'])
+    end
+
     it 'allows intersection operations across multiple values for an attribute' do
       create_example(:id => '10', :name => 'Jay Johns',
                      :email => 'jjohns@example.com', :active => true)

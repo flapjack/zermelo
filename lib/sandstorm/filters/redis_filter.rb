@@ -138,7 +138,7 @@ module Sandstorm
               memo
             end
 
-            Sandstorm.redis.sinterstore(idx_result, *matching_sets) unless matching_sets.empty?
+            Sandstorm.redis.sunionstore(idx_result, matching_sets) unless matching_sets.empty?
           end
           [idx_result, true]
         else
@@ -159,7 +159,7 @@ module Sandstorm
 
       def resolve_step(step, source, idx_attrs, attr_types, &block)
         temp_sets   = []
-        source_keys = [source]
+        source_keys = []
 
         case step
         when Sandstorm::Filters::Steps::IntersectStep,
@@ -351,7 +351,7 @@ module Sandstorm
                     # TODO check if complex attribute types or associations
                     # can be used for sorting
 
-                    Sandstorm.redis.sunionstore(dest_set, *source_keys)
+                    Sandstorm.redis.sunionstore(dest_set, source, *source_keys)
 
                     sort_attrs_and_orders.keys.reverse.each_with_index do |sort_attr, idx|
 
@@ -396,33 +396,35 @@ module Sandstorm
                   nil
                 end
 
+                dest_set = temp_set_name
+                temp_sets << dest_set
+
                 if (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
                   members = case step
                   when Sandstorm::Filters::Steps::UnionStep
-                    Sandstorm.redis.sunion(*source_keys)
+                    Sandstorm.redis.sinterstore(dest_set, *source_keys)
+                    Sandstorm.redis.sunion(dest_set, source)
                   when Sandstorm::Filters::Steps::IntersectStep
-                    Sandstorm.redis.sinter(*source_keys)
+                    Sandstorm.redis.sinter(source, *source_keys)
                   when Sandstorm::Filters::Steps::DiffStep
-                    Sandstorm.redis.sdiff(*source_keys)
+                    Sandstorm.redis.sinterstore(dest_set, *source_keys)
+                    Sandstorm.redis.sdiff(source, dest_set)
                   when Sandstorm::Filters::Steps::SortStep
-                    dest_set = temp_set_name
-                    temp_sets << dest_set
                     sort_set.call
                     Sandstorm.redis.send((order_desc ? :lrevrange : :lrange),
                                          dest_set, 0, -1)
                   end
                 else
 
-                  dest_set = temp_set_name
-                  temp_sets << dest_set
-
                   case step
                   when Sandstorm::Filters::Steps::UnionStep
-                    Sandstorm.redis.sunionstore(dest_set, *source_keys)
+                    Sandstorm.redis.sinterstore(dest_set, *source_keys)
+                    Sandstorm.redis.sunionstore(dest_set, source, dest_set)
                   when Sandstorm::Filters::Steps::IntersectStep
                     Sandstorm.redis.sinterstore(dest_set, *source_keys)
                   when Sandstorm::Filters::Steps::DiffStep
-                    Sandstorm.redis.sdiffstore(dest_set, *source_keys)
+                    Sandstorm.redis.sinterstore(dest_set, *source_keys)
+                    Sandstorm.redis.sdiffstore(dest_set, source, dest_set)
                   when Sandstorm::Filters::Steps::SortStep
                     sort_set.call
                   end
@@ -445,9 +447,9 @@ module Sandstorm
               when :sorted_set
                 weights = case step
                 when Sandstorm::Filters::Steps::UnionStep, Sandstorm::Filters::Steps::UnionRangeStep
-                  [1.0] + ([0.0] * (source_keys.length - 1))
+                  [0.0] * source_keys.length
                 when Sandstorm::Filters::Steps::DiffStep, Sandstorm::Filters::Steps::DiffRangeStep
-                  [1.0] + ([-1.0] * (source_keys.length - 1))
+                  [-1.0] * source_keys.length
                 end
 
                 dest_set = temp_set_name
@@ -455,13 +457,15 @@ module Sandstorm
 
                 case step
                 when Sandstorm::Filters::Steps::UnionStep, Sandstorm::Filters::Steps::UnionRangeStep
-                  Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
-                when Sandstorm::Filters::Steps::IntersectStep, Sandstorm::Filters::Steps::IntersectRangeStep
                   Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
+                  Sandstorm.redis.zunionstore(dest_set, [source, dest_set])
+                when Sandstorm::Filters::Steps::IntersectStep, Sandstorm::Filters::Steps::IntersectRangeStep
+                  Sandstorm.redis.zinterstore(dest_set, [source] + source_keys, :weights => weights, :aggregate => 'max')
                 when Sandstorm::Filters::Steps::DiffStep, Sandstorm::Filters::Steps::DiffRangeStep
                   # 'zdiffstore' via weights, relies on non-zero scores being used
                   # see https://code.google.com/p/redis/issues/detail?id=579
-                  Sandstorm.redis.zunionstore(dest_set, source_keys, :weights => weights, :aggregate => 'sum')
+                  Sandstorm.redis.zinterstore(dest_set, source_keys, :weights => weights, :aggregate => 'max')
+                  Sandstorm.redis.zunionstore(dest_set, [source, dest_set])
                   Sandstorm.redis.zremrangebyscore(dest_set, "0", "0")
                 end
 
