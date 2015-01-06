@@ -10,7 +10,8 @@ module Sandstorm
                        :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
                        :page, :all, :each, :collect, :map,
                        :select, :find_all, :reject, :destroy_all,
-                       :ids, :count, :empty?, :exists?
+                       :ids, :count, :empty?, :exists?,
+                       :associated_ids_for
 
       def initialize(parent, name)
         @parent = parent

@@ -12,7 +12,8 @@ module Sandstorm
                        :all, :each, :collect, :map,
                        :select, :find_all, :reject, :destroy_all,
                        :ids, :count, :empty?, :exists?,
-                       :first, :last
+                       :first, :last,
+                       :associated_ids_for
 
       def initialize(parent, name)
         @parent = parent
