@@ -25,8 +25,11 @@ module Sandstorm
       end
 
       def refresh
-        # AM::Dirty -- private method in 4.1.0+, internal state before that
-        if self.respond_to?(:reset_changes, true)
+        # AM::Dirty -- private method 'clear_changes_information' in 4.2.0+,
+        # private method 'reset_changes' in 4.1.0+, internal state before that
+        if self.respond_to?(:clear_changes_information, true)
+          clear_changes_information
+        elsif self.respond_to?(:reset_changes, true)
           reset_changes
         else
           @previously_changed.clear unless @previously_changed.nil?
