@@ -166,9 +166,7 @@ module Sandstorm
                   :id => self.id)
               backend.purge(record_key)
             end
-
           end
-
         end
       end
 

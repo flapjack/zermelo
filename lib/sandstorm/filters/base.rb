@@ -175,7 +175,9 @@ module Sandstorm
       end
 
       def destroy_all
-        lock(*@associated_class.send(:associated_classes)) { _all.each {|r| r.destroy } }
+        lock(*@associated_class.send(:associated_classes)) do
+          _all.each {|r| r.destroy }
+        end
       end
 
       def associated_ids_for(name, options = {})
