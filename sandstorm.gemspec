@@ -20,15 +20,8 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib']
 
-  if RUBY_VERSION.split('.')[0] == '1' && RUBY_VERSION.split('.')[1] == '8'
-    spec.name          = 'sandstorm-ruby1.8'
-    required_ruby_version = '~> 1.8.7'
-    spec.add_dependency 'activemodel', '~> 3.2.19' # Rails 4 requires Ruby 1.9
-  else
-    spec.name          = 'sandstorm'
-    required_ruby_version = '>= 1.9'
-    spec.add_dependency 'activemodel'
-  end
+  spec.name          = 'sandstorm'
+  spec.add_dependency 'activemodel'
 
   spec.add_development_dependency 'bundler', '~> 1.3'
   spec.add_development_dependency 'rake'

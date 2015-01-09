@@ -11,12 +11,5 @@ group :test do
   gem 'redis'
   gem 'rspec', '>= 3.0.0'
   gem 'simplecov', :require => false
-
-  if RUBY_VERSION.split('.')[0] == '1' && RUBY_VERSION.split('.')[1] == '8'
-    gem 'moneta', '0.7.2'
-    gem 'timecop', '0.6.1'
-  else
-    gem 'moneta'
-    gem 'timecop'
-  end
+  gem 'timecop'
 end

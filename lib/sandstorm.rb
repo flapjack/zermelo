@@ -40,7 +40,7 @@ module Sandstorm
     end
 
     # Thread and fiber-local
-    [:redis, :moneta, :influxdb].each do |backend|
+    [:redis, :influxdb].each do |backend|
       define_method(backend) do
         Thread.current["sandstorm_#{backend.to_s}".to_sym]
       end

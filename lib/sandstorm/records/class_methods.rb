@@ -4,8 +4,6 @@ require 'securerandom'
 require 'sandstorm'
 
 require 'sandstorm/backends/influxdb_backend'
-require 'sandstorm/backends/mysql_backend'
-require 'sandstorm/backends/moneta_backend'
 require 'sandstorm/backends/redis_backend'
 
 require 'sandstorm/records/key'
@@ -97,10 +95,6 @@ module Sandstorm
         @backend ||= case backend_type.to_sym
         when :influxdb
           Sandstorm::Backends::InfluxDBBackend.new
-        when :moneta
-          Sandstorm::Backends::MonetaBackend.new
-        when :mysql
-          Sandstorm::Backends::MySQLBackend.new
         when :redis
           Sandstorm::Backends::RedisBackend.new
         end
