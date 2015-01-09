@@ -18,13 +18,14 @@ module Sandstorm
 
         parent.class.send(:with_association_data, name.to_sym) do |data|
           @associated_class = data.data_klass
+          @lock_klasses     = [data.data_klass] + data.related_klasses
           @inverse          = data.inverse
           @callbacks        = data.callbacks
         end
       end
 
       def value
-        @parent.class.lock(@associated_class) do
+        @parent.class.lock(*@associated_class) do
           if id = @backend.get(@record_id_key)
             @associated_class.send(:load, id)
           else
@@ -35,7 +36,7 @@ module Sandstorm
 
       def value=(record)
         if record.nil?
-          @parent.class.lock(@associated_class) do
+          @parent.class.lock(*@lock_klasses) do
            id = @backend.get(@record_id_key)
            unless id.nil?
              r = @associated_class.send(:load, id)
@@ -52,7 +53,7 @@ module Sandstorm
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
-          @parent.class.lock(@associated_class) do
+          @parent.class.lock(*@lock_klasses) do
             bs = @callbacks[:before_set]
             if bs.nil? || !@parent.respond_to?(bs) || !@parent.send(bs, r).is_a?(FalseClass)
               unless @inverse.nil?

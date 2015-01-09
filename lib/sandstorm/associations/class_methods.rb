@@ -68,6 +68,7 @@ module Sandstorm
       # configuration
 
       # Works out which classes should be locked when updating associations
+      # TODO work out if this can be replaced by 'related_klasses' assoc data
       def associated_classes(visited = [], cascade = true)
         visited |= [self]
         return visited unless cascade
@@ -152,8 +153,10 @@ module Sandstorm
 
       def add_association_data(klass, name, args = {})
 
-        # TODO have inverse be a reference (or copy) of the association data
-        # record for that inverse association
+        # TODO have inverse be a reference (or copy?) of the association data
+        # record for that inverse association; would need to defer lookup until
+        # all data in place for all assocs, so might be best if looked up and
+        # cached on first use
         inverse = if args[:inverse_of].nil? || args[:inverse_of].to_s.empty?
           nil
         else
@@ -173,13 +176,14 @@ module Sandstorm
         end
 
         data = Sandstorm::Associations::AssociationData.new(
-          :name            => name,
-          :data_klass_name => args[:class_name],
-          :type_klass      => klass,
-          :inverse         => inverse,
-          :callbacks       => callbacks.each_with_object({}) {|c, memo|
-                                memo[c] = args[c]
-                              }
+          :name                => name,
+          :data_klass_name     => args[:class_name],
+          :type_klass          => klass,
+          :inverse             => inverse,
+          :related_klass_names => args[:related_class_names],
+          :callbacks           => callbacks.each_with_object({}) {|c, memo|
+                                    memo[c] = args[c]
+                                  }
         )
 
         if klass.name == Sandstorm::Associations::HasSortedSet.name

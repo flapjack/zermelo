@@ -28,6 +28,7 @@ module Sandstorm
 
         parent.class.send(:with_association_data, name.to_sym) do |data|
           @associated_class = data.data_klass
+          @lock_klasses     = [data.data_klass] + data.related_klasses
           @inverse          = data.inverse
           @callbacks        = data.callbacks
         end
@@ -42,7 +43,7 @@ module Sandstorm
         raise 'No records to add' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
-        @parent.class.lock(@associated_class) do
+        @parent.class.lock(*@lock_klasses) do
           ba = @callbacks[:before_add]
           if ba.nil? || !@parent.respond_to?(ba) || !@parent.send(ba, *records).is_a?(FalseClass)
             unless @inverse.nil?
@@ -65,7 +66,7 @@ module Sandstorm
         raise 'No records to delete' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
-        @parent.class.lock(@associated_class) do
+        @parent.class.lock(*@lock_klasses) do
           br = @callbacks[:before_remove]
           if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
             unless @inverse.nil?

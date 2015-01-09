@@ -23,6 +23,7 @@ module Sandstorm
 
         parent.class.send(:with_association_data, name.to_sym) do |data|
           @associated_class = data.data_klass
+          @lock_klasses     = [data.data_klass] + data.related_klasses
           @inverse          = data.inverse
           @callbacks        = data.callbacks
         end
@@ -33,7 +34,7 @@ module Sandstorm
 
       def value=(record)
         if record.nil?
-          @parent.class.lock(@associated_class) do
+          @parent.class.lock(*@lock_klasses) do
             r = @associated_class.send(:load, @backend.get(@record_ids_key)[@inverse_key.to_s])
             bc = @callbacks[:before_clear]
             if bc.nil? || !@parent.respond_to?(bc) || !@parent.send(bc, r).is_a?(FalseClass)
@@ -47,7 +48,7 @@ module Sandstorm
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
-          @parent.class.lock(@associated_class) do
+          @parent.class.lock(*@lock_klasses) do
             bs = @callbacks[:before_set]
             if bs.nil? || !@parent.respond_to?(bs) || !@parent.send(bs, r).is_a?(FalseClass)
               new_txn = @backend.begin_transaction
@@ -61,7 +62,7 @@ module Sandstorm
       end
 
       def value
-        @parent.class.lock(@associated_class) do
+        @parent.class.lock(*@lock_klasses) do
           # FIXME uses hgetall, need separate getter for hash/list/set
           if id = @backend.get(@record_ids_key)[@inverse_key.to_s]
           # if id = @backend.get_hash_value(@record_ids_key, @inverse_key.to_s)
