@@ -46,7 +46,15 @@ module Sandstorm
       end
       define_method("#{backend.to_s}=".to_sym) do |connection|
         Thread.current["sandstorm_#{backend.to_s}".to_sym] = connection
+        Thread.current["sandstorm_#{backend.to_s}_version".to_sym] = nil
       end
+    end
+
+    def redis_version
+      return nil if Sandstorm.redis.nil?
+      rv = Thread.current[:sandstorm_redis_version]
+      return rv unless rv.nil?
+      Thread.current[:sandstorm_redis_version] = Sandstorm.redis.info['redis_version']
     end
 
   end

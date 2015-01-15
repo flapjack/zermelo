@@ -495,25 +495,24 @@ module Sandstorm
 
               opts = {:by => 'no_sort', :limit => [o, l]}
 
-              # # would use :store, but see https://github.com/antirez/redis/issues/2079
-              # # once/if that's fixed:
-              # opts.update(:store => dest_set)
-              # Sandstorm.redis.sort(dest_set, opts)
-
-              # until that's fixed, if it is:
-              data = Sandstorm.redis.sort(dest_set, opts)
-
-              if data.empty?
-                Sandstorm.redis.del(dest_set)
+              # https://github.com/antirez/redis/issues/2079, fixed in redis 2.8.19
+              if (Sandstorm.redis_version <=> ['2', '8', '18']) == 1
+                opts.update(:store => dest_set)
+                Sandstorm.redis.sort(dest_set, opts)
               else
-                limited = temp_set_name
-                temp_sets << limited
+                data = Sandstorm.redis.sort(dest_set, opts)
 
-                Sandstorm.redis.rpush(limited, data)
+                if data.empty?
+                  Sandstorm.redis.del(dest_set)
+                else
+                  limited = temp_set_name
+                  temp_sets << limited
 
-                dest_set = limited
+                  Sandstorm.redis.rpush(limited, data)
+
+                  dest_set = limited
+                end
               end
-              # end until
             end
 
             if shortcuts.empty?
