@@ -396,10 +396,14 @@ module Sandstorm
                   nil
                 end
 
-                dest_set = temp_set_name
-                temp_sets << dest_set
+                last_step_and_smembers = (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
 
-                if (idx == (@steps.size - 1)) && :smembers.eql?(shortcuts[:set])
+                unless last_step_and_smembers && step.is_a?(Sandstorm::Filters::Steps::IntersectStep)
+                  dest_set = temp_set_name
+                  temp_sets << dest_set
+                end
+
+                if last_step_and_smembers
                   members = case step
                   when Sandstorm::Filters::Steps::UnionStep
                     Sandstorm.redis.sinterstore(dest_set, *source_keys)
