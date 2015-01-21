@@ -1060,7 +1060,7 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
 
       belongs_to :example, :class_name => 'Sandstorm::RedisExample', :inverse_of => :special
 
-      validate :name, :presence => true
+      validates :name, :presence => true
     end
 
     class Sandstorm::RedisExample
