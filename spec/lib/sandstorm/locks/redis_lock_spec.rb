@@ -19,28 +19,28 @@ describe Sandstorm::Locks::RedisLock, :redis => true do
   end
 
   it "locks access to class-level data" do
-    expect(redis.keys).to be_empty
+    expect(redis.keys('*')).to be_empty
 
     slock = Sandstorm::Locks::RedisLock.new
     locked = slock.lock(Sandstorm::RedisLockExample)
     expect(locked).to be_truthy
 
     lock_keys = ["redis_lock_example::lock:owner", "redis_lock_example::lock:expiry"]
-    expect(redis.keys).to match_array(lock_keys)
+    expect(redis.keys('*')).to match_array(lock_keys)
 
     example = Sandstorm::RedisLockExample.new(:name => 'temporary')
     example.save
 
     example_keys = ["redis_lock_example::attrs:ids", "redis_lock_example:#{example.id}:attrs"]
-    expect(redis.keys).to match_array(lock_keys + example_keys)
+    expect(redis.keys('*')).to match_array(lock_keys + example_keys)
 
     unlocked = slock.unlock
     expect(unlocked).to be_truthy
-    expect(redis.keys).to match_array(example_keys)
+    expect(redis.keys('*')).to match_array(example_keys)
   end
 
   it "locks access to class-level data from two classes" do
-    expect(redis.keys).to be_empty
+    expect(redis.keys('*')).to be_empty
 
     slock = Sandstorm::Locks::RedisLock.new
     locked = slock.lock(Sandstorm::RedisLockExample, Sandstorm::AnotherExample)
@@ -48,7 +48,7 @@ describe Sandstorm::Locks::RedisLock, :redis => true do
 
     lock_keys = ["another_example::lock:owner", "another_example::lock:expiry",
       "redis_lock_example::lock:owner", "redis_lock_example::lock:expiry"]
-    expect(redis.keys).to match_array(lock_keys)
+    expect(redis.keys('*')).to match_array(lock_keys)
 
     redis_lock_example = Sandstorm::RedisLockExample.new(:name => 'temporary')
     redis_lock_example.save
@@ -58,11 +58,11 @@ describe Sandstorm::Locks::RedisLock, :redis => true do
 
     example_keys = ["redis_lock_example::attrs:ids", "redis_lock_example:#{redis_lock_example.id}:attrs",
       "another_example::attrs:ids", "another_example:#{another_example.id}:attrs"]
-    expect(redis.keys).to match_array(lock_keys + example_keys)
+    expect(redis.keys('*')).to match_array(lock_keys + example_keys)
 
     unlocked = slock.unlock
     expect(unlocked).to be_truthy
-    expect(redis.keys).to match_array(example_keys)
+    expect(redis.keys('*')).to match_array(example_keys)
   end
 
   it "extends an existing lock", :time => true do

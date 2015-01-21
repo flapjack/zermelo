@@ -39,19 +39,25 @@ RSpec.configure do |config|
   config.order = 'random'
 
   config.around(:each, :redis => true) do |example|
+    # Sandstorm.logger = ::Logger.new('tmp/spec.log')
     Sandstorm.redis = ::Redis.new(:db => 14)
     Sandstorm.redis.flushdb
     example.run
     Sandstorm.redis.quit
+    # Sandstorm.logger.debug('----')
+    # Sandstorm.logger = nil
   end
 
   config.around(:each, :influxdb => true) do |example|
+    # Sandstorm.logger = ::Logger.new('tmp/spec.log')
     Sandstorm.influxdb = InfluxDB::Client.new 'sandstorm_test',
       :username => 'sandstorm', :password => 'sandstorm', :retry => false
     Sandstorm.influxdb.query('list series')['list_series_result'].each do |ser|
       Sandstorm.influxdb.query("DELETE FROM \"#{ser['name']}\"")
     end
     example.run
+    # Sandstorm.logger.debug('----')
+    # Sandstorm.logger = nil
   end
 
   config.after(:each, :time => true) do

@@ -35,6 +35,7 @@ module Sandstorm
   ALL_TYPES = ATTRIBUTE_TYPES.merge(COLLECTION_TYPES)
 
   class << self
+
     def valid_type?(type)
       ALL_TYPES.keys.include?(type)
     end
@@ -44,10 +45,16 @@ module Sandstorm
       define_method(backend) do
         Thread.current["sandstorm_#{backend.to_s}".to_sym]
       end
-      define_method("#{backend.to_s}=".to_sym) do |connection|
-        Thread.current["sandstorm_#{backend.to_s}".to_sym] = connection
-        Thread.current["sandstorm_#{backend.to_s}_version".to_sym] = nil
-      end
+    end
+
+    def redis=(connection)
+      Thread.current[:sandstorm_redis] = connection.nil? ? nil :
+        Sandstorm::ConnectionProxy.new(connection)
+      Thread.current[:sandstorm_redis_version] = nil
+    end
+
+    def influxdb=(connection)
+      Thread.current[:sandstorm_influxdb] = Sandstorm::ConnectionProxy.new(connection)
     end
 
     def redis_version
@@ -57,5 +64,30 @@ module Sandstorm
       Thread.current[:sandstorm_redis_version] = Sandstorm.redis.info['redis_version']
     end
 
+    def logger=(l)
+      Thread.current[:sandstorm_logger] = l
+    end
+
+    def logger
+      Thread.current[:sandstorm_logger]
+    end
   end
+
+  class ConnectionProxy
+    def initialize(connection)
+      @proxied_connection = connection
+    end
+
+    def method_missing(name, *args, &block)
+      unless Sandstorm.logger.nil?
+        Sandstorm.logger.debug {
+          debug_str = "#{name}"
+          debug_str += " #{args.inspect}" unless args.empty?
+          debug_str
+        }
+      end
+      @proxied_connection.send(name, *args, &block)
+    end
+  end
+
 end
