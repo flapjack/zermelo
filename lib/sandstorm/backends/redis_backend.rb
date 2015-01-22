@@ -102,26 +102,26 @@ module Sandstorm
       end
 
       def begin_transaction
-        return false if @in_transaction
-        Sandstorm.redis.multi
-        @in_transaction = true
+        return false unless @transaction_redis.nil?
+        @transaction_redis = Sandstorm.redis
+        @transaction_redis.multi
         @changes = []
         true
       end
 
       def commit_transaction
-        return false unless @in_transaction
+        return false if @transaction_redis.nil?
         apply_changes(@changes)
-        Sandstorm.redis.exec
-        @in_transaction = false
+        @transaction_redis.exec
+        @transaction_redis = nil
         @changes = []
         true
       end
 
       def abort_transaction
-        return false unless @in_transaction
-        Sandstorm.redis.discard
-        @in_transaction = false
+        return false if @transaction_redis.nil?
+        @transaction_redis.discard
+        @transaction_redis = nil
         @changes = []
         true
       end

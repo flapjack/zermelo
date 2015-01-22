@@ -78,6 +78,15 @@ module Sandstorm
       @proxied_connection = connection
     end
 
+    # need to override Kernel.exec
+    def exec
+      @proxied_connection.exec
+    end
+
+    def respond_to?(name, include_private = false)
+      @proxied_connection.respond_to?(name, include_private)
+    end
+
     def method_missing(name, *args, &block)
       unless Sandstorm.logger.nil?
         Sandstorm.logger.debug {
