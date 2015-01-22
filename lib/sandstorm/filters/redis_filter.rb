@@ -123,7 +123,7 @@ module Sandstorm
               (starts_with_string_re === k) &&
                 (value === backend.unescape_key_name(k.sub(starts_with_string_re, '')))
             })
-            Sandstorm.redis.sadd(idx_result, *matching_ids) unless matching_ids.empty?
+            Sandstorm.redis.sadd(idx_result, matching_ids) unless matching_ids.empty?
           when 'Sandstorm::Associations::Index'
             key_root = backend.key_to_redis_key(Sandstorm::Records::Key.new(
               :klass  => class_key,
