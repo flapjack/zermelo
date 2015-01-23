@@ -263,6 +263,17 @@ describe Sandstorm::Records::RedisRecord, :redis => true do
       active; inactive
     end
 
+    it 'can append to a filter chain fragment more than once' do
+      inter = Sandstorm::RedisExample.intersect(:active => true)
+      expect(inter.ids).to eq(['8'])
+
+      union = inter.union(:name => 'James Brown')
+      expect(union.ids).to eq(['8', '9'])
+
+      diff = inter.diff(:id => ['8'])
+      expect(diff.ids).to eq([])
+    end
+
     it "filters all class records by indexed attribute values" do
       example = Sandstorm::RedisExample.intersect(:active => true).all
       expect(example).not_to be_nil

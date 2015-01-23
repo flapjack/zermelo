@@ -458,9 +458,8 @@ DEL comment::tmp:fe8dd59e4a1197f62d19c8aa942c4ff9
 
 (where the name of the temporary Redis `SET` will of course change every time)
 
-The current implmentation of the filtering is somewhat ad-hoc, and has the following limitations:
+The current implmentation of the filtering is somewhat ad-hoc, and has some limitations:
 
-* filters are single-shot, you can't re-use part of a constructed filter chain
 * no conversion of `list`s back into `set`s is allowed
 * `sort`/`offset`/`limit` can only be used once in a filter chain
 

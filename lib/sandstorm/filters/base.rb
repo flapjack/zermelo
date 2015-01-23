@@ -20,80 +20,82 @@ module Sandstorm
 
       extend ActiveSupport::Concern
 
-      attr_reader :backend
+      attr_reader :backend, :steps
 
       # initial set         a Sandstorm::Record::Key object
       # associated_class    the class of the result record
-      def initialize(data_backend, initial_set, associated_class)
+      def initialize(data_backend, initial_set, associated_class, ancestor = nil, step = nil)
         @backend          = data_backend
         @initial_set      = initial_set
         @associated_class = associated_class
-        @steps            = []
+        @steps            = ancestor.nil? ? [] : ancestor.steps.dup
+        @steps << step unless step.nil?
       end
 
       # TODO each step type have class methods list its acceptable input types, and
       # have a class method giving its output type
 
       def intersect(attrs = {})
-        @steps << ::Sandstorm::Filters::Steps::IntersectStep.new({}, attrs)
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::IntersectStep.new({}, attrs))
       end
 
       def union(attrs = {})
-        @steps << ::Sandstorm::Filters::Steps::UnionStep.new({}, attrs)
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::UnionStep.new({}, attrs))
       end
 
       def diff(attrs = {})
-        @steps << ::Sandstorm::Filters::Steps::DiffStep.new({}, attrs)
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::DiffStep.new({}, attrs))
       end
 
       def sort(keys, opts = {})
-        @steps << ::Sandstorm::Filters::Steps::SortStep.new({:keys => keys,
-          :desc => opts[:desc], :limit => opts[:limit],
-          :offset => opts[:offset]}, {})
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::SortStep.new({:keys => keys,
+            :desc => opts[:desc], :limit => opts[:limit],
+            :offset => opts[:offset]}, {})
+          )
       end
 
       def limit(amount)
-        @steps << Sandstorm::Filters::Steps::LimitStep.new({:amount => amount}, {})
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::LimitStep.new({:amount => amount}, {}))
       end
 
       def offset(amount)
-        @steps << Sandstorm::Filters::Steps::OffsetStep.new({:amount => amount}, {})
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::OffsetStep.new({:amount => amount}, {}))
       end
 
       def intersect_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Steps::IntersectRangeStep.new(
-          {:start => start, :finish => finish,
-           :desc => attrs_opts.delete(:desc),
-           :by_score => attrs_opts.delete(:by_score)},
-          attrs_opts
-        )
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::IntersectRangeStep.new(
+            {:start => start, :finish => finish,
+             :desc => attrs_opts.delete(:desc),
+             :by_score => attrs_opts.delete(:by_score)},
+            attrs_opts)
+          )
       end
 
       def union_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Steps::UnionRangeStep.new(
-          {:start => start, :finish => finish,
-           :desc => attrs_opts.delete(:desc),
-           :by_score => attrs_opts.delete(:by_score)},
-          attrs_opts
-        )
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::UnionRangeStep.new(
+            {:start => start, :finish => finish,
+             :desc => attrs_opts.delete(:desc),
+             :by_score => attrs_opts.delete(:by_score)},
+            attrs_opts)
+          )
       end
 
       def diff_range(start, finish, attrs_opts = {})
-        @steps << ::Sandstorm::Filters::Steps::DiffRangeStep.new(
-          {:start => start, :finish => finish,
-           :desc => attrs_opts.delete(:desc),
-           :by_score => attrs_opts.delete(:by_score)},
-          attrs_opts
-        )
-        self
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Sandstorm::Filters::Steps::DiffRangeStep.new(
+            {:start => start, :finish => finish,
+             :desc => attrs_opts.delete(:desc),
+             :by_score => attrs_opts.delete(:by_score)},
+            attrs_opts)
+          )
       end
 
       # step users
