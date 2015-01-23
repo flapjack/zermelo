@@ -36,6 +36,8 @@ Firstly, you'll need to set up **sandstorm**'s Redis access, e.g.
 Sandstorm.redis = Redis.new(:host => '127.0.0.1', :db => 8)
 ```
 
+TODO document `Sandstorm.logger`
+
 ### Class ids
 
 Include **sandstorm**'s Record module in the class you want to persist data from:
@@ -363,11 +365,106 @@ post.comments << comment1
 p post.comments.ids # == [1]
 ```
 
+TODO document `:assoociated_ids_for` method
+
 ### Class data indexing
-TODO
+
+Simple instance attributes, as defined above, can be indexed by value (and those indices can be queried).
+
+Using the code from the instance attributes section, and adding indexing:
+
+```ruby
+class Post
+  include Sandstorm:Record
+  define_attributes :title     => :string,
+                    :score     => :integer,
+                    :timestamp => :timestamp,
+                    :published => :boolean
+
+  unique_index_by :title
+  index_by :published
+
+  validates :title, :presence => true
+end
+```
+
+when we again create and save our instance of that model class:
+
+```ruby
+post = Post.new(:title => 'Introduction to Sandstorm',
+  :score => 100, :timestamp => Time.parse('Jan 1 2000'), :published => false)
+post.save
+```
+
+some extra class-level data is saved, in order that it is able to be queried later:
+
+```
+HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
+SADD post::attrs:ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
+HSET post::indices:by_title 'Introduction to Sandstorm' 03c839ac-24af-432e-aa58-fd1d4bf73f24
+SADD post::indices:by_published:boolean:false 03c839ac-24af-432e-aa58-fd1d4bf73f24
+```
+
 
 ### Queries against these indices
-TODO
+
+`Sandstorm` will construct Redis queries for you based on higher-level data expressions. Only those properties that are indexed can be queried against, as well as `:id` -- this ensures that most operations are carried out purely within Redis against collections of id values.
+
+
+| Name            | Input                 | Output       | Arguments                             | Options                                  |
+|-----------------|-----------------------|--------------|---------------------------------------|------------------------------------------|
+| intersect       | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
+| union           | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
+| diff            | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
+| intersect_range | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
+| union_range     | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
+| diff_range      | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
+| sort            | `set` or `sorted_set` | `list`       | keys (Symbol or Array of Symbols)     | :limit (`Integer`), :offset (`Integer`)  |
+| offset          | `list`                | `list`       | amount (`Integer`)                    |                                          |
+| limit           | `list`                | `list`       | amount (`Integer`)                    |                                          |
+
+These queries can be applied against all instances of a class, or against associations belonging to an instance, e.g.
+
+```ruby
+post.comments.intersect(:title => 'Interesting')
+Comment.intersect(:title => 'Interesting')
+```
+
+are both valid, and the `Comment` instances returned by the first query would be contained in those returned by the second.
+
+The chained queries are only executed when the results are invoked (lazy evaluation) by the addition of one of the class methods listed above; e.g.
+
+```ruby
+Comment.intersect(:title => 'Interesting').all    # -> [Comment, Comment, ...]
+Comment.intersect(:title => 'Interesting', :promoted => true).count  # -> Integer
+```
+
+Assuming one `Comment` record exists, the first of these (`.all`) will execute the Redis commands
+
+```
+SINTER comment::attrs:ids comment::indices:by_title:string:Interesting
+HGET comment:ca9e427d-4d81-47f8-bcfe-bb614d40528c:attrs title
+```
+
+with the result being an Array with one member, a Comment record with `{:id => 'ca9e427d-4d81-47f8-bcfe-bb614d40528c', :title => 'Interesting'}`
+
+and the second (`.count`) will execute these Redis commands.
+
+```
+SINTERSTORE comment::tmp:fe8dd59e4a1197f62d19c8aa942c4ff9 comment::indices:by_title:string:Interesting  comment::indices:by_promoted:boolean:true
+SCARD comment::tmp:fe8dd59e4a1197f62d19c8aa942c4ff9
+DEL comment::tmp:fe8dd59e4a1197f62d19c8aa942c4ff9
+```
+
+(where the name of the temporary Redis `SET` will of course change every time)
+
+The current implmentation of the filtering is somewhat ad-hoc, and has the following limitations:
+
+* filters are single-shot, you can't re-use part of a constructed filter chain
+* no conversion of `list`s back into `set`s is allowed
+* `sort`/`offset`/`limit` can only be used once in a filter chain
+
+I plan to fix these at some point.
 
 ### Future
 
