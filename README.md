@@ -36,7 +36,7 @@ Firstly, you'll need to set up **sandstorm**'s Redis access, e.g.
 Sandstorm.redis = Redis.new(:host => '127.0.0.1', :db => 8)
 ```
 
-TODO document `Sandstorm.logger`
+You can optionally set `Sandstorm.logger` to an instance of a Ruby `Logger` class, or something with a compatible interface, and Sandstorm will log the method calls (and arguments) being made to the Redis driver.
 
 ### Class ids
 
@@ -151,7 +151,7 @@ validates that the values are of the correct class, casting if possible:
 | :hash      |  Hash         | Stored as a Redis [HASH](http://redis.io/commands#hash) |
 
 Structure data members must be primitives that will cast OK to and from Redis via the
-driver, thus String, Integer and Float. (TODO check this)
+driver, thus String, Integer and Float.
 
 Redis [sorted sets](http://redis.io/commands#sorted_set) are only supported through associations, for which see later on.
 
@@ -200,7 +200,7 @@ Another feature added by ActiveModel is the ability to detect changed data in re
 
 ### Locking around changes
 
-**Sandstorm** will lock operations to ensure that changes are applied consistently. The locking code is based on [redis-lock](https://github.com/mlanett/redis-lock), but has been extended and customeised to allow **sandstorm** to lock more than one class at a time. Record saving and destroying is implicitly locked, while if you want to carry out complex queries or changes without worring about what else may be changing data at the same time, you can use the `lock` class method as follows:
+**Sandstorm** will lock operations to ensure that changes are applied consistently. The locking code is based on [redis-lock](https://github.com/mlanett/redis-lock), but has been extended and customised to allow **sandstorm** to lock more than one class at a time. Record saving and destroying is implicitly locked, while if you want to carry out complex queries or changes without worring about what else may be changing data at the same time, you can use the `lock` class method as follows:
 
 ```ruby
 class Author
@@ -264,7 +264,7 @@ Classes that include `Sandstorm::Record` have the following class methods made a
 |`each`                   |               | Yields all records to the provided block, returns the same Array as .all(): [Array#each](http://ruby-doc.org/core-2.1.2/Array.html#method-i-each)   |
 |`collect` / `map`        |               | Yields all records to the provided block, returns an Array with the values returned from the block: [Array#collect](http://ruby-doc.org/core-2.1.2/Array.html#method-i-collect)  |
 |`select` / `find_all`    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Array#select](http://ruby-doc.org/core-2.1.2/Array.html#method-i-select)  |
-|`reject`                 |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Array#reject](http://ruby-doc.org/core-2.1.2/Array.html#method-i-reject)        |
+|`reject`                 |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Array#reject](http://ruby-doc.org/core-2.1.2/Array.html#method-i-reject) |
 |`ids`                    |               | Returns an Array with the ids of all stored records |
 |`count`                  |               | Returns an Integer count of the number of stored records |
 |`empty?`                 |               | Returns true if no records are stored, false otherwise |
@@ -273,7 +273,8 @@ Classes that include `Sandstorm::Record` have the following class methods made a
 |`find_by_id`             | ID            | Returns the instantiated record for the id, or nil if not present |
 |`find_by_ids`            | ID, ID, ...   | Returns an Array of instantiated records for the ids, with nils if the respective record is not present |
 |`find_by_id!`            | ID            | Returns the instantiated record for the id, or raises a Sandstorm::Records::RecordNotFound exception if not present |
-|`find_by_ids!`           | ID, ID, ...   |  Returns an Array of instantiated records for the ids, or raises a Sandstorm::Records::RecordsNotFound exception if any are not present |
+|`find_by_ids!`           | ID, ID, ...   | Returns an Array of instantiated records for the ids, or raises a Sandstorm::Records::RecordsNotFound exception if any are not present |
+|`associated_ids_for`     | association   | (Defined in the `Associations` section below) |
 
 ### Instance methods
 
@@ -365,7 +366,31 @@ post.comments << comment1
 p post.comments.ids # == [1]
 ```
 
-TODO document `:assoociated_ids_for` method
+`associated_ids_for` is somewhat of a special case; it uses the smallest/simplest queries possible to get the ids of the associated records of a set of records, e.g. for the data directly above:
+
+```ruby
+Post.associated_ids_for(:comments)                       # => {'a' => ['1']}
+
+post_b     = Post.new(:id => 'b')
+post_b.save
+post_b.comments << comment2
+comment3 = Comment.new(:id => '3')
+comment3.save
+post.comments << comment3
+
+Post.associated_ids_for(:comments)                       # => {'a' => ['1', '3'], 'b' => ['2']}
+Post.intersect(:id => 'a').associated_ids_for(:comments) # => {'a' => ['1', '3']}
+```
+
+For `belongs to` associations, you may pass an extra option to `associated_ids_for`, `:inversed => true`, and you'll get the data back as if it were applied from the inverse side; however the data will only cover that used as the query root. Again, assuming the data from the last two code blocks, e.g.
+
+```ruby
+Comment.associated_ids_for(:post)                    # => {'1' => 'a', '2' => 'b', '3' => 'a'}
+Comment.associated_ids_for(:post, :inversed => true) # => {'a' => ['1', '3'], 'b' => ['2']}
+
+Comment.intersect(:id => ['1', '2']).associated_ids_for(:post) # => {'1' => 'a', '2' => 'b'}
+Comment.intersect(:id => ['1', '2']).associated_ids_for(:post, :inversed => true) # => {'a' => ['1'], 'b' => ['2']}
+```
 
 ### Class data indexing
 
@@ -458,12 +483,12 @@ DEL comment::tmp:fe8dd59e4a1197f62d19c8aa942c4ff9
 
 (where the name of the temporary Redis `SET` will of course change every time)
 
-The current implmentation of the filtering is somewhat ad-hoc, and has some limitations:
+The current implementation of the filtering is somewhat ad-hoc, and has these limitations:
 
 * no conversion of `list`s back into `set`s is allowed
 * `sort`/`offset`/`limit` can only be used once in a filter chain
 
-I plan to fix these at some point.
+I plan to fix these as soon as I possibly can.
 
 ### Future
 
