@@ -1,9 +1,9 @@
 source 'https://rubygems.org'
 
 if RUBY_VERSION.split('.')[0] == '1' && RUBY_VERSION.split('.')[1] == '8'
-  gemspec :name => 'sandstorm-ruby1.8'
+  gemspec :name => 'zermelo-ruby1.8'
 else
-  gemspec :name => 'sandstorm'
+  gemspec :name => 'zermelo'
 end
 
 group :test do

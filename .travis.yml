@@ -12,10 +12,10 @@ before_install:
 - sudo dpkg -i influxdb_0.8.8_amd64.deb
 - sudo /etc/init.d/influxdb start
 - sleep 10
-- 'curl -X POST ''http://localhost:8086/db?u=root&p=root'' -d ''{"name": "sandstorm_test"}'''
-- 'curl -X POST ''http://localhost:8086/db/sandstorm_test/users?u=root&p=root'' -d
-  ''{"name": "sandstorm", "password": "sandstorm"}'''
-- 'curl -X POST ''http://localhost:8086/db/sandstorm_test/users/sandstorm?u=root&p=root''
+- 'curl -X POST ''http://localhost:8086/db?u=root&p=root'' -d ''{"name": "zermelo_test"}'''
+- 'curl -X POST ''http://localhost:8086/db/zermelo_test/users?u=root&p=root'' -d
+  ''{"name": "zermelo", "password": "zermelo"}'''
+- 'curl -X POST ''http://localhost:8086/db/zermelo_test/users/zermelo?u=root&p=root''
   -d ''{"admin": true}'''
 notifications:
   hipchat:

@@ -1,24 +1,22 @@
-# sandstorm
+# zermelo
 
-[![Build Status](https://travis-ci.org/flapjack/sandstorm.png)](https://travis-ci.org/flapjack/sandstorm)
+[![Build Status](https://travis-ci.org/flapjack/zermelo.png)](https://travis-ci.org/flapjack/zermelo)
 
-Sandstorm is an [ActiveModel](http://yehudakatz.com/2010/01/10/activemodel-make-any-ruby-object-feel-like-activerecord/)-based [Object-Relational Mapper](http://en.wikipedia.org/wiki/Object-relational_mapping) for [Redis](http://redis.io/), written in [Ruby](http://www.ruby-lang.org/).
+Zermelo is an [ActiveModel](http://yehudakatz.com/2010/01/10/activemodel-make-any-ruby-object-feel-like-activerecord/)-based [Object-Relational Mapper](http://en.wikipedia.org/wiki/Object-relational_mapping) for [Redis](http://redis.io/), written in [Ruby](http://www.ruby-lang.org/).
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
-    gem 'sandstorm', :github => 'flapjack/sandstorm', :branch => 'master'
+    gem 'zermelo', :github => 'flapjack/zermelo', :branch => 'master'
 
 And then execute:
 
     $ bundle
 
-<!--
 Or install it yourself as:
 
-    $ gem install sandstorm
--->
+    $ gem install zermelo
 
 ## Requirements
 
@@ -30,21 +28,21 @@ Or install it yourself as:
 
 ### Initialisation
 
-Firstly, you'll need to set up **sandstorm**'s Redis access, e.g.
+Firstly, you'll need to set up **zermelo**'s Redis access, e.g.
 
 ```ruby
-Sandstorm.redis = Redis.new(:host => '127.0.0.1', :db => 8)
+Zermelo.redis = Redis.new(:host => '127.0.0.1', :db => 8)
 ```
 
-You can optionally set `Sandstorm.logger` to an instance of a Ruby `Logger` class, or something with a compatible interface, and Sandstorm will log the method calls (and arguments) being made to the Redis driver.
+You can optionally set `Zermelo.logger` to an instance of a Ruby `Logger` class, or something with a compatible interface, and Zermelo will log the method calls (and arguments) being made to the Redis driver.
 
 ### Class ids
 
-Include **sandstorm**'s Record module in the class you want to persist data from:
+Include **zermelo**'s Record module in the class you want to persist data from:
 
 ```ruby
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
 end
 ```
 
@@ -69,7 +67,7 @@ A data record without any actual data isn't very useful, so let's add a few simp
 
 ```ruby
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -80,25 +78,25 @@ end
 and create and save an instance of that model class:
 
 ```ruby
-post = Post.new(:title => 'Introduction to Sandstorm',
+post = Post.new(:title => 'Introduction to Zermelo',
   :score => 100, :timestamp => Time.parse('Jan 1 2000'), :published => false)
 post.save
 ```
 
-An `:id => :string` attribute is implicitly defined, but in this case no id was passed, so **sandstorm** generates a UUID:
+An `:id => :string` attribute is implicitly defined, but in this case no id was passed, so **zermelo** generates a UUID:
 
 ```
-HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
+HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Zermelo' score 100 timestamp 1384473626.36478 published 'false'
 SADD post::attrs:ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
 ```
 
 which can then be verified by inspection of the object's attributes, e.g.:
 
 ```ruby
-post.attributes.inpsect # == {:id => '03c839ac-24af-432e-aa58-fd1d4bf73f24', :title => 'Introduction to Sandstorm', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
+post.attributes.inpsect # == {:id => '03c839ac-24af-432e-aa58-fd1d4bf73f24', :title => 'Introduction to Zermelo', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
 ```
 
-Sandstorm supports the following simple attribute types, and automatically
+Zermelo supports the following simple attribute types, and automatically
 validates that the values are of the correct class, casting if possible:
 
 | Type       |  Ruby class                        | Notes |
@@ -112,13 +110,13 @@ validates that the values are of the correct class, casting if possible:
 
 ### Complex instance attributes
 
-**Sandstorm** also provides mappings for the compound data structures supported by Redis.
+**Zermelo** also provides mappings for the compound data structures supported by Redis.
 
 So if we add tags to the Post data definition:
 
 ```ruby
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -141,7 +139,7 @@ SADD post:1:attrs:tags 'database' 'ORM'
 SADD post::attrs:ids 1
 ```
 
-Sandstorm supports the following complex attribute types, and automatically
+Zermelo supports the following complex attribute types, and automatically
 validates that the values are of the correct class, casting if possible:
 
 | Type       |  Ruby class   | Notes                                                   |
@@ -157,13 +155,13 @@ Redis [sorted sets](http://redis.io/commands#sorted_set) are only supported thro
 
 ### Validations
 
-All of the [validations](http://api.rubyonrails.org/classes/ActiveModel/Validations/ClassMethods.html) offered by ActiveModel are available in **sandstorm** objects.
+All of the [validations](http://api.rubyonrails.org/classes/ActiveModel/Validations/ClassMethods.html) offered by ActiveModel are available in **zermelo** objects.
 
 So an attribute which should be present:
 
 ```ruby
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
   define_attributes :title     => :string,
                     :score     => :integer
   validates :title, :presence => true
@@ -184,7 +182,7 @@ produces the results you would expect.
 
 ### Callbacks
 
-ActiveModel's [lifecycle callbacks](http://api.rubyonrails.org/classes/ActiveModel/Callbacks.html) are also supported, and **sandstorm** uses similar invocations to ActiveRecord's:
+ActiveModel's [lifecycle callbacks](http://api.rubyonrails.org/classes/ActiveModel/Callbacks.html) are also supported, and **zermelo** uses similar invocations to ActiveRecord's:
 
 ```
 before_create,  around_create,  after_create,
@@ -200,19 +198,19 @@ Another feature added by ActiveModel is the ability to detect changed data in re
 
 ### Locking around changes
 
-**Sandstorm** will lock operations to ensure that changes are applied consistently. The locking code is based on [redis-lock](https://github.com/mlanett/redis-lock), but has been extended and customised to allow **sandstorm** to lock more than one class at a time. Record saving and destroying is implicitly locked, while if you want to carry out complex queries or changes without worring about what else may be changing data at the same time, you can use the `lock` class method as follows:
+**Zermelo** will lock operations to ensure that changes are applied consistently. The locking code is based on [redis-lock](https://github.com/mlanett/redis-lock), but has been extended and customised to allow **zermelo** to lock more than one class at a time. Record saving and destroying is implicitly locked, while if you want to carry out complex queries or changes without worring about what else may be changing data at the same time, you can use the `lock` class method as follows:
 
 ```ruby
 class Author
-  include Sandstorm:Record
+  include Zermelo:Record
 end
 
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
 end
 
 class Comment
-  include Sandstorm:Record
+  include Zermelo:Record
 end
 
 Author.lock(Post, Comment) do
@@ -226,14 +224,14 @@ Assuming a saved `Post` instance has been created:
 
 ```ruby
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
                     :published => :boolean
 end
 
-post = Post.new(:id => '1234', :title => 'Introduction to Sandstorm',
+post = Post.new(:id => '1234', :title => 'Introduction to Zermelo',
   :score => 100, :timestamp => Time.parse('Jan 1 2000')), :published => false)
 post.save
 ```
@@ -241,7 +239,7 @@ post.save
 which executes the following Redis calls:
 
 ```
-HMSET post:1234:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
+HMSET post:1234:attrs title 'Introduction to Zermelo' score 100 timestamp 1384473626.36478 published 'false'
 SADD post::attrs:ids 1234
 ```
 
@@ -256,7 +254,7 @@ You can load more than one record using the `find_by_ids(ID, ID, ...)` class met
 
 ### Class methods
 
-Classes that include `Sandstorm::Record` have the following class methods made available to them.
+Classes that include `Zermelo::Record` have the following class methods made available to them.
 
 |Name                     | Arguments     | Returns |
 |-------------------------|---------------|---------|
@@ -272,13 +270,13 @@ Classes that include `Sandstorm::Record` have the following class methods made a
 |`exists?`                | ID            | Returns true if the record with the id is present, false if not |
 |`find_by_id`             | ID            | Returns the instantiated record for the id, or nil if not present |
 |`find_by_ids`            | ID, ID, ...   | Returns an Array of instantiated records for the ids, with nils if the respective record is not present |
-|`find_by_id!`            | ID            | Returns the instantiated record for the id, or raises a Sandstorm::Records::RecordNotFound exception if not present |
-|`find_by_ids!`           | ID, ID, ...   | Returns an Array of instantiated records for the ids, or raises a Sandstorm::Records::RecordsNotFound exception if any are not present |
+|`find_by_id!`            | ID            | Returns the instantiated record for the id, or raises a Zermelo::Records::RecordNotFound exception if not present |
+|`find_by_ids!`           | ID, ID, ...   | Returns an Array of instantiated records for the ids, or raises a Zermelo::Records::RecordsNotFound exception if any are not present |
 |`associated_ids_for`     | association   | (Defined in the `Associations` section below) |
 
 ### Instance methods
 
-Instances of classes including `Sandstorm::Record` have the following methods:
+Instances of classes including `Zermelo::Record` have the following methods:
 
 |Name                 | Arguments     | Returns |
 |---------------------|---------------|---------|
@@ -293,7 +291,7 @@ Instances also have attribute accessors and the various methods included from th
 
 ### Associations
 
-**Sandstorm** supports multiple association types, which are named similarly to those provided by ActiveRecord:
+**Zermelo** supports multiple association types, which are named similarly to those provided by ActiveRecord:
 
 |Name                       | Type                      | Redis data structure | Notes |
 |---------------------------|---------------------------|----------------------|-------|
@@ -305,12 +303,12 @@ Instances also have attribute accessors and the various methods included from th
 
 ```ruby
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
   has_many :comments, :class_name => 'Comment', :inverse_of => :post
 end
 
 class Comment
-  include Sandstorm:Record
+  include Zermelo:Record
   belongs_to :post, :class_name => 'Post', :inverse_of => :comments
 end
 ```
@@ -333,12 +331,12 @@ post.comments.add(comment1, comment2, comment3)
 
 ```ruby
 class User
-  include Sandstorm:Record
+  include Zermelo:Record
   has_one :preferences, :class_name => 'Preferences', :inverse_of => :user
 end
 
 class Preferences
-  include Sandstorm:Record
+  include Zermelo:Record
   belongs_to :user, :class_name => 'User', :inverse_of => :preferences
 end
 
@@ -400,7 +398,7 @@ Using the code from the instance attributes section, and adding indexing:
 
 ```ruby
 class Post
-  include Sandstorm:Record
+  include Zermelo:Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -416,7 +414,7 @@ end
 when we again create and save our instance of that model class:
 
 ```ruby
-post = Post.new(:title => 'Introduction to Sandstorm',
+post = Post.new(:title => 'Introduction to Zermelo',
   :score => 100, :timestamp => Time.parse('Jan 1 2000'), :published => false)
 post.save
 ```
@@ -424,16 +422,16 @@ post.save
 some extra class-level data is saved, in order that it is able to be queried later:
 
 ```
-HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Sandstorm' score 100 timestamp 1384473626.36478 published 'false'
+HMSET post:03c839ac-24af-432e-aa58-fd1d4bf73f24:attrs title 'Introduction to Zermelo' score 100 timestamp 1384473626.36478 published 'false'
 SADD post::attrs:ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
-HSET post::indices:by_title 'Introduction to Sandstorm' 03c839ac-24af-432e-aa58-fd1d4bf73f24
+HSET post::indices:by_title 'Introduction to Zermelo' 03c839ac-24af-432e-aa58-fd1d4bf73f24
 SADD post::indices:by_published:boolean:false 03c839ac-24af-432e-aa58-fd1d4bf73f24
 ```
 
 
 ### Queries against these indices
 
-`Sandstorm` will construct Redis queries for you based on higher-level data expressions. Only those properties that are indexed can be queried against, as well as `:id` -- this ensures that most operations are carried out purely within Redis against collections of id values.
+`Zermelo` will construct Redis queries for you based on higher-level data expressions. Only those properties that are indexed can be queried against, as well as `:id` -- this ensures that most operations are carried out purely within Redis against collections of id values.
 
 
 | Name            | Input                 | Output       | Arguments                             | Options                                  |
@@ -501,7 +499,7 @@ Some possible changes:
 
 ## License
 
-Sandstorm is released under the MIT license:
+Zermelo is released under the MIT license:
 
     www.opensource.org/licenses/MIT
 

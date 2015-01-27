@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sandstorm (0.1.0)
+    zermelo (1.0.0)
       activemodel
 
 GEM
@@ -58,6 +58,6 @@ DEPENDENCIES
   rake
   redis
   rspec (>= 3.0.0)
-  sandstorm!
   simplecov
   timecop
+  zermelo!
