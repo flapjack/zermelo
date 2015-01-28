@@ -42,7 +42,7 @@ Include **zermelo**'s Record module in the class you want to persist data from:
 
 ```ruby
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
 end
 ```
 
@@ -67,7 +67,7 @@ A data record without any actual data isn't very useful, so let's add a few simp
 
 ```ruby
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -116,7 +116,7 @@ So if we add tags to the Post data definition:
 
 ```ruby
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -161,7 +161,7 @@ So an attribute which should be present:
 
 ```ruby
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
   define_attributes :title     => :string,
                     :score     => :integer
   validates :title, :presence => true
@@ -202,15 +202,15 @@ Another feature added by ActiveModel is the ability to detect changed data in re
 
 ```ruby
 class Author
-  include Zermelo:Record
+  include Zermelo::Record
 end
 
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
 end
 
 class Comment
-  include Zermelo:Record
+  include Zermelo::Record
 end
 
 Author.lock(Post, Comment) do
@@ -224,7 +224,7 @@ Assuming a saved `Post` instance has been created:
 
 ```ruby
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -303,12 +303,12 @@ Instances also have attribute accessors and the various methods included from th
 
 ```ruby
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
   has_many :comments, :class_name => 'Comment', :inverse_of => :post
 end
 
 class Comment
-  include Zermelo:Record
+  include Zermelo::Record
   belongs_to :post, :class_name => 'Post', :inverse_of => :comments
 end
 ```
@@ -331,12 +331,12 @@ post.comments.add(comment1, comment2, comment3)
 
 ```ruby
 class User
-  include Zermelo:Record
+  include Zermelo::Record
   has_one :preferences, :class_name => 'Preferences', :inverse_of => :user
 end
 
 class Preferences
-  include Zermelo:Record
+  include Zermelo::Record
   belongs_to :user, :class_name => 'User', :inverse_of => :preferences
 end
 
@@ -398,7 +398,7 @@ Using the code from the instance attributes section, and adding indexing:
 
 ```ruby
 class Post
-  include Zermelo:Record
+  include Zermelo::Record
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
