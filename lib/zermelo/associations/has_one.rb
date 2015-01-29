@@ -25,7 +25,7 @@ module Zermelo
       end
 
       def value
-        @parent.class.lock(*@associated_class) do
+        @parent.class.lock(@associated_class) do
           if id = @backend.get(@record_id_key)
             @associated_class.send(:load, id)
           else
