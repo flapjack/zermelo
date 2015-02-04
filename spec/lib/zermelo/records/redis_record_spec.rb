@@ -32,6 +32,18 @@ describe Zermelo::Records::RedisRecord, :redis => true do
       end
     end
 
+    class RedisUnsavable
+      include Zermelo::Records::RedisRecord
+
+      define_attributes :name => :string
+
+      before_create :block_create
+
+      def block_create
+        false
+      end
+    end
+
     class RedisExampleChild
       include Zermelo::Records::RedisRecord
 
@@ -109,6 +121,22 @@ describe Zermelo::Records::RedisRecord, :redis => true do
     expect(redis.smembers('redis_example::indices:by_active:boolean:true')).to eq(
       ['1']
     )
+  end
+
+  it 'raises an RecordInvalid exception if validation fails while saving' do
+    example = Zermelo::RedisExample.new(:id => '1', :email => 'jsmith@example.com')
+
+    expect {
+      example.save!
+    }.to raise_error(Zermelo::Records::Errors::RecordInvalid)
+  end
+
+  it 'raises a RecordNotSaved exception if a callback blocks saving' do
+    example = Zermelo::RedisUnsavable.new(:id => '1', :name => 'not saving')
+
+    expect {
+      example.save!
+    }.to raise_error(Zermelo::Records::Errors::RecordNotSaved)
   end
 
   it "finds a record by id in redis" do

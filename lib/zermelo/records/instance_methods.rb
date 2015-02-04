@@ -74,12 +74,13 @@ module Zermelo
         save
       end
 
-      def save
+      def save!
         return unless @is_new || self.changed?
         self.id ||= self.class.generate_id
-        return false unless valid?
+        raise Zermelo::Records::Errors::RecordInvalid.new(self) unless valid?
 
         creating = !self.persisted?
+        saved = false
 
         run_callbacks( (creating ? :create : :update) ) do
 
@@ -123,7 +124,10 @@ module Zermelo
           end
 
           @is_new = false
+          saved = true
         end
+
+        raise Zermelo::Records::Errors::RecordNotSaved.new(self) unless saved
 
         # AM::Dirty -- private method in 4.1.0+, internal state before that
         if self.respond_to?(:changes_applied, true)
@@ -134,6 +138,12 @@ module Zermelo
         end
 
         true
+      end
+
+      def save
+        save!
+      rescue Zermelo::Records::Errors::RecordInvalid, Zermelo::Records::Errors::RecordNotSaved
+        false
       end
 
       def destroy
