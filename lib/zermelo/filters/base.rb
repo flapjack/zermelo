@@ -2,15 +2,10 @@ require 'active_support/concern'
 
 require 'zermelo/records/errors'
 
-require 'zermelo/filters/steps/diff_range_step'
-require 'zermelo/filters/steps/diff_step'
-require 'zermelo/filters/steps/intersect_range_step'
-require 'zermelo/filters/steps/intersect_step'
-require 'zermelo/filters/steps/limit_step'
-require 'zermelo/filters/steps/offset_step'
+require 'zermelo/filters/steps/page_step'
+require 'zermelo/filters/steps/set_step'
+require 'zermelo/filters/steps/sorted_set_step'
 require 'zermelo/filters/steps/sort_step'
-require 'zermelo/filters/steps/union_range_step'
-require 'zermelo/filters/steps/union_step'
 
 module Zermelo
 
@@ -37,17 +32,17 @@ module Zermelo
 
       def intersect(attrs = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::IntersectStep.new({}, attrs))
+          ::Zermelo::Filters::Steps::SetStep.new({:op => :intersect}, attrs))
       end
 
       def union(attrs = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::UnionStep.new({}, attrs))
+          ::Zermelo::Filters::Steps::SetStep.new({:op => :union}, attrs))
       end
 
       def diff(attrs = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::DiffStep.new({}, attrs))
+          ::Zermelo::Filters::Steps::SetStep.new({:op => :diff}, attrs))
       end
 
       def sort(keys, opts = {})
@@ -58,21 +53,17 @@ module Zermelo
           )
       end
 
-      def limit(amount)
+      # TODO cleanup step to use page, per_page
+      def offset(opts = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::LimitStep.new({:amount => amount}, {}))
-      end
-
-      def offset(amount)
-        self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::OffsetStep.new({:amount => amount}, {}))
+          ::Zermelo::Filters::Steps::PageStep.new({:offset => opts[:offset],
+            :limit => opts[:limit]}, {}))
       end
 
       def intersect_range(start, finish, attrs_opts = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::IntersectRangeStep.new(
-            {:start => start, :finish => finish,
-             :desc => attrs_opts.delete(:desc),
+          ::Zermelo::Filters::Steps::SortedSetStep.new(
+            {:op => :intersect_range, :start => start, :finish => finish,
              :by_score => attrs_opts.delete(:by_score)},
             attrs_opts)
           )
@@ -80,9 +71,8 @@ module Zermelo
 
       def union_range(start, finish, attrs_opts = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::UnionRangeStep.new(
-            {:start => start, :finish => finish,
-             :desc => attrs_opts.delete(:desc),
+          ::Zermelo::Filters::Steps::SortedSetStep.new(
+            {:op => :union_range, :start => start, :finish => finish,
              :by_score => attrs_opts.delete(:by_score)},
             attrs_opts)
           )
@@ -90,9 +80,8 @@ module Zermelo
 
       def diff_range(start, finish, attrs_opts = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::DiffRangeStep.new(
-            {:start => start, :finish => finish,
-             :desc => attrs_opts.delete(:desc),
+          ::Zermelo::Filters::Steps::SortedSetStep.new(
+            {:op => :diff_range, :start => start, :finish => finish,
              :by_score => attrs_opts.delete(:by_score)},
             attrs_opts)
           )
@@ -141,7 +130,6 @@ module Zermelo
         lock { _all }
       end
 
-      # NB makes no sense to apply this without order clause
       def page(num, opts = {})
         ret = nil
         per_page = opts[:per_page].to_i || 20
@@ -149,8 +137,8 @@ module Zermelo
           lock do
             start  = per_page * (num - 1)
             finish = start + (per_page - 1)
-            @steps += [Zermelo::Filters::Steps::OffsetStep.new({:amount => start},    {}),
-                       Zermelo::Filters::Steps::LimitStep.new({:amount => per_page}, {})]
+            @steps << Zermelo::Filters::Steps::PageStep.new({:offset => start,
+                        :limit => per_page}, {})
             page_ids = _ids
             ret = page_ids.collect {|f_id| _load(f_id)} unless page_ids.nil?
           end
@@ -191,11 +179,11 @@ module Zermelo
           case klass.name
           when ::Zermelo::Associations::BelongsTo.name
             klass.send(:associated_ids_for, @backend,
-              @associated_class.send(:class_key), name,
+              @associated_class, name,
               options[:inversed].is_a?(TrueClass), *_ids)
           else
             klass.send(:associated_ids_for, @backend,
-              @associated_class.send(:class_key), name, *_ids)
+              @associated_class, name, *_ids)
           end
         }
       end

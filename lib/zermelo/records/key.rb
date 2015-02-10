@@ -1,5 +1,6 @@
 module Zermelo
   module Records
+
     class Key
 
       # id       / if nil, it's a class variable
@@ -15,5 +16,6 @@ module Zermelo
       end
 
     end
+
   end
 end

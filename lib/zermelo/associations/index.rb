@@ -9,7 +9,6 @@ module Zermelo
         @attribute_name = name
 
         @backend   = parent_klass.send(:backend)
-        @class_key = parent_klass.send(:class_key)
 
         @indexers = {}
 
@@ -38,7 +37,7 @@ module Zermelo
         raise "Can't index '#{@value}' (#{@attribute_type}" if index_keys.nil?
 
         @indexers[index_keys.join(":")] ||= Zermelo::Records::Key.new(
-          :klass  => @class_key,
+          :klass  => @parent_klass,
           :name   => "by_#{@attribute_name}:#{index_keys.join(':')}",
           :type   => :set,
           :object => :index

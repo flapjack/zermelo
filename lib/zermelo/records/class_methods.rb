@@ -102,13 +102,25 @@ module Zermelo
 
       private
 
-      def ids_key
-        @ids_key ||= Zermelo::Records::Key.new(:klass => class_key, :name => 'ids',
-          :type => :set, :object => :attribute)
-      end
-
       def class_key
         self.name.demodulize.underscore
+      end
+
+      def ids_key
+        @ids_key ||= Zermelo::Records::Key.new(
+                       :klass => self, :name => 'ids',
+                       :type => :set,
+                       :object => :attribute
+                     )
+      end
+
+      def temp_key(type)
+        Zermelo::Records::Key.new(
+          :klass  => self,
+          :name   => SecureRandom.hex(16),
+          :type   => type,
+          :object => :temporary
+        )
       end
 
       def load(id)

@@ -73,7 +73,7 @@ module Zermelo
       end
 
       def get(attr_key)
-        get_multiple(attr_key)[attr_key.klass][attr_key.id][attr_key.name.to_s]
+        get_multiple(attr_key)[attr_key.klass.send(:class_key)][attr_key.id][attr_key.name.to_s]
       end
 
       def lock(*klasses, &block)

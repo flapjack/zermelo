@@ -9,7 +9,6 @@ module Zermelo
         @attribute_name = name
 
         @backend   = parent_klass.send(:backend)
-        @class_key = parent_klass.send(:class_key)
 
         @indexers = {}
 
@@ -32,7 +31,7 @@ module Zermelo
 
       def key
         @indexer ||= Zermelo::Records::Key.new(
-          :klass  => @class_key,
+          :klass  => @parent_klass,
           :name   => "by_#{@attribute_name}",
           :type   => :hash,
           :object => :index

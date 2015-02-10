@@ -14,7 +14,7 @@ module Zermelo
         @backend = parent.send(:backend)
 
         @record_ids_key = Zermelo::Records::Key.new(
-          :klass  => parent.class.send(:class_key),
+          :klass  => parent.class,
           :id     => parent.id,
           :name   => 'belongs_to',
           :type   => :hash,
@@ -88,10 +88,10 @@ module Zermelo
         @backend.clear(@record_ids_key)
       end
 
-      def self.associated_ids_for(backend, class_key, name, inversed, *these_ids)
+      def self.associated_ids_for(backend, klass, name, inversed, *these_ids)
         these_ids.each_with_object({}) do |this_id, memo|
           key = Zermelo::Records::Key.new(
-            :klass  => class_key,
+            :klass  => klass,
             :id     => this_id,
             :name   => 'belongs_to',
             :type   => :hash,

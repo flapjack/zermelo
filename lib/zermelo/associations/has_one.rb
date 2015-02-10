@@ -9,7 +9,7 @@ module Zermelo
 
         # TODO would be better as a 'has_one' hash, a bit like belongs_to
         @record_id_key = Zermelo::Records::Key.new(
-          :klass  => parent.class.send(:class_key),
+          :klass  => parent.class,
           :id     => parent.id,
           :name   => "#{name}_id",
           :type   => :string,
@@ -91,10 +91,10 @@ module Zermelo
         @backend.clear(@record_id_key)
       end
 
-      def self.associated_ids_for(backend, class_key, name, *these_ids)
+      def self.associated_ids_for(backend, klass, name, *these_ids)
         these_ids.each_with_object({}) do |this_id, memo|
           key = Zermelo::Records::Key.new(
-            :klass  => class_key,
+            :klass  => klass,
             :id     => this_id,
             :name   => "#{name}_id",
             :type   => :string,

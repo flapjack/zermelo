@@ -86,15 +86,17 @@ module Zermelo
         unless @initial_set.id.nil?
           query += ' WHERE '
 
-          ii_query = "SELECT #{@initial_set.name} FROM \"#{@initial_set.klass}/#{@initial_set.id}\" " +
+          class_key = @initial_set.klass.send(:class_key)
+
+          ii_query = "SELECT #{@initial_set.name} FROM \"#{class_key}/#{@initial_set.id}\" " +
             "LIMIT 1"
 
           begin
             initial_id_data =
-              Zermelo.influxdb.query(ii_query)["#{@initial_set.klass}/#{@initial_set.id}"]
+              Zermelo.influxdb.query(ii_query)["#{class_key}/#{@initial_set.id}"]
           rescue InfluxDB::Error => ide
             raise unless
-              /^Field #{@initial_set.name} doesn't exist in series #{@initial_set.klass}\/#{@initial_set.id}$/ === ide.message
+              /^Field #{@initial_set.name} doesn't exist in series #{class_key}\/#{@initial_set.id}$/ === ide.message
 
             initial_id_data = nil
           end

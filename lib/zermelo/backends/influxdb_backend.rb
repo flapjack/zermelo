@@ -22,28 +22,30 @@ module Zermelo
       # TODO get filter calling this instead of using same logic
       def exists?(key)
         return if key.id.nil?
-        Zermelo.influxdb.query("SELECT id FROM /#{key.klass}\\/.*/ LIMIT 1").size > 0
+        class_key = attr_key.klass.send(:class_key)
+        Zermelo.influxdb.query("SELECT id FROM /#{class_key}\\/.*/ LIMIT 1").size > 0
       end
 
       # nb: does lots of queries, should batch, but ensuring single operations are correct
       # for now
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
+          class_key = attr_key.klass.send(:class_key)
           begin
           records = Zermelo.influxdb.query("SELECT #{attr_key.name} FROM " +
-            "\"#{attr_key.klass}/#{attr_key.id}\" LIMIT 1")["#{attr_key.klass}/#{attr_key.id}"]
+            "\"#{class_key}/#{attr_key.id}\" LIMIT 1")["#{class_key}/#{attr_key.id}"]
           rescue InfluxDB::Error => ide
             raise unless
-              /^Field #{attr_key.name} doesn't exist in series #{attr_key.klass}\/#{attr_key.id}$/ === ide.message
+              /^Field #{attr_key.name} doesn't exist in series #{class_key}\/#{attr_key.id}$/ === ide.message
 
             records = []
           end
           value = (records && !records.empty?) ? records.first[attr_key.name.to_s] : nil
 
-          memo[attr_key.klass] ||= {}
-          memo[attr_key.klass][attr_key.id] ||= {}
+          memo[class_key] ||= {}
+          memo[class_key][attr_key.id] ||= {}
 
-          memo[attr_key.klass][attr_key.id][attr_key.name.to_s] = if value.nil?
+          memo[class_key][attr_key.id][attr_key.name.to_s] = if value.nil?
             nil
           else
 
@@ -121,10 +123,12 @@ module Zermelo
 
           next if key.id.nil?
 
-          records[key.klass]         ||= {}
-          records[key.klass][key.id] ||= {}
+          class_key = key.klass.send(:class_key)
 
-          records[key.klass][key.id][key.name] = case op
+          records[class_key]         ||= {}
+          records[class_key][key.id] ||= {}
+
+          records[class_key][key.id][key.name] = case op
           when :set
             case key.type
             when :string, :integer
@@ -146,25 +150,25 @@ module Zermelo
               value.to_a
             end
           when :purge
-            purges << "\"#{key.klass}/#{key.id}\""
+            purges << "\"#{class_key}/#{key.id}\""
           end
 
         end
 
-        records.each_pair do |klass, klass_records|
+        records.each_pair do |class_key, klass_records|
           klass_records.each_pair do |id, data|
             begin
-              prior = Zermelo.influxdb.query("SELECT * FROM \"#{klass}/#{id}\" LIMIT 1")["#{klass}/#{id}"]
+              prior = Zermelo.influxdb.query("SELECT * FROM \"#{class_key}/#{id}\" LIMIT 1")["#{class_key}/#{id}"]
             rescue InfluxDB::Error => ide
               raise unless
-                (/^Couldn't look up columns for series: #{klass}\/#{id}$/ === ide.message) ||
+                (/^Couldn't look up columns for series: #{class_key}\/#{id}$/ === ide.message) ||
                 (/^Couldn't look up columns$/ === ide.message) ||
-                (/^Couldn't find series: #{klass}\/#{id}$/ === ide.message)
+                (/^Couldn't find series: #{class_key}\/#{id}$/ === ide.message)
 
               prior = nil
             end
             record = prior.nil? ? {} : prior.first.delete_if {|k,v| ["time", "sequence_number"].include?(k) }
-            Zermelo.influxdb.write_point("#{klass}/#{id}", record.merge(data).merge('id' => id))
+            Zermelo.influxdb.write_point("#{class_key}/#{id}", record.merge(data).merge('id' => id))
           end
         end
 

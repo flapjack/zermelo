@@ -825,7 +825,7 @@ describe Zermelo::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      data = example.data.intersect_range(0, 1, :desc => true).all
+      data = example.data.intersect_range(1, 2).sort(:id, :desc => true).all
 
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
@@ -869,7 +869,7 @@ describe Zermelo::Records::RedisRecord, :redis => true do
         :emotion => 'upset')
 
       data = example.data.intersect_range(time.to_i - 1, time.to_i + 15,
-              :desc => true, :by_score => true).all
+              :by_score => true).sort(:timestamp, :desc => true).all
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
       expect(data.size).to eq(2)
@@ -935,7 +935,7 @@ describe Zermelo::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      data = example.data.diff_range(0, 0, :desc => true).all
+      data = example.data.diff_range(2, 2).sort(:id, :desc => true).all
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
       expect(data.size).to eq(2)
@@ -977,7 +977,8 @@ describe Zermelo::Records::RedisRecord, :redis => true do
       create_datum(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
         :emotion => 'upset')
 
-      data = example.data.diff_range(time.to_i - 1, time.to_i + 8, :by_score => true, :desc => true).all
+      data = example.data.diff_range(time.to_i - 1, time.to_i + 8, :by_score => true).
+        sort(:timestamp, :desc => true).all
       expect(data).not_to be_nil
       expect(data).to be_an(Array)
       expect(data.size).to eq(2)

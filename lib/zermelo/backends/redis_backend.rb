@@ -23,9 +23,11 @@ module Zermelo
         attr_keys.inject({}) do |memo, attr_key|
           redis_attr_key = key_to_redis_key(attr_key)
 
-          memo[attr_key.klass] ||= {}
-          memo[attr_key.klass][attr_key.id] ||= {}
-          memo[attr_key.klass][attr_key.id][attr_key.name.to_s] = if Zermelo::COLLECTION_TYPES.has_key?(attr_key.type)
+          class_key = attr_key.klass.send(:class_key)
+
+          memo[class_key] ||= {}
+          memo[class_key][attr_key.id] ||= {}
+          memo[class_key][attr_key.id][attr_key.name.to_s] = if Zermelo::COLLECTION_TYPES.has_key?(attr_key.type)
 
             case attr_key.type
             when :list
@@ -126,8 +128,9 @@ module Zermelo
         true
       end
 
-      # used by redis_filter
       def key_to_redis_key(key)
+        class_key = key.klass.send(:class_key)
+
         obj = case key.object
         when :attribute
           'attrs'
@@ -135,11 +138,104 @@ module Zermelo
           'assocs'
         when :index
           'indices'
+        when :temporary
+          'tmp'
         end
 
         name = Zermelo::COLLECTION_TYPES.has_key?(key.type) ? ":#{key.name}" : ''
 
-        "#{key.klass}:#{key.id.nil? ? '' : key.id}:#{obj}#{name}"
+        "#{class_key}:#{key.id.nil? ? '' : key.id}:#{obj}#{name}"
+      end
+
+      def temp_key_wrap
+        return unless block_given?
+        temp_keys = []
+        begin
+          yield(temp_keys)
+        rescue
+          raise
+        ensure
+          unless temp_keys.empty?
+            Zermelo.redis.del(*temp_keys.collect {|tk| key_to_redis_key(tk)})
+            temp_keys.clear
+          end
+        end
+      end
+
+      # TODO converge usage of idx_class and _index lookup invocation
+
+      def index_lookup(att, associated_class, idx_class, value, attr_type, temp_keys)
+        case value
+        # when Zermelo::Filters::RedisFilter
+
+          # TODO (maybe) if a filter from different backend, resolve to ids and
+          # put that in a Redis temp set
+
+          # collection, should_be_deleted = value.resolve_steps
+
+          # if should_be_deleted
+          #   temp_sets << collection.name
+          # end
+
+          # unless :set.eql?(collection.type)
+          #   raise "Unsure as yet if non-sets are safe as Filter step values"
+          # end
+
+        when Regexp
+          raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+
+          idx_key = associated_class.send(:temp_key, :set)
+          temp_keys << idx_key
+          idx_result = key_to_redis_key(idx_key)
+
+          starts_with_string_re = /^string:/
+          case idx_class.name
+          when 'Zermelo::Associations::UniqueIndex'
+            index_key = key_to_redis_key(Zermelo::Records::Key.new(
+              :klass  => associated_class,
+              :name   => "by_#{att}",
+              :type   => :hash,
+              :object => :index
+            ))
+            candidates = Zermelo.redis.hgetall(index_key)
+            matching_ids = candidates.values_at(*candidates.keys.select {|k|
+              (starts_with_string_re === k) &&
+                (value === unescape_key_name(k.sub(starts_with_string_re, '')))
+            })
+            Zermelo.redis.sadd(idx_result, matching_ids) unless matching_ids.empty?
+          when 'Zermelo::Associations::Index'
+            key_root = key_to_redis_key(Zermelo::Records::Key.new(
+              :klass  => associated_class,
+              :name   => "by_#{att}:string",
+              :type   => :set,
+              :object => :index
+            ))
+
+            matching_sets = Zermelo.redis.keys(key_root + ":*").inject([]) do |memo, k|
+              k =~ /^#{key_root}:(.+)$/
+              memo << k if value === $1
+              memo
+            end
+
+            Zermelo.redis.sunionstore(idx_result, matching_sets) unless matching_sets.empty?
+          end
+          idx_key
+        else
+          index = associated_class.send("#{att}_index")
+
+          case index
+          when Zermelo::Associations::UniqueIndex
+            idx_key = associated_class.send(:temp_key, :set)
+            temp_keys << idx_key
+
+            Zermelo.redis.sadd(key_to_redis_key(idx_key),
+              Zermelo.redis.hget(key_to_redis_key(index.key),
+                                   index_keys(attr_type, value).join(':')))
+            idx_key
+          when Zermelo::Associations::Index
+            index.key(value)
+          end
+        end
       end
 
       private
@@ -230,7 +326,7 @@ module Zermelo
 
           elsif :purge.eql?(op)
             # TODO get keys for all assocs & indices, purge them too
-            purges << ["#{key.klass}:#{key.id}:attrs"]
+            purges << ["#{key.klass.send(:class_key)}:#{key.id}:attrs"]
           else
             simple_attr_key = key_to_redis_key(key)
             simple_attrs[simple_attr_key] ||= {}
