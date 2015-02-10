@@ -2,7 +2,7 @@ require 'active_support/concern'
 
 require 'zermelo/records/errors'
 
-require 'zermelo/filters/steps/page_step'
+require 'zermelo/filters/steps/offset_step'
 require 'zermelo/filters/steps/set_step'
 require 'zermelo/filters/steps/sorted_set_step'
 require 'zermelo/filters/steps/sort_step'
@@ -53,11 +53,19 @@ module Zermelo
           )
       end
 
-      # TODO cleanup step to use page, per_page
       def offset(opts = {})
         self.class.new(@backend, @initial_set, @associated_class, self,
-          ::Zermelo::Filters::Steps::PageStep.new({:offset => opts[:offset],
+          ::Zermelo::Filters::Steps::OffsetStep.new({:offset => opts[:offset],
             :limit => opts[:limit]}, {}))
+      end
+
+      def page(num, opts = {})
+        per_page = opts[:per_page].to_i || 20
+        start  = per_page * (num - 1)
+        finish = start + (per_page - 1)
+        self.class.new(@backend, @initial_set, @associated_class, self,
+          ::Zermelo::Filters::Steps::OffsetStep.new({:offset => start,
+            :limit => per_page}, {}))
       end
 
       def intersect_range(start, finish, attrs_opts = {})
@@ -128,22 +136,6 @@ module Zermelo
 
       def all
         lock { _all }
-      end
-
-      def page(num, opts = {})
-        ret = nil
-        per_page = opts[:per_page].to_i || 20
-        if (num > 0) && (per_page > 0)
-          lock do
-            start  = per_page * (num - 1)
-            finish = start + (per_page - 1)
-            @steps << Zermelo::Filters::Steps::PageStep.new({:offset => start,
-                        :limit => per_page}, {})
-            page_ids = _ids
-            ret = page_ids.collect {|f_id| _load(f_id)} unless page_ids.nil?
-          end
-        end
-        ret || []
       end
 
       def collect(&block)

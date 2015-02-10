@@ -3,7 +3,7 @@ require 'zermelo/filters/steps/base_step'
 module Zermelo
   module Filters
     class Steps
-      class PageStep < Zermelo::Filters::Steps::BaseStep
+      class OffsetStep < Zermelo::Filters::Steps::BaseStep
         def self.accepted_types
           [:list]
         end
@@ -53,7 +53,6 @@ module Zermelo
                 limited
               end
             end
-
           end
 
         end
