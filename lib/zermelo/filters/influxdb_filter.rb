@@ -83,27 +83,27 @@ module Zermelo
           "SELECT COUNT(id) FROM /#{@associated_class.send(:class_key)}\\/.*/"
         end
 
-        unless @initial_set.id.nil?
+        unless @initial_key.id.nil?
           query += ' WHERE '
 
-          class_key = @initial_set.klass.send(:class_key)
+          class_key = @initial_key.klass.send(:class_key)
 
-          ii_query = "SELECT #{@initial_set.name} FROM \"#{class_key}/#{@initial_set.id}\" " +
+          ii_query = "SELECT #{@initial_key.name} FROM \"#{class_key}/#{@initial_key.id}\" " +
             "LIMIT 1"
 
           begin
             initial_id_data =
-              Zermelo.influxdb.query(ii_query)["#{class_key}/#{@initial_set.id}"]
+              Zermelo.influxdb.query(ii_query)["#{class_key}/#{@initial_key.id}"]
           rescue InfluxDB::Error => ide
             raise unless
-              /^Field #{@initial_set.name} doesn't exist in series #{class_key}\/#{@initial_set.id}$/ === ide.message
+              /^Field #{@initial_key.name} doesn't exist in series #{class_key}\/#{@initial_key.id}$/ === ide.message
 
             initial_id_data = nil
           end
 
           return [] if initial_id_data.nil?
 
-          inital_ids = initial_id_data.first[@initial_set.name]
+          inital_ids = initial_id_data.first[@initial_key.name]
 
           if inital_ids.nil? || inital_ids.empty?
             # make it impossible for the query to return anything
@@ -116,7 +116,7 @@ module Zermelo
         end
 
         unless @steps.empty?
-          query += (@initial_set.id.nil? ? ' WHERE ' : ' AND ') +
+          query += (@initial_key.id.nil? ? ' WHERE ' : ' AND ') +
                    ('(' * @steps.size)
 
           @steps.each_with_index do |step, idx|

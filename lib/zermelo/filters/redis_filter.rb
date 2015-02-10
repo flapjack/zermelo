@@ -12,7 +12,7 @@ module Zermelo
 
       # more step users
       def first
-        unless [:list, :sorted_set].include?(@initial_set.type) ||
+        unless [:list, :sorted_set].include?(@initial_key.type) ||
           @steps.any? {|s| s.is_a?(Zermelo::Filters::Steps::SortStep) }
 
           raise "Can't get first member of a non-sorted set"
@@ -28,7 +28,7 @@ module Zermelo
       end
 
       def last
-        unless [:list, :sorted_set].include?(@initial_set.type) ||
+        unless [:list, :sorted_set].include?(@initial_key.type) ||
           @steps.any? {|s| s.is_a?(Zermelo::Filters::Steps::SortStep) }
 
           raise "Can't get last member of a non-sorted set"
@@ -102,7 +102,7 @@ module Zermelo
       # for whether or not to clear up that set once it's been used
 
       def resolve_steps(shortcuts = {}, &block)
-        return solve(@initial_set, :shortcuts => shortcuts, &block) if @steps.empty?
+        return solve(@initial_key, :shortcuts => shortcuts, &block) if @steps.empty?
 
         idx_attrs = @associated_class.send(:with_index_data) do |d|
           d.each_with_object({}) do |(name, data), memo|
@@ -114,7 +114,7 @@ module Zermelo
 
         backend.temp_key_wrap do |temp_keys|
 
-          collection = @initial_set
+          collection = @initial_key
           last_step  = @steps.last
 
           @steps.each do |step|

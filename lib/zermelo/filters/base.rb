@@ -19,34 +19,31 @@ module Zermelo
 
       # initial set         a Zermelo::Record::Key object
       # associated_class    the class of the result record
-      def initialize(data_backend, initial_set, associated_class, ancestor = nil, step = nil)
+      def initialize(data_backend, initial_key, associated_class, ancestor = nil, step = nil)
         @backend          = data_backend
-        @initial_set      = initial_set
+        @initial_key      = initial_key
         @associated_class = associated_class
         @steps            = ancestor.nil? ? [] : ancestor.steps.dup
         @steps << step unless step.nil?
       end
 
-      # TODO each step type have class methods list its acceptable input types, and
-      # have a class method giving its output type
-
       def intersect(attrs = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::SetStep.new({:op => :intersect}, attrs))
       end
 
       def union(attrs = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::SetStep.new({:op => :union}, attrs))
       end
 
       def diff(attrs = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::SetStep.new({:op => :diff}, attrs))
       end
 
       def sort(keys, opts = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::SortStep.new({:keys => keys,
             :desc => opts[:desc], :limit => opts[:limit],
             :offset => opts[:offset]}, {})
@@ -54,7 +51,7 @@ module Zermelo
       end
 
       def offset(opts = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::OffsetStep.new({:offset => opts[:offset],
             :limit => opts[:limit]}, {}))
       end
@@ -63,13 +60,13 @@ module Zermelo
         per_page = opts[:per_page].to_i || 20
         start  = per_page * (num - 1)
         finish = start + (per_page - 1)
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::OffsetStep.new({:offset => start,
             :limit => per_page}, {}))
       end
 
       def intersect_range(start, finish, attrs_opts = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::SortedSetStep.new(
             {:op => :intersect_range, :start => start, :finish => finish,
              :by_score => attrs_opts.delete(:by_score)},
@@ -78,7 +75,7 @@ module Zermelo
       end
 
       def union_range(start, finish, attrs_opts = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::SortedSetStep.new(
             {:op => :union_range, :start => start, :finish => finish,
              :by_score => attrs_opts.delete(:by_score)},
@@ -87,7 +84,7 @@ module Zermelo
       end
 
       def diff_range(start, finish, attrs_opts = {})
-        self.class.new(@backend, @initial_set, @associated_class, self,
+        self.class.new(@backend, @initial_key, @associated_class, self,
           ::Zermelo::Filters::Steps::SortedSetStep.new(
             {:op => :diff_range, :start => start, :finish => finish,
              :by_score => attrs_opts.delete(:by_score)},
