@@ -12,11 +12,13 @@ module Zermelo
           :list
         end
 
-        def resolve(backend, associated_class, source, idx_attrs, attr_types,
-          temp_keys, opts = {})
-
+        def resolve(backend, associated_class, opts = {})
           case backend
           when Zermelo::Backends::RedisBackend
+            source = opts[:source]
+            idx_attrs = opts[:index_attrs]
+            attr_types = opts[:attr_types]
+            temp_keys = opts[:temp_keys]
 
             dest_list = associated_class.send(:temp_key, :list)
             temp_keys << dest_list

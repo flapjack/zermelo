@@ -12,9 +12,7 @@ module Zermelo
           :list
         end
 
-        def resolve(backend, associated_class, source, idx_attrs, attr_types,
-          temp_keys, opts = {})
-
+        def resolve(backend, associated_class, opts = {})
           offset = @options[:offset]
           limit = @options[:limit]
 
@@ -23,6 +21,11 @@ module Zermelo
 
           case backend
           when Zermelo::Backends::RedisBackend
+
+            source = opts[:source]
+            idx_attrs = opts[:index_attrs]
+            attr_types = opts[:attr_types]
+            temp_keys = opts[:temp_keys]
 
           # TODO apply these transformations via a subset?
           # TODO need a guaranteed non-existing key for non-sorting 'sort'

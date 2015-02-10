@@ -12,15 +12,17 @@ module Zermelo
           :sorted_set
         end
 
-        def resolve(backend, associated_class, source, idx_attrs, attr_types,
-          temp_keys, opts = {})
-
+        def resolve(backend, associated_class, opts = {})
           op     = @options[:op]
           start  = @options[:start]
           finish = @options[:finish]
 
           case backend
           when Zermelo::Backends::RedisBackend
+            source = opts[:source]
+            idx_attrs = opts[:index_attrs]
+            attr_types = opts[:attr_types]
+            temp_keys = opts[:temp_keys]
 
             range_temp_key = associated_class.send(:temp_key, :sorted_set)
             temp_keys << range_temp_key

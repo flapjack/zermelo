@@ -122,8 +122,9 @@ module Zermelo
               raise "'#{step.class.name}' does not accept input type #{collection.type}"
             end
 
-            collection = step.resolve(backend, @associated_class, collection,
-              idx_attrs, attr_types, temp_keys,
+            collection = step.resolve(backend, @associated_class,
+              :source => collection, :index_attrs => idx_attrs,
+              :attr_types => attr_types, :temp_keys => temp_keys,
               :shortcuts => ((step == last_step) ? shortcuts : nil))
           end
 

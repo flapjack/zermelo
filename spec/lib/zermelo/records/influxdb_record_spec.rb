@@ -71,8 +71,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
   end
 
   it "finds a record by id in influxdb" do
-    pending "Query refactoring"
-
     create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
       :active => 'true')
 
@@ -88,8 +86,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
   end
 
   it "can update a value in influxdb" do
-    pending "Query refactoring"
-
     create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
       :active => 'true')
 
@@ -105,8 +101,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
   end
 
   it "destroys a single record from influxdb" do
-    pending "Query refactoring"
-
     create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
       :active => 'true')
 
@@ -117,8 +111,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
   end
 
   it "resets changed state on refresh" do
-    pending "Query refactoring"
-
     create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
       :active => 'true')
     example = Zermelo::InfluxDBExample.find_by_id('1')
@@ -173,8 +165,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
     end
 
     it "filters all class records by attribute values" do
-      pending "Query refactoring"
-
       create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
         :active => 'true')
       create_example(:id => '2', :name => 'John Smith',
@@ -188,8 +178,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
     end
 
     it "chains two intersect filters together" do
-      pending "Query refactoring"
-
       create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
         :active => 'true')
       create_example(:id => '2', :name => 'John Smith',
@@ -206,8 +194,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
     end
 
     it "chains an intersect and a union filter together" do
-      pending "Query refactoring"
-
       create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
         :active => 'true')
       create_example(:id => '2', :name => 'John Smith',
@@ -223,8 +209,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
     end
 
     it "chains an intersect and a diff filter together" do
-      pending "Query refactoring"
-
       create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
         :active => 'true')
       create_example(:id => '2', :name => 'John Smith',
@@ -248,8 +232,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
     # end
 
     it "sets a parent/child has_many relationship between two records in influxdb" do
-      pending "Query refactoring"
-
       create_example(:id => '8', :name => 'John Jones',
                      :email => 'jjones@example.com', :active => 'true')
 
