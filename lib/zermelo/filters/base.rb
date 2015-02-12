@@ -2,7 +2,7 @@ require 'active_support/concern'
 
 require 'zermelo/records/errors'
 
-require 'zermelo/filters/steps/offset_step'
+require 'zermelo/filters/steps/list_step'
 require 'zermelo/filters/steps/set_step'
 require 'zermelo/filters/steps/sorted_set_step'
 require 'zermelo/filters/steps/sort_step'
@@ -50,9 +50,9 @@ module Zermelo
           )
       end
 
-      def offset(opts = {})
+      def offset(amount, opts = {})
         self.class.new(@backend, @initial_key, @associated_class, self,
-          ::Zermelo::Filters::Steps::OffsetStep.new({:offset => opts[:offset],
+          ::Zermelo::Filters::Steps::ListStep.new({:offset => amount,
             :limit => opts[:limit]}, {}))
       end
 
@@ -61,7 +61,7 @@ module Zermelo
         start  = per_page * (num - 1)
         finish = start + (per_page - 1)
         self.class.new(@backend, @initial_key, @associated_class, self,
-          ::Zermelo::Filters::Steps::OffsetStep.new({:offset => start,
+          ::Zermelo::Filters::Steps::ListStep.new({:offset => start,
             :limit => per_page}, {}))
       end
 

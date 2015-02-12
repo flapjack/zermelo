@@ -89,14 +89,11 @@ module Zermelo
               Zermelo.redis.sort(r_dest_list, sort_opts)
             end
 
-            shortcuts = @options[:shortcuts]
+            shortcut = opts[:shortcut]
 
-            if shortcuts.nil? || shortcuts[:list].nil?
-              dest_list
-            else
-              Zermelo.redis.send((@options[:desc].is_a?(TrueClass) ? :lrevrange : :lrange),
-                r_dest_list, 0, -1)
-            end
+            return dest_list if shortcut.nil?
+            Zermelo::Filters::Steps::ListStep::REDIS_SHORTCUTS[shortcut].
+              call(*([r_dest_list] + opts[:shortcut_args]))
           end
         end
       end

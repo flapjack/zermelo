@@ -13,14 +13,20 @@ module Zermelo
           :set
         end
 
+        REDIS_SHORTCUTS = {
+          :ids     => proc {|key|     Zermelo.redis.smembers(key) },
+          :count   => proc {|key|     Zermelo.redis.scard(key) },
+          :exists? => proc {|key, id| Zermelo.redis.sismember(key, id) }
+        }
+
         def resolve(backend, associated_class, opts = {})
 
           case backend
           when Zermelo::Backends::RedisBackend
-            source = opts[:source]
-            idx_attrs = opts[:index_attrs]
+            source     = opts[:source]
+            idx_attrs  = opts[:index_attrs]
             attr_types = opts[:attr_types]
-            temp_keys = opts[:temp_keys]
+            temp_keys  = opts[:temp_keys]
 
             source_keys = @attributes.inject([]) do |memo, (att, value)|
 
@@ -114,14 +120,12 @@ module Zermelo
         end
 
         def self.evaluate(backend, op, associated_class, source, source_keys, temp_keys, opts = {})
-          shortcuts = opts[:shortcuts]
-
-          last_step_and_smembers = !shortcuts.nil? && :smembers.eql?(shortcuts[:set])
+          shortcut = opts[:shortcut]
 
           r_source_key  = backend.key_to_redis_key(source)
           r_source_keys = source_keys.collect {|sk| backend.key_to_redis_key(sk) }
 
-          if last_step_and_smembers
+          if :ids.eql?(shortcut)
             case op
             when :union
               backend.temp_key_wrap do |shortcut_temp_keys|
@@ -160,7 +164,8 @@ module Zermelo
               Zermelo.redis.sdiffstore(r_dest_set, r_source_key, r_dest_set)
             end
 
-            dest_set
+            return dest_set if shortcut.nil?
+            REDIS_SHORTCUTS[shortcut].call(*([r_dest_set] + opts[:shortcut_args]))
           end
 
         end

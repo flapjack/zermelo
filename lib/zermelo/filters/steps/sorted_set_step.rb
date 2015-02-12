@@ -12,6 +12,14 @@ module Zermelo
           :sorted_set
         end
 
+        REDIS_SHORTCUTS = {
+          :ids     => proc {|key|     Zermelo.redis.zrange(key, 0, -1) },
+          :count   => proc {|key|     Zermelo.redis.zcard(key) },
+          :exists? => proc {|key, id| !Zermelo.redis.zscore(key, id).nil? },
+          :first   => proc {|key|     Zermelo.redis.zrange(key, 0, 0).first },
+          :last    => proc {|key|     Zermelo.redis.zrevrange(key, 0, 0).first }
+        }
+
         def resolve(backend, associated_class, opts = {})
           op     = @options[:op]
           start  = @options[:start]
@@ -66,6 +74,8 @@ module Zermelo
         end
 
         def self.evaluate(backend, op, associated_class, source, source_keys, temp_keys, opts = {})
+          shortcut = opts[:shortcut]
+
           weights = case op
           when :union, :union_range
             [0.0] * source_keys.length
@@ -94,7 +104,8 @@ module Zermelo
             Zermelo.redis.zremrangebyscore(r_dest_sorted_set, "0", "0")
           end
 
-          dest_sorted_set
+          return dest_sorted_set if shortcut.nil?
+          REDIS_SHORTCUTS[shortcut].call(*([r_dest_sorted_set] + opts[:shortcut_args]))
         end
 
       end
