@@ -11,6 +11,10 @@ module Zermelo
 
       include Zermelo::Backends::Base
 
+      def default_sorted_set_key
+        :timestamp
+      end
+
       def generate_lock
         Zermelo::Locks::RedisLock.new
       end

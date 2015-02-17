@@ -70,6 +70,48 @@ module Zermelo
 
             self.class.evaluate(backend, @options[:op], associated_class,
               source, [range_temp_key], temp_keys, opts)
+
+          when Zermelo::Backends::InfluxDBBackend
+
+            query = ''
+
+            unless opts[:first].is_a?(TrueClass)
+              case @options[:op]
+              when :intersect_range, :diff_range
+                query += ' AND '
+              when :union_range
+                query += ' OR '
+              end
+            end
+
+            start  = nil if !start.nil?  && (start <= 0)
+            finish = nil if !finish.nil? && (finish <= 0)
+
+            unless start.nil? && finish.nil?
+              time_q = []
+
+              case @options[:op]
+              when :intersect_range, :union_range
+                unless start.nil?
+                  time_q << "(time > #{start - 1}s)"
+                end
+                unless finish.nil?
+                  time_q << "(time < #{finish}s)"
+                end
+              when :diff_range
+                unless start.nil?
+                  time_q << "(time < #{start}s)"
+                end
+                unless finish.nil?
+                  time_q << "(time > #{finish - 1}s)"
+                end
+              end
+
+              query += time_q.join(' AND ')
+            end
+
+            query += ")"
+            query
           end
         end
 

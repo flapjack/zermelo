@@ -13,17 +13,28 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
 
       validates :name, :presence => true
 
-      has_many :children, :class_name => 'Zermelo::InfluxDBExampleChild'
-
+      has_many :children, :class_name => 'Zermelo::InfluxDBChild'
+      has_sorted_set :sorted, :class_name => 'Zermelo::InfluxDBSorted'
     end
 
-    class InfluxDBExampleChild
+    class InfluxDBChild
       include Zermelo::Records::InfluxDBRecord
 
       define_attributes :name => :string,
                         :important => :boolean
 
       belongs_to :example, :class_name => 'Zermelo::InfluxDBExample', :inverse_of => :children
+
+      validates :name, :presence => true
+    end
+
+    class InfluxDBSorted
+      include Zermelo::Records::InfluxDBRecord
+
+      define_attributes :name => :string,
+                        :important => :boolean
+
+      belongs_to :example, :class_name => 'Zermelo::InfluxDBExample', :inverse_of => :sorted
 
       validates :name, :presence => true
     end
@@ -193,6 +204,22 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
       expect(example.map(&:id)).to eq(['1'])
     end
 
+    it "allows multiple attributes in an intersect filter" do
+      create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
+        :active => 'true')
+      create_example(:id => '2', :name => 'John Smith',
+        :email => 'jsmith@example.com', :active => 'false')
+      create_example(:id => '3', :name => 'Fred Bloggs',
+        :email => 'fbloggs@example.com', :active => 'true')
+
+      example = Zermelo::InfluxDBExample.intersect(:active => true,
+        :name => 'Jane Doe').all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['1'])
+    end
+
     it "chains an intersect and a union filter together" do
       create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',
         :active => 'true')
@@ -227,18 +254,13 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
 
   context 'has_many association' do
 
-    # def create_child(attrs = {})
-    #   Zermelo.influxdb.write_point('influx_db_example_child', attrs)
-    # end
-
     it "sets a parent/child has_many relationship between two records in influxdb" do
       create_example(:id => '8', :name => 'John Jones',
                      :email => 'jjones@example.com', :active => 'true')
-
-      child = Zermelo::InfluxDBExampleChild.new(:id => '3', :name => 'Abel Tasman')
-      expect(child.save).to be_truthy
-
       example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      child = Zermelo::InfluxDBChild.new(:id => '3', :name => 'Abel Tasman')
+      expect(child.save).to be_truthy
 
       children = example.children.all
 
@@ -252,6 +274,160 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
       expect(children).to be_an(Array)
       expect(children.size).to eq(1)
     end
+
+    it "applies an intersect filter to a has_many association" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      child_1 = Zermelo::InfluxDBChild.new(:id => '3', :name => 'John Smith')
+      expect(child_1.save).to be_truthy
+
+      child_2 = Zermelo::InfluxDBChild.new(:id => '4', :name => 'Jane Doe')
+      expect(child_2.save).to be_truthy
+
+      example.children.add(child_1, child_2)
+      expect(example.children.count).to eq(2)
+
+      result = example.children.intersect(:name => 'John Smith').all
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(1)
+      expect(result.map(&:id)).to eq(['3'])
+    end
+
+    it "applies chained intersect and union filters to a has_many association" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      child_1 = Zermelo::InfluxDBChild.new(:id => '3', :name => 'John Smith')
+      expect(child_1.save).to be_truthy
+
+      child_2 = Zermelo::InfluxDBChild.new(:id => '4', :name => 'Jane Doe')
+      expect(child_2.save).to be_truthy
+
+      example.children.add(child_1, child_2)
+      expect(example.children.count).to eq(2)
+
+      result = example.children.intersect(:name => 'John Smith').union(:id => '4').all
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(2)
+      expect(result.map(&:id)).to eq(['3', '4'])
+    end
+
+  end
+
+  context 'has_sorted_set association' do
+
+    let(:time_i) { Time.now.to_i }
+
+    it "sets a parent/child has_sorted_set relationship between two records in influxdb" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      sorted_1 = Zermelo::InfluxDBSorted.new(:id => '3', :name => 'Abel Tasman', :time => time_i)
+      expect(sorted_1.save).to be_truthy
+
+      sorted_2 = Zermelo::InfluxDBSorted.new(:id => '4', :name => 'Joe Smith', :time => time_i - 60)
+      expect(sorted_2.save).to be_truthy
+
+      sorted = example.sorted.all
+
+      expect(sorted).to be_an(Array)
+      expect(sorted).to be_empty
+
+      example.sorted.add(sorted_1, sorted_2)
+
+      sorted = example.sorted.all
+
+      expect(sorted).to be_an(Array)
+      expect(sorted.size).to eq(2)
+      expect(sorted.map(&:id)).to eq(['3', '4'])
+    end
+
+    it "applies an intersect filter to a has_sorted_set association" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      sorted_1 = Zermelo::InfluxDBSorted.new(:id => '3', :name => 'Abel Tasman', :time => time_i)
+      expect(sorted_1.save).to be_truthy
+
+      sorted_2 = Zermelo::InfluxDBSorted.new(:id => '4', :name => 'Joe Smith', :time => time_i - 60)
+      expect(sorted_2.save).to be_truthy
+
+      example.sorted.add(sorted_1, sorted_2)
+
+      result = example.sorted.intersect(:id => '3').all
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(1)
+      expect(result.map(&:id)).to eq(['3'])
+    end
+
+    it "applies an intersect_range filter to a has_sorted_set association" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      sorted_1 = Zermelo::InfluxDBSorted.new(:id => '3', :name => 'Abel Tasman', :time => time_i)
+      expect(sorted_1.save).to be_truthy
+
+      sorted_2 = Zermelo::InfluxDBSorted.new(:id => '4', :name => 'Joe Smith', :time => time_i - 60)
+      expect(sorted_2.save).to be_truthy
+
+      example.sorted.add(sorted_1, sorted_2)
+
+      result = example.sorted.intersect_range(time_i - 30, time_i + 30).all
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(1)
+      expect(result.map(&:id)).to eq(['3'])
+    end
+
+    it "applies chained intersect and union filters to a has_sorted_set association" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      sorted_1 = Zermelo::InfluxDBSorted.new(:id => '3', :name => 'Abel Tasman', :time => time_i)
+      expect(sorted_1.save).to be_truthy
+
+      sorted_2 = Zermelo::InfluxDBSorted.new(:id => '4', :name => 'Joe Smith', :time => time_i - 60)
+      expect(sorted_2.save).to be_truthy
+
+      sorted_3 = Zermelo::InfluxDBSorted.new(:id => '5', :name => 'John Trugg', :time => time_i - 90)
+      expect(sorted_3.save).to be_truthy
+
+      example.sorted.add(sorted_1, sorted_2, sorted_3)
+
+      result = example.sorted.intersect(:name => 'Abel Tasman').union(:id => '4').all
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(2)
+      expect(result.map(&:id)).to eq(['3', '4'])
+    end
+
+    # # See https://github.com/flapjack/zermelo/issues/15
+    # it "applies chained intersect_range and union filters to a has_sorted_set association" do
+    #   create_example(:id => '8', :name => 'John Jones',
+    #                  :email => 'jjones@example.com', :active => 'true')
+    #   example = Zermelo::InfluxDBExample.find_by_id('8')
+
+    #   sorted_1 = Zermelo::InfluxDBSorted.new(:id => '3', :name => 'Abel Tasman', :time => time_i - 30)
+    #   expect(sorted_1.save).to be_truthy
+
+    #   sorted_2 = Zermelo::InfluxDBSorted.new(:id => '4', :name => 'Joe Smith', :time => time_i - 60)
+    #   expect(sorted_2.save).to be_truthy
+
+    #   sorted_3 = Zermelo::InfluxDBSorted.new(:id => '5', :name => 'John Trugg', :time => time_i - 90)
+    #   expect(sorted_3.save).to be_truthy
+
+    #   example.sorted.add(sorted_1, sorted_2, sorted_3)
+
+    #   result = example.sorted.intersect_range(time_i - 45, time_i - 15).union(:id => '4').all
+    #   expect(result).to be_an(Array)
+    #   expect(result.size).to eq(2)
+    #   expect(result.map(&:id)).to eq(['3', '4'])
+    # end
 
   end
 

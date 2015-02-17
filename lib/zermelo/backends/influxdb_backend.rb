@@ -15,6 +15,10 @@ module Zermelo
 
       include Zermelo::Backends::Base
 
+      def default_sorted_set_key
+        :time
+      end
+
       def filter(ids_key, record)
         Zermelo::Filters::InfluxDBFilter.new(self, ids_key, record)
       end
@@ -132,11 +136,11 @@ module Zermelo
           when :set
             case key.type
             when :string, :integer
-              value.to_s
+              value.nil? ? nil : value.to_s
             when :timestamp
-              value.to_f
+              value.nil? ? nil : value.to_f
             when :boolean
-              (!!value).to_s
+              value.nil? ? nil : (!!value).to_s
             when :list, :hash
               value
             when :set
@@ -148,6 +152,8 @@ module Zermelo
               value
             when :set
               value.to_a
+            when :sorted_set
+              (1...value.size).step(2).collect {|i| value[i] }
             end
           when :purge
             purges << "\"#{class_key}/#{key.id}\""
@@ -168,6 +174,7 @@ module Zermelo
               prior = nil
             end
             record = prior.nil? ? {} : prior.first.delete_if {|k,v| ["time", "sequence_number"].include?(k) }
+            data.delete('time') if data.has_key?('time') && data['time'].nil?
             Zermelo.influxdb.write_point("#{class_key}/#{id}", record.merge(data).merge('id' => id))
           end
         end
