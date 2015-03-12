@@ -1,5 +1,5 @@
 --color
---format progress
+--format doc
 --format html
 --out tmp/spec.html
 --require ./spec/support/uncolored_doc_formatter.rb

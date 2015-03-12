@@ -38,26 +38,28 @@ RSpec.configure do |config|
   #     --seed 1234
   config.order = 'random'
 
-  config.around(:each, :redis => true) do |example|
-    # Zermelo.logger = ::Logger.new('tmp/spec.log')
+  config.before(:all, :redis => true) do
     Zermelo.redis = ::Redis.new(:db => 14)
-    Zermelo.redis.flushdb
-    example.run
-    Zermelo.redis.quit
-    # Zermelo.logger.debug('----')
-    # Zermelo.logger = nil
   end
 
-  config.around(:each, :influxdb => true) do |example|
-    # Zermelo.logger = ::Logger.new('tmp/spec.log')
+  config.before(:each, :redis => true) do
+    Zermelo.redis.select(14)
+    Zermelo.redis.flushdb
+  end
+
+  config.after(:all, :redis => true) do
+    Zermelo.redis.quit
+  end
+
+  config.before(:all, :influxdb => true) do
     Zermelo.influxdb = InfluxDB::Client.new('zermelo_test',
       :username => 'zermelo', :password => 'zermelo', :retry => false)
+  end
+
+  config.before(:each, :influxdb => true) do
     Zermelo.influxdb.query('list series')['list_series_result'].each do |ser|
       Zermelo.influxdb.query("DELETE FROM \"#{ser['name']}\"")
     end
-    example.run
-    # Zermelo.logger.debug('----')
-    # Zermelo.logger = nil
   end
 
   config.after(:each, :time => true) do
