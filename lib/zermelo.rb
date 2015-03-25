@@ -95,7 +95,15 @@ module Zermelo
           debug_str
         }
       end
-      @proxied_connection.send(name, *args, &block)
+      result = @proxied_connection.send(name, *args, &block)
+      unless Zermelo.logger.nil?
+        Zermelo.logger.debug {
+          debug_str = "#{name}"
+          debug_str += " result: #{result}"
+          debug_str
+        }
+      end
+      result
     end
   end
 
