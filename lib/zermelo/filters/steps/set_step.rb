@@ -158,7 +158,7 @@ module Zermelo
               Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
               Zermelo.redis.sunionstore(r_dest_set, r_source_key, r_dest_set)
             when :intersect
-              Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
+              Zermelo.redis.sinterstore(r_dest_set, r_source_key, *r_source_keys)
             when :diff
               Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
               Zermelo.redis.sdiffstore(r_dest_set, r_source_key, r_dest_set)

@@ -395,6 +395,12 @@ describe Zermelo::Records::RedisRecord, :redis => true do
       expect(example.map(&:id)).to eq(['9', '8'])
     end
 
+    it "does not return a spurious record count when records don't exist" do
+      scope = Zermelo::RedisExample.intersect(:id => ['3000', '5000'])
+      expect(scope.all).to be_empty
+      expect(scope.count).to eq 0
+    end
+
   end
 
 
