@@ -8,7 +8,7 @@ services:
 - redis-server
 before_install:
 - gem --version
-- wget http://s3.amazonaws.com/influxdb/influxdb_0.8.8_amd64.deb
+- wget https://s3.amazonaws.com/influxdb/influxdb_0.8.8_amd64.deb
 - sudo dpkg -i influxdb_0.8.8_amd64.deb
 - sudo /etc/init.d/influxdb start
 - sleep 8
