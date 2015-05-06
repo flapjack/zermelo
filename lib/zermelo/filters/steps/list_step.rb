@@ -37,8 +37,8 @@ module Zermelo
             attr_types = opts[:attr_types]
             temp_keys = opts[:temp_keys]
 
-          # TODO apply these transformations via a subset?
-          # TODO need a guaranteed non-existing key for non-sorting 'sort'
+            # TODO apply these transformations via a subset?
+            # TODO need a guaranteed non-existing key for non-sorting 'sort'
 
             # TODO check if source is in temp_keys, use a generated temp_key instead if not
             r_source = backend.key_to_redis_key(source)

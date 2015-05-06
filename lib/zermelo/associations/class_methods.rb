@@ -167,10 +167,10 @@ module Zermelo
         when ::Zermelo::Associations::HasMany.name,
              ::Zermelo::Associations::HasSortedSet.name,
              ::Zermelo::Associations::HasAndBelongsToMany.name
-          [:before_add, :after_add, :before_remove, :after_remove]
+          [:before_add, :after_add, :before_remove, :after_remove, :before_read, :after_read]
         when ::Zermelo::Associations::HasOne.name,
              ::Zermelo::Associations::BelongsTo.name
-          [:before_set, :after_set, :before_clear, :after_clear]
+          [:before_set, :after_set, :before_clear, :after_clear, :before_read, :after_read]
         else
           []
         end

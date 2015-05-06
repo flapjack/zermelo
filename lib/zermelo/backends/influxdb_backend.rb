@@ -19,8 +19,8 @@ module Zermelo
         :time
       end
 
-      def filter(ids_key, record)
-        Zermelo::Filters::InfluxDBFilter.new(self, ids_key, record)
+      def filter(ids_key, record, callback_target = nil, callbacks = nil)
+        Zermelo::Filters::InfluxDBFilter.new(self, ids_key, record, callback_target, callbacks)
       end
 
       # TODO get filter calling this instead of using same logic

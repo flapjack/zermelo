@@ -16,7 +16,8 @@ describe Zermelo::Records::RedisRecord, :redis => true do
       validates :name, :presence => true
 
       has_many :children, :class_name => 'Zermelo::RedisExampleChild',
-        :inverse_of => :example, :before_add => :fail_if_roger
+        :inverse_of => :example, :before_add => :fail_if_roger,
+        :before_read => :pre_read, :after_read => :post_read
 
       has_sorted_set :data, :class_name => 'Zermelo::RedisExampleDatum',
         :key => :timestamp, :inverse_of => :example
@@ -29,6 +30,18 @@ describe Zermelo::Records::RedisRecord, :redis => true do
 
       def fail_if_roger(*childs)
         raise "Not adding child" if childs.any? {|c| 'Roger'.eql?(c.name) }
+      end
+
+      attr_accessor :read
+
+      def pre_read
+        @read ||= []
+        @read << :pre
+      end
+
+      def post_read
+        @read ||= []
+        @read << :post
       end
     end
 
@@ -575,6 +588,16 @@ describe Zermelo::Records::RedisRecord, :redis => true do
       expect(example.children).to be_empty
     end
 
+    it 'calls the before/after_read callbacks as part of query execution' do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::RedisExample.find_by_id('8')
+
+      expect(example.read).to be_nil
+      expect(example.children).to be_empty
+      expect(example.read).to eq([:pre, :post])
+    end
+
     it 'clears the belongs_to association when the child record is deleted' do
       create_example(:id => '8', :name => 'John Jones',
                      :email => 'jjones@example.com', :active => 'true')
@@ -1110,7 +1133,20 @@ describe Zermelo::Records::RedisRecord, :redis => true do
     end
 
     class Zermelo::RedisExample
-      has_one :special, :class_name => 'Zermelo::RedisExampleSpecial', :inverse_of => :example
+      has_one :special, :class_name => 'Zermelo::RedisExampleSpecial', :inverse_of => :example,
+        :before_read => :pre_special_read, :after_read => :post_special_read
+
+      attr_accessor :special_read
+
+      def pre_special_read
+        @read ||= []
+        @read << :pre
+      end
+
+      def post_special_read(value)
+        @read ||= []
+        @read << :post
+      end
     end
 
     it "sets and retrieves a record via a has_one association" do
@@ -1149,6 +1185,16 @@ describe Zermelo::Records::RedisRecord, :redis => true do
 
       expect(special2.id).to eq('22')
       expect(special2.example.id).to eq('8')
+    end
+
+    it 'calls the before/after_read callbacks when the value is read' do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::RedisExample.find_by_id('8')
+
+      expect(example.read).to be_nil
+      expect(example.special).to be_nil
+      expect(example.read).to eq([:pre, :post])
     end
 
     def create_special(parent, attrs = {})

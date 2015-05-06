@@ -99,7 +99,7 @@ module Zermelo
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
-        @backend.filter(@record_ids_key, @associated_class)
+        @backend.filter(@record_ids_key, @associated_class, @parent, @callbacks)
       end
 
       def self.associated_ids_for(backend, klass, name, *these_ids)

@@ -19,8 +19,8 @@ module Zermelo
         Zermelo::Locks::RedisLock.new
       end
 
-      def filter(ids_key, record)
-        Zermelo::Filters::RedisFilter.new(self, ids_key, record)
+      def filter(ids_key, record, callback_target = nil, callbacks = nil)
+        Zermelo::Filters::RedisFilter.new(self, ids_key, record, callback_target, callbacks)
       end
 
       def get_multiple(*attr_keys)

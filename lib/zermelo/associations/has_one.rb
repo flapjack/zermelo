@@ -25,13 +25,16 @@ module Zermelo
       end
 
       def value
+        v = nil
         @parent.class.lock(@associated_class) do
-          if id = @backend.get(@record_id_key)
-            @associated_class.send(:load, id)
-          else
-            nil
-          end
+          br = @callbacks[:before_read]
+          @parent.send(br) if !br.nil? && @parent.respond_to?(br)
+          id = @backend.get(@record_id_key)
+          v = @associated_class.send(:load, id) unless id.nil?
+          ar = @callbacks[:after_read]
+          @parent.send(ar, v) if !ar.nil? && @parent.respond_to?(ar)
         end
+        v
       end
 
       def value=(record)

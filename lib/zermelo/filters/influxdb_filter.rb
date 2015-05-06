@@ -35,6 +35,7 @@ module Zermelo
         end
       end
 
+      # TODO support the new before/after_read callbacks
       def resolve_steps(result_type)
         class_key = @associated_class.send(:class_key)
 

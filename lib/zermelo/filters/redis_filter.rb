@@ -54,6 +54,12 @@ module Zermelo
 
       def resolve_steps(shortcut, *args)
         if @steps.empty?
+
+          unless @callback_target.nil? || @callbacks.nil?
+            br = @callbacks[:before_read]
+            @callback_target.send(br) if !br.nil? && @callback_target.respond_to?(br)
+          end
+
           sc_klass = {
             :list       => Zermelo::Filters::Steps::ListStep,
             :set        => Zermelo::Filters::Steps::SetStep,
@@ -65,6 +71,12 @@ module Zermelo
           else
             sc.call(*([backend.key_to_redis_key(@initial_key)] + args))
           end
+
+          unless @callback_target.nil? || @callbacks.nil?
+            ar = @callbacks[:after_read]
+            @callback_target.send(ar) if !ar.nil? && @callback_target.respond_to?(ar)
+          end
+
           return(ret)
         end
 
@@ -96,7 +108,17 @@ module Zermelo
               step_opts.update(:shortcut => shortcut, :shortcut_args => args)
             end
 
+            unless @callback_target.nil? || @callbacks.nil?
+              br = @callbacks[:before_read]
+              @callback_target.send(br) if !br.nil? && @callback_target.respond_to?(br)
+            end
+
             result = step.resolve(backend, @associated_class, step_opts)
+
+            unless @callback_target.nil? || @callbacks.nil?
+              ar = @callbacks[:after_read]
+              @callback_target.send(ar) if !ar.nil? && @callback_target.respond_to?(ar)
+            end
 
             step_opts[:source] = result unless step == last_step
           end

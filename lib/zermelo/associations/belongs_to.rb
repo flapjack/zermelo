@@ -62,15 +62,18 @@ module Zermelo
       end
 
       def value
+        v = nil
         @parent.class.lock(*@lock_klasses) do
           # FIXME uses hgetall, need separate getter for hash/list/set
-          if id = @backend.get(@record_ids_key)[@inverse_key.to_s]
-          # if id = @backend.get_hash_value(@record_ids_key, @inverse_key.to_s)
-            @associated_class.send(:load, id)
-          else
-            nil
-          end
+          br = @callbacks[:before_read]
+          @parent.send(br) if !br.nil? && @parent.respond_to?(br)
+          id = @backend.get(@record_ids_key)[@inverse_key.to_s]
+          # id = @backend.get_hash_value(@record_ids_key, @inverse_key.to_s)
+          v = @associated_class.send(:load, id) unless id.nil?
+          ar = @callbacks[:after_read]
+          @parent.send(ar, v) if !ar.nil? && @parent.respond_to?(ar)
         end
+        v
       end
 
       private
