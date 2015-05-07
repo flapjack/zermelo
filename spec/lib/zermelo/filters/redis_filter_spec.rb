@@ -4,17 +4,21 @@ require 'zermelo/associations/range_index'
 
 describe Zermelo::Filters::RedisFilter, :redis => true do
 
+  # TODO shared examples for the filters, with different record class per DB
+
   let(:redis) { Zermelo.redis }
 
   class ZermeloExamples
     class RedisFilter
       include Zermelo::Records::RedisRecord
-      define_attributes :name   => :string,
-                        :active => :boolean
+      define_attributes :name       => :string,
+                        :active     => :boolean,
+                        :created_at => :timestamp
       validates :name, :presence => true
       validates :active, :inclusion => {:in => [true, false]}
-      unique_index_by :name
       index_by :active
+      range_index_by :created_at
+      unique_index_by :name
     end
   end
 
@@ -24,15 +28,20 @@ describe Zermelo::Filters::RedisFilter, :redis => true do
     redis.sadd("redis_filter::indices:by_active:boolean:#{!!attrs[:active]}", attrs[:id])
     name = attrs[:name].gsub(/%/, '%%').gsub(/ /, '%20').gsub(/:/, '%3A')
     redis.hset('redis_filter::indices:by_name', "string:#{name}", attrs[:id])
+    redis.zadd('redis_filter::indices:by_created_at', attrs[:created_at].to_f, attrs[:id])
     redis.sadd('redis_filter::attrs:ids', attrs[:id])
   end
 
+  let(:time) { Time.now }
+
   let(:active) {
-    create_example(:id => '8', :name => 'John Jones', :active => true)
+    create_example(:id => '8', :name => 'John Jones', :active => true,
+      :created_at => (time - 100).to_f)
   }
 
   let(:inactive) {
-    create_example(:id => '9', :name => 'James Brown', :active => false)
+    create_example(:id => '9', :name => 'James Brown', :active => false,
+      :created_at => (time + 100).to_f)
   }
 
   before do
@@ -147,5 +156,18 @@ describe Zermelo::Filters::RedisFilter, :redis => true do
     expect(scope.all).to be_empty
     expect(scope.count).to eq 0
   end
+
+  it 'filters by records created before a certain time' do
+    examples = ZermeloExamples::RedisFilter.intersect(:created_at => Zermelo::Filters::IndexRange.new(nil, time))
+    expect(examples.count).to eq(1)
+    expect(examples.map(&:id)).to eq(['8'])
+  end
+
+  it 'filters by records created after a certain time' do
+    examples = ZermeloExamples::RedisFilter.intersect(:created_at => Zermelo::Filters::IndexRange.new(time, nil))
+    expect(examples.count).to eq(1)
+    expect(examples.map(&:id)).to eq(['9'])
+  end
+
 
 end

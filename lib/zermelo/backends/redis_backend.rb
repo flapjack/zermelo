@@ -231,9 +231,16 @@ module Zermelo
             idx_key = associated_class.send(:temp_key, :set)
             temp_keys << idx_key
 
-            # Zermelo.redis.sadd(key_to_redis_key(idx_key),
-            #   Zermelo.redis.zrange(key_to_redis_key(index.key),
-            #                        index_keys(attr_type, value).join(':')))
+            r_index_key = key_to_redis_key(index.key)
+            range_start  = value.start.nil?  ? '-inf' : safe_value(attr_type, value.start)
+            range_finish = value.finish.nil? ? '+inf' : safe_value(attr_type, value.finish)
+
+            # TODO another way for index_lookup to indicate 'empty result', rather
+            # than creating & returning an empty key
+            if Zermelo.redis.zcount(r_index_key, range_start, range_finish) > 0
+              Zermelo.redis.sadd(key_to_redis_key(idx_key),
+                Zermelo.redis.zrangebyscore(r_index_key, range_start, range_finish))
+            end
             idx_key
           when Zermelo::Associations::UniqueIndex
             idx_key = associated_class.send(:temp_key, :set)
@@ -241,7 +248,7 @@ module Zermelo
 
             Zermelo.redis.sadd(key_to_redis_key(idx_key),
               Zermelo.redis.hget(key_to_redis_key(index.key),
-                                   index_keys(attr_type, value).join(':')))
+                                 index_keys(attr_type, value).join(':')))
             idx_key
           when Zermelo::Associations::Index
             index.key(value)

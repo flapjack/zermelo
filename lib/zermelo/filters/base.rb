@@ -76,35 +76,35 @@ module Zermelo
             :limit => per_page}, {}))
       end
 
-      def intersect_range(start, finish, attrs_opts = {})
-        self.class.new(@backend, @initial_key, @associated_class,
-          @callback_target, @callbacks, self,
-          ::Zermelo::Filters::Steps::SortedSetStep.new(
-            {:op => :intersect_range, :start => start, :finish => finish,
-             :by_score => attrs_opts.delete(:by_score)},
-            attrs_opts)
-          )
-      end
+      # def intersect_range(start, finish, attrs_opts = {})
+      #   self.class.new(@backend, @initial_key, @associated_class,
+      #     @callback_target, @callbacks, self,
+      #     ::Zermelo::Filters::Steps::SortedSetStep.new(
+      #       {:op => :intersect_range, :start => start, :finish => finish,
+      #        :by_score => attrs_opts.delete(:by_score)},
+      #       attrs_opts)
+      #     )
+      # end
 
-      def union_range(start, finish, attrs_opts = {})
-        self.class.new(@backend, @initial_key, @associated_class,
-          @callback_target, @callbacks, self,
-          ::Zermelo::Filters::Steps::SortedSetStep.new(
-            {:op => :union_range, :start => start, :finish => finish,
-             :by_score => attrs_opts.delete(:by_score)},
-            attrs_opts)
-          )
-      end
+      # def union_range(start, finish, attrs_opts = {})
+      #   self.class.new(@backend, @initial_key, @associated_class,
+      #     @callback_target, @callbacks, self,
+      #     ::Zermelo::Filters::Steps::SortedSetStep.new(
+      #       {:op => :union_range, :start => start, :finish => finish,
+      #        :by_score => attrs_opts.delete(:by_score)},
+      #       attrs_opts)
+      #     )
+      # end
 
-      def diff_range(start, finish, attrs_opts = {})
-        self.class.new(@backend, @initial_key, @associated_class,
-          @callback_target, @callbacks, self,
-          ::Zermelo::Filters::Steps::SortedSetStep.new(
-            {:op => :diff_range, :start => start, :finish => finish,
-             :by_score => attrs_opts.delete(:by_score)},
-            attrs_opts)
-          )
-      end
+      # def diff_range(start, finish, attrs_opts = {})
+      #   self.class.new(@backend, @initial_key, @associated_class,
+      #     @callback_target, @callbacks, self,
+      #     ::Zermelo::Filters::Steps::SortedSetStep.new(
+      #       {:op => :diff_range, :start => start, :finish => finish,
+      #        :by_score => attrs_opts.delete(:by_score)},
+      #       attrs_opts)
+      #     )
+      # end
 
       # step users
       def exists?(e_id)

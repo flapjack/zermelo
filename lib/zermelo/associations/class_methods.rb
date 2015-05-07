@@ -5,7 +5,7 @@ require 'zermelo/associations/belongs_to'
 require 'zermelo/associations/has_and_belongs_to_many'
 require 'zermelo/associations/has_many'
 require 'zermelo/associations/has_one'
-require 'zermelo/associations/has_sorted_set'
+# require 'zermelo/associations/has_sorted_set'
 require 'zermelo/associations/index'
 require 'zermelo/associations/range_index'
 require 'zermelo/associations/unique_index'
@@ -57,10 +57,10 @@ module Zermelo
         nil
       end
 
-      def has_sorted_set(name, args = {})
-        associate(::Zermelo::Associations::HasSortedSet, name, args)
-        nil
-      end
+      # def has_sorted_set(name, args = {})
+      #   associate(::Zermelo::Associations::HasSortedSet, name, args)
+      #   nil
+      # end
 
       def has_and_belongs_to_many(name, args = {})
         associate(::Zermelo::Associations::HasAndBelongsToMany, name, args)
@@ -174,7 +174,7 @@ module Zermelo
 
         callbacks = case klass.name
         when ::Zermelo::Associations::HasMany.name,
-             ::Zermelo::Associations::HasSortedSet.name,
+             # ::Zermelo::Associations::HasSortedSet.name,
              ::Zermelo::Associations::HasAndBelongsToMany.name
           [:before_add, :after_add, :before_remove, :after_remove, :before_read, :after_read]
         when ::Zermelo::Associations::HasOne.name,
@@ -195,9 +195,9 @@ module Zermelo
                                   }
         )
 
-        if klass.name == Zermelo::Associations::HasSortedSet.name
-          data.sort_key = (args[:key] || :id)
-        end
+        # if klass.name == Zermelo::Associations::HasSortedSet.name
+        #   data.sort_key = (args[:key] || :id)
+        # end
 
         @lock.synchronize do
           @association_data ||= {}
@@ -212,7 +212,7 @@ module Zermelo
 
         assoc = case klass.name
         when ::Zermelo::Associations::HasMany.name,
-             ::Zermelo::Associations::HasSortedSet.name,
+             # ::Zermelo::Associations::HasSortedSet.name,
              ::Zermelo::Associations::HasAndBelongsToMany.name
 
           %Q{

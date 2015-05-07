@@ -28,7 +28,7 @@ module Zermelo
             attr_types = opts[:attr_types]
             temp_keys  = opts[:temp_keys]
 
-            source_keys = @attributes.inject([]) do |memo, (att, value)|
+            source_keys = @attributes.each_with_object([]) do |(att, value), memo|
 
               val = value.is_a?(Set) ? value.to_a : value
 
@@ -41,9 +41,11 @@ module Zermelo
                 idx_class = idx_attrs[att.to_s]
                 raise "'#{att}' property is not indexed" if idx_class.nil?
 
-                # if val.is_a?(Range) && sorted_set ??? ... elsif Enumerable ... else
-
-                if val.is_a?(Enumerable)
+                if idx_class == Zermelo::Associations::RangeIndex
+                  raise "range index must be passed a range" unless val.is_a?(Zermelo::Filters::IndexRange)
+                  memo << backend.index_lookup(att, associated_class,
+                            idx_class, val, attr_types[att], temp_keys)
+                elsif val.is_a?(Enumerable)
                   conditions_set = associated_class.send(:temp_key, :set)
                   r_conditions_set = backend.key_to_redis_key(conditions_set)
 
@@ -62,8 +64,6 @@ module Zermelo
                             idx_class, val, attr_types[att], temp_keys)
                 end
               end
-
-              memo
             end
 
             case source.type
@@ -167,6 +167,7 @@ module Zermelo
             end
 
             return dest_set if shortcut.nil?
+
             REDIS_SHORTCUTS[shortcut].call(*([r_dest_set] + opts[:shortcut_args]))
           end
 

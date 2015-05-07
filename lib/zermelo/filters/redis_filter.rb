@@ -1,5 +1,7 @@
 require 'zermelo/filters/base'
 
+require 'zermelo/filters/index_range'
+
 # TODO check escaping of ids and index_keys -- shouldn't allow bare :
 
 module Zermelo
