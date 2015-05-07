@@ -38,26 +38,25 @@ module Zermelo
               if attr_key.accessor.nil?
                 Zermelo.redis.lrange(redis_attr_key, 0, -1)
               else
-
+                # TODO
               end
             when :set
               if attr_key.accessor.nil?
                 Set.new( Zermelo.redis.smembers(redis_attr_key) )
               else
-
+                # TODO
               end
             when :hash
               if attr_key.accessor.nil?
                 Zermelo.redis.hgetall(redis_attr_key)
               else
-
+                # TODO
               end
             when :sorted_set
-              # TODO should this be something that preserves order?
               if attr_key.accessor.nil?
-                Set.new( Zermelo.redis.zrange(redis_attr_key, 0, -1) )
+                Zermelo.redis.zrange(redis_attr_key, 0, -1)
               else
-
+                # TODO
               end
             end
 

@@ -288,135 +288,6 @@ describe Zermelo::Records::RedisRecord, :redis => true do
 
   end
 
-  context 'filters' do
-
-    let(:active) {
-      create_example(:id => '8', :name => 'John Jones',
-                     :email => 'jjones@example.com', :active => true)
-    }
-
-    let(:inactive) {
-      create_example(:id => '9', :name => 'James Brown',
-                     :email => 'jbrown@example.com', :active => false)
-    }
-
-    before do
-      active; inactive
-    end
-
-    it 'can append to a filter chain fragment more than once' do
-      inter = Zermelo::RedisExample.intersect(:active => true)
-      expect(inter.ids).to eq(['8'])
-
-      union = inter.union(:name => 'James Brown')
-      expect(union.ids).to eq(['8', '9'])
-
-      diff = inter.diff(:id => ['8'])
-      expect(diff.ids).to eq([])
-    end
-
-    it "filters all class records by indexed attribute values" do
-      example = Zermelo::RedisExample.intersect(:active => true).all
-      expect(example).not_to be_nil
-      expect(example).to be_an(Array)
-      expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(['8'])
-    end
-
-    it 'filters by id attribute values' do
-      example = Zermelo::RedisExample.intersect(:id => '9').all
-      expect(example).not_to be_nil
-      expect(example).to be_an(Array)
-      expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(['9'])
-    end
-
-    it 'supports sequential intersection and union operations' do
-      examples = Zermelo::RedisExample.intersect(:active => true).union(:active => false).all
-      expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
-      expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(['8', '9'])
-    end
-
-    it "ANDs multiple union arguments, not ORs them" do
-      create_example(:id => '10', :name => 'Jay Johns',
-                     :email => 'jjohns@example.com', :active => true)
-      examples = Zermelo::RedisExample.intersect(:id => ['8']).union(:id => ['9', '10'], :active => true).all
-      expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
-      expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(['8', '10'])
-    end
-
-    it 'supports a regex as argument in union after intersect' do
-      create_example(:id => '10', :name => 'Jay Johns',
-                     :email => 'jjohns@example.com', :active => true)
-      examples = Zermelo::RedisExample.intersect(:id => ['8']).union(:id => ['9', '10'], :name => [nil, /^Jam/]).all
-      expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
-      expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(['8', '9'])
-    end
-
-    it 'allows intersection operations across multiple values for an attribute' do
-      create_example(:id => '10', :name => 'Jay Johns',
-                     :email => 'jjohns@example.com', :active => true)
-
-      examples = Zermelo::RedisExample.intersect(:name => ['Jay Johns', 'James Brown']).all
-      expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
-      expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(['9', '10'])
-    end
-
-    it 'allows union operations across multiple values for an attribute' do
-      create_example(:id => '10', :name => 'Jay Johns',
-                     :email => 'jjohns@example.com', :active => true)
-
-      examples = Zermelo::RedisExample.intersect(:active => false).union(:name => ['Jay Johns', 'James Brown']).all
-      expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
-      expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(['9', '10'])
-    end
-
-    it 'filters by multiple id attribute values' do
-      create_example(:id => '10', :name => 'Jay Johns',
-                     :email => 'jjohns@example.com', :active => true)
-
-      example = Zermelo::RedisExample.intersect(:id => ['8', '10']).all
-      expect(example).not_to be_nil
-      expect(example).to be_an(Array)
-      expect(example.size).to eq(2)
-      expect(example.map(&:id)).to eq(['8', '10'])
-    end
-
-    it 'excludes particular records' do
-      example = Zermelo::RedisExample.diff(:active => true).all
-      expect(example).not_to be_nil
-      expect(example).to be_an(Array)
-      expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(['9'])
-    end
-
-    it 'sorts records by an attribute' do
-      example = Zermelo::RedisExample.sort(:name, :order => 'alpha').all
-      expect(example).not_to be_nil
-      expect(example).to be_an(Array)
-      expect(example.size).to eq(2)
-      expect(example.map(&:id)).to eq(['9', '8'])
-    end
-
-    it "does not return a spurious record count when records don't exist" do
-      scope = Zermelo::RedisExample.intersect(:id => ['3000', '5000'])
-      expect(scope.all).to be_empty
-      expect(scope.count).to eq 0
-    end
-
-  end
-
-
   context "has_many" do
 
     def create_child(parent, attrs = {})
@@ -1113,9 +984,9 @@ describe Zermelo::Records::RedisRecord, :redis => true do
 
       assoc_ids = Zermelo::RedisExample.intersect(:id => ['8', '9', '10']).
         associated_ids_for(:data)
-      expect(assoc_ids).to eq('8'  => Set.new(['3', '4']),
-                              '9'  => Set.new(),
-                              '10' => Set.new(['5']))
+      expect(assoc_ids).to eq('8'  => ['3', '4'],
+                              '9'  => [],
+                              '10' => ['5'])
     end
 
   end

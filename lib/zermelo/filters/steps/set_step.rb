@@ -41,6 +41,8 @@ module Zermelo
                 idx_class = idx_attrs[att.to_s]
                 raise "'#{att}' property is not indexed" if idx_class.nil?
 
+                # if val.is_a?(Range) && sorted_set ??? ... elsif Enumerable ... else
+
                 if val.is_a?(Enumerable)
                   conditions_set = associated_class.send(:temp_key, :set)
                   r_conditions_set = backend.key_to_redis_key(conditions_set)
