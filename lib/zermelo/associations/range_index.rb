@@ -4,7 +4,7 @@ require 'zermelo/records/key'
 
 module Zermelo
   module Associations
-    class Index
+    class RangeIndex
 
       def initialize(parent_klass, name)
         @parent_klass   = parent_klass
@@ -12,36 +12,29 @@ module Zermelo
 
         @backend   = parent_klass.send(:backend)
 
-        @indexers = {}
-
         parent_klass.send(:with_index_data, name.to_sym) do |data|
           @attribute_type = data.type
         end
       end
 
       def delete_id(id, value)
-        return unless indexer = key(value)
-        @backend.delete(indexer, id)
+        @backend.delete(key, id)
       end
 
       def add_id(id, value)
-        return unless indexer = key(value)
-        @backend.add(indexer, id)
+        @backend.add(key, [@backend.safe_value(@attribute_type, value), id])
       end
 
       def move_id(id, value_from, indexer_to, value_to)
-        return unless indexer = key(value_from)
-        @backend.move(indexer, id, indexer_to.key(value_to), id)
+        @backend.move(key, [@backend.safe_value(@attribute_type, value_from), id],
+          indexer_to.key, [@backend.safe_value(@attribute_type, value_to), id])
       end
 
-      def key(value)
-        index_keys = @backend.index_keys(@attribute_type, value)
-        raise "Can't index '#{@value}' (#{@attribute_type}" if index_keys.nil?
-
-        @indexers[index_keys.join(":")] ||= Zermelo::Records::Key.new(
+      def key
+        @indexer ||= Zermelo::Records::Key.new(
           :klass  => @parent_klass,
-          :name   => "by_#{@attribute_name}:#{index_keys.join(':')}",
-          :type   => :set,
+          :name   => "by_#{@attribute_name}",
+          :type   => :sorted_set,
           :object => :index
         )
       end

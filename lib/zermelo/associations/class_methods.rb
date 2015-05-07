@@ -7,6 +7,7 @@ require 'zermelo/associations/has_many'
 require 'zermelo/associations/has_one'
 require 'zermelo/associations/has_sorted_set'
 require 'zermelo/associations/index'
+require 'zermelo/associations/range_index'
 require 'zermelo/associations/unique_index'
 
 # NB: this module gets mixed in to Zermelo::Record as class methods
@@ -26,6 +27,14 @@ module Zermelo
         att_types = attribute_types
         args.each do |arg|
           index(::Zermelo::Associations::Index, arg, :type => att_types[arg])
+        end
+        nil
+      end
+
+      def range_index_by(*args)
+        att_types = attribute_types
+        args.each do |arg|
+          index(::Zermelo::Associations::RangeIndex, arg, :type => att_types[arg])
         end
         nil
       end

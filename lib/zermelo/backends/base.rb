@@ -18,6 +18,17 @@ module Zermelo
         name.gsub(/%3A/, ':').gsub(/%20/, ' ').gsub(/%%/, '%')
       end
 
+      def safe_value(type, value)
+        case type
+        when :string, :integer
+          value.to_s
+        when :float, :timestamp
+          value.to_f
+        when :boolean
+          (!!value).to_s
+        end
+      end
+
       def index_keys(type, value)
         return ["null", "null"] if value.nil?
 
@@ -33,7 +44,7 @@ module Zermelo
           when Integer
             ["timestamp", escape_key_name(value.to_s)]
           when Time, DateTime
-            ["timestamp", escape_key_name(value.to_i.to_s)]
+            ["timestamp", escape_key_name(value.to_f.to_s)]
           end
         when :boolean
           case value
@@ -54,8 +65,8 @@ module Zermelo
         change(:delete, key, value)
       end
 
-      def move(key, value, key_to)
-        change(:move, key, value, key_to)
+      def move(key_from, value_from, key_to, value_to)
+        change(:move, key_from, value_from, key_to, value_to)
       end
 
       def clear(key)

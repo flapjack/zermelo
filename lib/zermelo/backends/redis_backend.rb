@@ -228,6 +228,14 @@ module Zermelo
           index = associated_class.send("#{att}_index")
 
           case index
+          when Zermelo::Associations::RangeIndex
+            idx_key = associated_class.send(:temp_key, :set)
+            temp_keys << idx_key
+
+            # Zermelo.redis.sadd(key_to_redis_key(idx_key),
+            #   Zermelo.redis.zrange(key_to_redis_key(index.key),
+            #                        index_keys(attr_type, value).join(':')))
+            idx_key
           when Zermelo::Associations::UniqueIndex
             idx_key = associated_class.send(:temp_key, :set)
             temp_keys << idx_key
@@ -244,8 +252,8 @@ module Zermelo
 
       private
 
-      def change(op, key, value = nil, key_to = nil)
-        ch = [op, key, value, key_to]
+      def change(op, key, value = nil, key_to = nil, value_to = nil)
+        ch = [op, key, value, key_to, value_to]
         if @in_transaction
           @changes << ch
         else
@@ -259,10 +267,11 @@ module Zermelo
         purges = []
 
         changes.each do |ch|
-          op     = ch[0]
-          key    = ch[1]
-          value  = ch[2]
-          key_to = ch[3]
+          op       = ch[0]
+          key      = ch[1]
+          value    = ch[2]
+          key_to   = ch[3]
+          value_to = ch[4]
 
           # TODO check that collection types handle nil value for whole thing
           if Zermelo::COLLECTION_TYPES.has_key?(key.type)
@@ -307,11 +316,10 @@ module Zermelo
                 # copy the workaround from redis_filter.rb
                 raise "Not yet implemented"
               when :hash
-                values = value.to_a.flatten
-                Zermelo.redis.hdel(complex_attr_key, values)
-                Zermelo.redis.hset(key_to_redis_key(key_to), *values)
+                Zermelo.redis.hdel(complex_attr_key, *value.keys)
+                Zermelo.redis.hset(key_to_redis_key(key_to), *value_to.to_a.flatten)
               when :sorted_set
-                raise "Not yet implemented"
+                Zermelo.redis.zadd(complex_attr_key, *value_to)
               end
             when :delete
               case key.type
@@ -329,7 +337,6 @@ module Zermelo
             end
 
           elsif :purge.eql?(op)
-            # TODO get keys for all assocs & indices, purge them too
             purges << ["#{key.klass.send(:class_key)}:#{key.id}:attrs"]
           else
             simple_attr_key = key_to_redis_key(key)

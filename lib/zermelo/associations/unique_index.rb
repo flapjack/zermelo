@@ -1,5 +1,7 @@
 # NB index instances are all internal to zermelo, not user-accessible
 
+require 'zermelo/records/key'
+
 module Zermelo
   module Associations
     class UniqueIndex
@@ -9,8 +11,6 @@ module Zermelo
         @attribute_name = name
 
         @backend   = parent_klass.send(:backend)
-
-        @indexers = {}
 
         parent_klass.send(:with_index_data, name.to_sym) do |data|
           @attribute_type = data.type
@@ -26,7 +26,8 @@ module Zermelo
       end
 
       def move_id(id, value_from, indexer_to, value_to)
-        @backend.move(key, {@backend.index_keys(@attribute_type, value_to).join(':') => id}, indexer_to.key)
+        @backend.move(key, {@backend.index_keys(@attribute_type, value_from).join(':') => id},
+          indexer_to.key, {@backend.index_keys(@attribute_type, value_to).join(':') => id})
       end
 
       def key
