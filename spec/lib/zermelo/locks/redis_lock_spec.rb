@@ -1,6 +1,6 @@
 require 'spec_helper'
 require 'zermelo/locks/redis_lock'
-require 'zermelo/records/redis_record'
+require 'zermelo/records/redis'
 
 describe Zermelo::Locks::RedisLock, :redis => true do
 
@@ -8,12 +8,12 @@ describe Zermelo::Locks::RedisLock, :redis => true do
 
   module Zermelo
     class RedisLockExample
-      include Zermelo::Records::RedisRecord
+      include Zermelo::Records::Redis
       define_attributes :name => :string
     end
 
     class AnotherExample
-      include Zermelo::Records::RedisRecord
+      include Zermelo::Records::Redis
       define_attributes :age => :integer
     end
   end

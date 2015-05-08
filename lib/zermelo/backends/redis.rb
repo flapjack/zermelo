@@ -1,26 +1,26 @@
-require 'zermelo/backends/base'
+require 'zermelo/backend'
 
-require 'zermelo/filters/redis_filter'
+require 'zermelo/filters/redis'
 require 'zermelo/locks/redis_lock'
 
 module Zermelo
 
   module Backends
 
-    class RedisBackend
+    class Redis
 
-      include Zermelo::Backends::Base
+      include Zermelo::Backend
 
-      def default_sorted_set_key
-        :timestamp
-      end
+      # def default_sorted_set_key
+      #   :timestamp
+      # end
 
       def generate_lock
         Zermelo::Locks::RedisLock.new
       end
 
       def filter(ids_key, record, callback_target = nil, callbacks = nil)
-        Zermelo::Filters::RedisFilter.new(self, ids_key, record, callback_target, callbacks)
+        Zermelo::Filters::Redis.new(self, ids_key, record, callback_target, callbacks)
       end
 
       def get_multiple(*attr_keys)

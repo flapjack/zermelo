@@ -1,6 +1,6 @@
-require 'zermelo/backends/base'
+require 'zermelo/backend'
 
-require 'zermelo/filters/influxdb_filter'
+require 'zermelo/filters/influxdb'
 
 # NB influxdb doesn't support individually addressable deletes, so
 # this backend only works to write new records
@@ -11,16 +11,16 @@ module Zermelo
 
   module Backends
 
-    class InfluxDBBackend
+    class InfluxDB
 
-      include Zermelo::Backends::Base
+      include Zermelo::Backend
 
-      def default_sorted_set_key
-        :time
-      end
+      # def default_sorted_set_key
+      #   :time
+      # end
 
       def filter(ids_key, record, callback_target = nil, callbacks = nil)
-        Zermelo::Filters::InfluxDBFilter.new(self, ids_key, record, callback_target, callbacks)
+        Zermelo::Filters::InfluxDB.new(self, ids_key, record, callback_target, callbacks)
       end
 
       # TODO get filter calling this instead of using same logic
@@ -38,7 +38,7 @@ module Zermelo
           begin
           records = Zermelo.influxdb.query("SELECT #{attr_key.name} FROM " +
             "\"#{class_key}/#{attr_key.id}\" LIMIT 1")["#{class_key}/#{attr_key.id}"]
-          rescue InfluxDB::Error => ide
+          rescue ::InfluxDB::Error => ide
             raise unless
               /^Field #{attr_key.name} doesn't exist in series #{class_key}\/#{attr_key.id}$/ === ide.message
 
@@ -165,7 +165,7 @@ module Zermelo
           klass_records.each_pair do |id, data|
             begin
               prior = Zermelo.influxdb.query("SELECT * FROM \"#{class_key}/#{id}\" LIMIT 1")["#{class_key}/#{id}"]
-            rescue InfluxDB::Error => ide
+            rescue ::InfluxDB::Error => ide
               raise unless
                 (/^Couldn't look up columns for series: #{class_key}\/#{id}$/ === ide.message) ||
                 (/^Couldn't look up columns$/ === ide.message) ||

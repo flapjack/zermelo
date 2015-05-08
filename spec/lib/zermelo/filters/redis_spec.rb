@@ -1,16 +1,16 @@
 require 'spec_helper'
-require 'zermelo/records/redis_record'
+require 'zermelo/records/redis'
 require 'zermelo/associations/range_index'
 
-describe Zermelo::Filters::RedisFilter, :redis => true do
+describe Zermelo::Filters::Redis, :redis => true do
 
   # TODO shared examples for the filters, with different record class per DB
 
   let(:redis) { Zermelo.redis }
 
-  class ZermeloExamples
+  module ZermeloExamples
     class RedisFilter
-      include Zermelo::Records::RedisRecord
+      include Zermelo::Records::Redis
       define_attributes :name       => :string,
                         :active     => :boolean,
                         :created_at => :timestamp

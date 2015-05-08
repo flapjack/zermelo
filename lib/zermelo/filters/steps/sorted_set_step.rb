@@ -26,7 +26,7 @@ module Zermelo
         #   finish = @options[:finish]
 
         #   case backend
-        #   when Zermelo::Backends::RedisBackend
+        #   when Zermelo::Backends::Redis
         #     # source = opts[:source]
         #     # idx_attrs = opts[:index_attrs]
         #     # attr_types = opts[:attr_types]

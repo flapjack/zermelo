@@ -3,8 +3,8 @@ require 'securerandom'
 
 require 'zermelo'
 
-require 'zermelo/backends/influxdb_backend'
-require 'zermelo/backends/redis_backend'
+require 'zermelo/backends/influxdb'
+require 'zermelo/backends/redis'
 
 require 'zermelo/records/key'
 
@@ -94,9 +94,9 @@ module Zermelo
       def set_backend(backend_type)
         @backend ||= case backend_type.to_sym
         when :influxdb
-          Zermelo::Backends::InfluxDBBackend.new
+          Zermelo::Backends::InfluxDB.new
         when :redis
-          Zermelo::Backends::RedisBackend.new
+          Zermelo::Backends::Redis.new
         end
       end
 

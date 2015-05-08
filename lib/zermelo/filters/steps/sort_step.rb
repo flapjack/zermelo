@@ -14,7 +14,7 @@ module Zermelo
 
         def resolve(backend, associated_class, opts = {})
           case backend
-          when Zermelo::Backends::RedisBackend
+          when Zermelo::Backends::Redis
             source = opts[:source]
             idx_attrs = opts[:index_attrs]
             attr_types = opts[:attr_types]

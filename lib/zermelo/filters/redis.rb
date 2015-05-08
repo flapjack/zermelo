@@ -1,4 +1,4 @@
-require 'zermelo/filters/base'
+require 'zermelo/filter'
 
 require 'zermelo/filters/index_range'
 
@@ -8,9 +8,9 @@ module Zermelo
 
   module Filters
 
-    class RedisFilter
+    class Redis
 
-      include Zermelo::Filters::Base
+      include Zermelo::Filter
 
       # TODO polite error when first/last applied to set
 

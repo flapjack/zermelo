@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'zermelo/records/redis_record'
+require 'zermelo/records/redis'
 require 'zermelo/associations/range_index'
 
 describe Zermelo::Associations::RangeIndex do
@@ -10,9 +10,9 @@ describe Zermelo::Associations::RangeIndex do
 
     let(:time)  { Time.now }
 
-    class ZermeloExamples
+    module ZermeloExamples
       class RedisRangeIndex
-        include Zermelo::Records::RedisRecord
+        include Zermelo::Records::Redis
         define_attributes :created_at => :timestamp
         validates :created_at, :presence => true
         range_index_by :created_at

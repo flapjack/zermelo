@@ -1,11 +1,11 @@
 require 'spec_helper'
-require 'zermelo/records/influxdb_record'
+require 'zermelo/records/influxdb'
 
-describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
+describe Zermelo::Records::InfluxDB, :influxdb => true do
 
   module Zermelo
     class InfluxDBExample
-      include Zermelo::Records::InfluxDBRecord
+      include Zermelo::Records::InfluxDB
 
       define_attributes :name   => :string,
                         :email  => :string,
@@ -18,7 +18,7 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
     end
 
     class InfluxDBChild
-      include Zermelo::Records::InfluxDBRecord
+      include Zermelo::Records::InfluxDB
 
       define_attributes :name => :string,
                         :important => :boolean
@@ -29,7 +29,7 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
     end
 
     class InfluxDBSorted
-      include Zermelo::Records::InfluxDBRecord
+      include Zermelo::Records::InfluxDB
 
       define_attributes :name => :string,
                         :important => :boolean
@@ -45,41 +45,6 @@ describe Zermelo::Records::InfluxDBRecord, :influxdb => true do
   end
 
   let(:influxdb) { Zermelo.influxdb }
-
-  it "is invalid without a name" do
-    example = Zermelo::InfluxDBExample.new(:id => '1',
-      :email => 'jsmith@example.com', :active => true)
-    expect(example).not_to be_valid
-
-    errs = example.errors
-    expect(errs).not_to be_nil
-    expect(errs[:name]).to eq(["can't be blank"])
-  end
-
-  it "adds a record's attributes to influxdb" do
-    begin
-      data = Zermelo.influxdb.query("select * from /influx_db_example\\/1/")['influx_db_example/1']
-      expect(data).to be_nil
-    rescue InfluxDB::Error => ide
-      # only happens occasionally, with an empty time series by that name
-      raise unless /^Couldn't look up columns$/ === ide.message
-    end
-
-    example = Zermelo::InfluxDBExample.new(:id => '1', :name => 'John Smith',
-      :email => 'jsmith@example.com', :active => true)
-    expect(example).to be_valid
-    expect(example.save).to be_truthy
-
-    data = Zermelo.influxdb.query("select * from /influx_db_example\\/1/")['influx_db_example/1']
-    expect(data).to be_an(Array)
-    expect(data.size).to eql(1)
-    record = data.first
-    expect(record).to be_a(Hash)
-    # FIXME boolean is stringified as redis needs it to be like that --
-    # should probably make this backend-dependent
-    expect(record).to include("name"=>"John Smith",
-      "email"=>"jsmith@example.com", "active"=>"true", "id"=>"1")
-  end
 
   it "finds a record by id in influxdb" do
     create_example(:id => '1', :name => 'Jane Doe', :email => 'jdoe@example.com',

@@ -30,7 +30,7 @@ module Zermelo
           l = limit.to_i
 
           case backend
-          when Zermelo::Backends::RedisBackend
+          when Zermelo::Backends::Redis
 
             source = opts[:source]
             idx_attrs = opts[:index_attrs]

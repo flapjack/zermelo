@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'zermelo/records/redis_record'
+require 'zermelo/records/redis'
 require 'zermelo/associations/unique_index'
 
 describe Zermelo::Associations::UniqueIndex do
@@ -8,9 +8,9 @@ describe Zermelo::Associations::UniqueIndex do
 
     let(:redis) { Zermelo.redis }
 
-    class ZermeloExamples
+    module ZermeloExamples
       class RedisUniqueIndex
-        include Zermelo::Records::RedisRecord
+        include Zermelo::Records::Redis
         define_attributes :name => :string
         validates :name, :presence => true
         unique_index_by :name

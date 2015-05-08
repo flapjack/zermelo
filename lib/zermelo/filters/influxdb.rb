@@ -1,10 +1,10 @@
-require 'zermelo/filters/base'
+require 'zermelo/filter'
 
 module Zermelo
   module Filters
-    class InfluxDBFilter
+    class InfluxDB
 
-      include Zermelo::Filters::Base
+      include Zermelo::Filter
 
       private
 
