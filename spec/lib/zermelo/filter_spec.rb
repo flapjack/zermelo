@@ -1,172 +1,182 @@
-# require 'spec_helper'
-# require 'zermelo/records/redis'
-# require 'zermelo/associations/range_index'
+require 'spec_helper'
+require 'zermelo/filter'
+require 'zermelo/records/redis'
+require 'zermelo/associations/range_index'
 
-# describe Zermelo::Filters::Redis, :redis => true do
+describe Zermelo::Filter do
 
-#   # TODO shared examples for the filters, with different record class per DB
+  shared_examples 'filter functions work', :filter => true do
 
-#   let(:redis) { Zermelo.redis }
+    let(:time) { Time.now }
 
-#   module ZermeloExamples
-#     class RedisFilter
-#       include Zermelo::Records::Redis
-#       define_attributes :name       => :string,
-#                         :active     => :boolean,
-#                         :created_at => :timestamp
-#       validates :name, :presence => true
-#       validates :active, :inclusion => {:in => [true, false]}
-#       index_by :active
-#       range_index_by :created_at
-#       unique_index_by :name
-#     end
-#   end
+    let(:active) {
+      create_example(:id => '8', :name => 'John Jones', :active => true,
+        :created_at => (time - 100).to_f)
+    }
 
-#   def create_example(attrs = {})
-#     redis.hmset("redis_filter:#{attrs[:id]}:attrs",
-#       {'name' => attrs[:name], 'active' => attrs[:active]}.to_a.flatten)
-#     redis.sadd("redis_filter::indices:by_active:boolean:#{!!attrs[:active]}", attrs[:id])
-#     name = attrs[:name].gsub(/%/, '%%').gsub(/ /, '%20').gsub(/:/, '%3A')
-#     redis.hset('redis_filter::indices:by_name', "string:#{name}", attrs[:id])
-#     redis.zadd('redis_filter::indices:by_created_at', attrs[:created_at].to_f, attrs[:id])
-#     redis.sadd('redis_filter::attrs:ids', attrs[:id])
-#   end
+    let(:inactive) {
+      create_example(:id => '9', :name => 'James Brown', :active => false,
+        :created_at => (time + 100).to_f)
+    }
 
-#   let(:time) { Time.now }
+    before do
+      active; inactive
+    end
 
-#   let(:active) {
-#     create_example(:id => '8', :name => 'John Jones', :active => true,
-#       :created_at => (time - 100).to_f)
-#   }
+    it 'can append to a filter chain fragment more than once' do
+      inter = example_class.intersect(:active => true)
+      expect(inter.ids).to eq(['8'])
 
-#   let(:inactive) {
-#     create_example(:id => '9', :name => 'James Brown', :active => false,
-#       :created_at => (time + 100).to_f)
-#   }
+      union = inter.union(:name => 'James Brown')
+      expect(union.ids).to eq(['8', '9'])
 
-#   before do
-#     active; inactive
-#   end
+      diff = inter.diff(:id => ['8'])
+      expect(diff.ids).to eq([])
+    end
 
-#   it 'can append to a filter chain fragment more than once' do
-#     inter = ZermeloExamples::RedisFilter.intersect(:active => true)
-#     expect(inter.ids).to eq(['8'])
+    it "filters all class records by indexed attribute values" do
+      example = example_class.intersect(:active => true).all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['8'])
+    end
 
-#     union = inter.union(:name => 'James Brown')
-#     expect(union.ids).to eq(['8', '9'])
+    it 'filters by id attribute values' do
+      example = example_class.intersect(:id => '9').all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['9'])
+    end
 
-#     diff = inter.diff(:id => ['8'])
-#     expect(diff.ids).to eq([])
-#   end
+    it 'supports sequential intersection and union operations' do
+      examples = example_class.intersect(:active => true).
+                   union(:active => false).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '9'])
+    end
 
-#   it "filters all class records by indexed attribute values" do
-#     example = ZermeloExamples::RedisFilter.intersect(:active => true).all
-#     expect(example).not_to be_nil
-#     expect(example).to be_an(Array)
-#     expect(example.size).to eq(1)
-#     expect(example.map(&:id)).to eq(['8'])
-#   end
+    it "ANDs multiple union arguments, not ORs them" do
+      create_example(:id => '10', :name => 'Jay Johns', :active => true)
+      examples = example_class.intersect(:id => ['8']).
+                   union(:id => ['9', '10'], :active => true).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '10'])
+    end
 
-#   it 'filters by id attribute values' do
-#     example = ZermeloExamples::RedisFilter.intersect(:id => '9').all
-#     expect(example).not_to be_nil
-#     expect(example).to be_an(Array)
-#     expect(example.size).to eq(1)
-#     expect(example.map(&:id)).to eq(['9'])
-#   end
+    it 'supports a regex as argument in union after intersect' do
+      create_example(:id => '10', :name => 'Jay Johns', :active => true)
+      examples = example_class.intersect(:id => ['8']).
+                   union(:id => ['9', '10'], :name => [nil, /^Jam/]).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '9'])
+    end
 
-#   it 'supports sequential intersection and union operations' do
-#     examples = ZermeloExamples::RedisFilter.intersect(:active => true).
-#                  union(:active => false).all
-#     expect(examples).not_to be_nil
-#     expect(examples).to be_an(Array)
-#     expect(examples.size).to eq(2)
-#     expect(examples.map(&:id)).to match_array(['8', '9'])
-#   end
+    it 'allows intersection operations across multiple values for an attribute' do
+      create_example(:id => '10', :name => 'Jay Johns', :active => true)
 
-#   it "ANDs multiple union arguments, not ORs them" do
-#     create_example(:id => '10', :name => 'Jay Johns', :active => true)
-#     examples = ZermeloExamples::RedisFilter.intersect(:id => ['8']).
-#                  union(:id => ['9', '10'], :active => true).all
-#     expect(examples).not_to be_nil
-#     expect(examples).to be_an(Array)
-#     expect(examples.size).to eq(2)
-#     expect(examples.map(&:id)).to match_array(['8', '10'])
-#   end
+      examples = example_class.intersect(:name => ['Jay Johns', 'James Brown']).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['9', '10'])
+    end
 
-#   it 'supports a regex as argument in union after intersect' do
-#     create_example(:id => '10', :name => 'Jay Johns', :active => true)
-#     examples = ZermeloExamples::RedisFilter.intersect(:id => ['8']).
-#                  union(:id => ['9', '10'], :name => [nil, /^Jam/]).all
-#     expect(examples).not_to be_nil
-#     expect(examples).to be_an(Array)
-#     expect(examples.size).to eq(2)
-#     expect(examples.map(&:id)).to match_array(['8', '9'])
-#   end
+    it 'allows union operations across multiple values for an attribute' do
+      create_example(:id => '10', :name => 'Jay Johns', :active => true)
 
-#   it 'allows intersection operations across multiple values for an attribute' do
-#     create_example(:id => '10', :name => 'Jay Johns', :active => true)
+      examples = example_class.intersect(:active => false).
+                   union(:name => ['Jay Johns', 'James Brown']).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['9', '10'])
+    end
 
-#     examples = ZermeloExamples::RedisFilter.intersect(:name => ['Jay Johns', 'James Brown']).all
-#     expect(examples).not_to be_nil
-#     expect(examples).to be_an(Array)
-#     expect(examples.size).to eq(2)
-#     expect(examples.map(&:id)).to match_array(['9', '10'])
-#   end
+    it 'filters by multiple id attribute values' do
+      create_example(:id => '10', :name => 'Jay Johns', :active => true)
 
-#   it 'allows union operations across multiple values for an attribute' do
-#     create_example(:id => '10', :name => 'Jay Johns', :active => true)
+      example = example_class.intersect(:id => ['8', '10']).all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(2)
+      expect(example.map(&:id)).to eq(['8', '10'])
+    end
 
-#     examples = ZermeloExamples::RedisFilter.intersect(:active => false).
-#                  union(:name => ['Jay Johns', 'James Brown']).all
-#     expect(examples).not_to be_nil
-#     expect(examples).to be_an(Array)
-#     expect(examples.size).to eq(2)
-#     expect(examples.map(&:id)).to match_array(['9', '10'])
-#   end
+    it 'excludes particular records' do
+      example = example_class.diff(:active => true).all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['9'])
+    end
 
-#   it 'filters by multiple id attribute values' do
-#     create_example(:id => '10', :name => 'Jay Johns', :active => true)
+    it 'sorts records by an attribute' do
+      example = example_class.sort(:name, :order => 'alpha').all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(2)
+      expect(example.map(&:id)).to eq(['9', '8'])
+    end
 
-#     example = ZermeloExamples::RedisFilter.intersect(:id => ['8', '10']).all
-#     expect(example).not_to be_nil
-#     expect(example).to be_an(Array)
-#     expect(example.size).to eq(2)
-#     expect(example.map(&:id)).to eq(['8', '10'])
-#   end
+    it "does not return a spurious record count when records don't exist" do
+      scope = example_class.intersect(:id => ['3000', '5000'])
+      expect(scope.all).to be_empty
+      expect(scope.count).to eq 0
+    end
 
-#   it 'excludes particular records' do
-#     example = ZermeloExamples::RedisFilter.diff(:active => true).all
-#     expect(example).not_to be_nil
-#     expect(example).to be_an(Array)
-#     expect(example.size).to eq(1)
-#     expect(example.map(&:id)).to eq(['9'])
-#   end
+    it 'filters by records created before a certain time' do
+      examples = example_class.intersect(:created_at => Zermelo::Filters::IndexRange.new(nil, time))
+      expect(examples.count).to eq(1)
+      expect(examples.map(&:id)).to eq(['8'])
+    end
 
-#   it 'sorts records by an attribute' do
-#     example = ZermeloExamples::RedisFilter.sort(:name, :order => 'alpha').all
-#     expect(example).not_to be_nil
-#     expect(example).to be_an(Array)
-#     expect(example.size).to eq(2)
-#     expect(example.map(&:id)).to eq(['9', '8'])
-#   end
+    it 'filters by records created after a certain time' do
+      examples = example_class.intersect(:created_at => Zermelo::Filters::IndexRange.new(time, nil))
+      expect(examples.count).to eq(1)
+      expect(examples.map(&:id)).to eq(['9'])
+    end
 
-#   it "does not return a spurious record count when records don't exist" do
-#     scope = ZermeloExamples::RedisFilter.intersect(:id => ['3000', '5000'])
-#     expect(scope.all).to be_empty
-#     expect(scope.count).to eq 0
-#   end
+  end
 
-#   it 'filters by records created before a certain time' do
-#     examples = ZermeloExamples::RedisFilter.intersect(:created_at => Zermelo::Filters::IndexRange.new(nil, time))
-#     expect(examples.count).to eq(1)
-#     expect(examples.map(&:id)).to eq(['8'])
-#   end
+  context 'redis', :redis => true, :filter => true do
 
-#   it 'filters by records created after a certain time' do
-#     examples = ZermeloExamples::RedisFilter.intersect(:created_at => Zermelo::Filters::IndexRange.new(time, nil))
-#     expect(examples.count).to eq(1)
-#     expect(examples.map(&:id)).to eq(['9'])
-#   end
+    let(:redis) { Zermelo.redis }
 
-# end
+    module ZermeloExamples
+      class FilterRedis
+        include Zermelo::Records::Redis
+        define_attributes :name       => :string,
+                          :active     => :boolean,
+                          :created_at => :timestamp
+        validates :name, :presence => true
+        validates :active, :inclusion => {:in => [true, false]}
+        index_by :active
+        range_index_by :created_at
+        unique_index_by :name
+      end
+    end
+
+    let(:example_class) { ZermeloExamples::FilterRedis }
+
+    # parent and child keys
+    let(:ek) { 'filter_redis' }
+
+    def create_example(attrs = {})
+      redis.hmset("#{ek}:#{attrs[:id]}:attrs",
+        {'name' => attrs[:name], 'active' => attrs[:active]}.to_a.flatten)
+      redis.sadd("#{ek}::indices:by_active:boolean:#{!!attrs[:active]}", attrs[:id])
+      name = attrs[:name].gsub(/%/, '%%').gsub(/ /, '%20').gsub(/:/, '%3A')
+      redis.hset("#{ek}::indices:by_name", "string:#{name}", attrs[:id])
+      redis.zadd("#{ek}::indices:by_created_at", attrs[:created_at].to_f, attrs[:id])
+      redis.sadd("#{ek}::attrs:ids", attrs[:id])
+    end
+  end
+end

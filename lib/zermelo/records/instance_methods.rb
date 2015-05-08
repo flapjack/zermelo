@@ -46,6 +46,7 @@ module Zermelo
           class_key = self.class.send(:class_key)
 
           # TODO: check for record existence in backend-agnostic fashion
+          # TODO fail if id not found
           @is_new = false
 
           attr_types = self.class.attribute_types.reject {|k, v| k == :id}
@@ -55,11 +56,11 @@ module Zermelo
               :id => self.id, :name => name, :type => type, :object => :attribute)
           end
 
-          attrs = backend.get_multiple(*attrs_to_load)[class_key][self.id]
+          result = backend.get_multiple(*attrs_to_load)
+          attrs = result[class_key][self.id] unless result.empty?
         end
 
-        return false unless attrs.present?
-        @attributes.update(attrs)
+        @attributes.update(attrs) unless attrs.nil? || attrs.empty?
         true
       end
 

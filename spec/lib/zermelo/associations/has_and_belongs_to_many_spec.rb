@@ -1,167 +1,199 @@
 require 'spec_helper'
 require 'zermelo/records/redis'
-require 'zermelo/associations/has_one'
+require 'zermelo/associations/has_and_belongs_to_many'
 
-describe Zermelo::Associations::HasOne do
+describe Zermelo::Associations::HasAndBelongsToMany do
 
-  context 'redis', :redis => true do
+  shared_examples "has_many functions work", :has_and_belongs_to_many => true do
 
     before do
-      skip "broken"
-    end
-
-    def create_example
-    end
-
-    def create_template(attrs = {})
-      redis.hmset("template:#{attrs[:id]}:attrs", {'name' => attrs[:name]}.to_a.flatten)
-      redis.sadd('template::attrs:ids', attrs[:id])
-    end
-
-    before(:each) do
-      create_example(:id => '8', :name => 'John Jones',
-                     :email => 'jjones@example.com', :active => true)
-      create_template(:id => '2', :name => 'Template 1')
-    end
-
-    it "sets a has_and_belongs_to_many relationship between two records in redis" do
-      example = Zermelo::RedisExample.find_by_id('8')
-      template = Zermelo::Template.find_by_id('2')
-
-      example.templates << template
-
-      expect(redis.keys('*')).to match_array(['redis_example::attrs:ids',
-                                 'redis_example::indices:by_name',
-                                 'redis_example::indices:by_active:boolean:true',
-                                 'redis_example:8:attrs',
-                                 'redis_example:8:assocs:templates_ids',
-                                 'template::attrs:ids',
-                                 'template:2:attrs',
-                                 'template:2:assocs:examples_ids'])
-
-      expect(redis.smembers('redis_example::attrs:ids')).to eq(['8'])
-      expect(redis.smembers('redis_example::indices:by_active:boolean:true')).to eq(['8'])
-      expect(redis.hgetall('redis_example:8:attrs')).to eq(
-        {'name' => 'John Jones', 'email' => 'jjones@example.com', 'active' => 'true'}
-      )
-      expect(redis.smembers('redis_example:8:assocs:templates_ids')).to eq(['2'])
-
-      expect(redis.smembers('template::attrs:ids')).to eq(['2'])
-      expect(redis.hgetall('template:2:attrs')).to eq({'name' => 'Template 1'})
-      expect(redis.smembers('template:2:assocs:examples_ids')).to eq(['8'])
+      create_primary(:id => '8', :active => true)
+      create_secondary(:id => '2')
     end
 
     it "loads a record from a has_and_belongs_to_many relationship" do
-      example = Zermelo::RedisExample.find_by_id('8')
-      template = Zermelo::Template.find_by_id('2')
+      primary = primary_class.find_by_id('8')
+      secondary = secondary_class.find_by_id('2')
 
-      template.examples << example
+      secondary.primaries << primary
 
-      templates = example.templates.all
+      secondaries = primary.secondaries.all
 
-      expect(templates).to be_an(Array)
-      expect(templates.size).to eq(1)
-      other_template = templates.first
-      expect(other_template).to be_a(Zermelo::Template)
-      expect(other_template.id).to eq(template.id)
+      expect(secondaries).to be_an(Array)
+      expect(secondaries.size).to eq(1)
+      other_secondary = secondaries.first
+      expect(other_secondary).to be_a(secondary_class)
+      expect(other_secondary.id).to eq(secondary.id)
     end
 
-    it "removes a has_and_belongs_to_many relationship between two records in redis" do
-      example = Zermelo::RedisExample.find_by_id('8')
-      template = Zermelo::Template.find_by_id('2')
+    context 'filters' do
 
-      template.examples << example
+      it "filters has_and_belongs_to_many records by indexed attribute values" do
+        create_primary(:id => '9', :active => false)
+        create_primary(:id => '10', :active => true)
 
-      expect(redis.smembers('template::attrs:ids')).to eq(['2'])
-      expect(redis.smembers('redis_example:8:assocs:templates_ids')).to eq(['2'])
+        primary = primary_class.find_by_id('8')
+        primary_2 = primary_class.find_by_id('9')
+        primary_3 = primary_class.find_by_id('10')
+        secondary = secondary_class.find_by_id('2')
 
-      example.templates.delete(template)
+        primary.secondaries << secondary
+        primary_2.secondaries << secondary
+        primary_3.secondaries << secondary
 
-      expect(redis.smembers('template::attrs:ids')).to eq(['2'])        # template not deleted
-      expect(redis.smembers('redis_example:8:assocs:templates_ids')).to eq([]) # but association is
+        primaries = secondary.primaries.intersect(:active => true).all
+        expect(primaries).not_to be_nil
+        expect(primaries).to be_an(Array)
+        expect(primaries.size).to eq(2)
+        expect(primaries.map(&:id)).to match_array(['8', '10'])
+      end
+
+      it "checks whether a record id exists through a has_and_belongs_to_many filter"  do
+        create_primary(:id => '9', :active => false)
+
+        primary = primary_class.find_by_id('8')
+        primary_2 = primary_class.find_by_id('9')
+        secondary = secondary_class.find_by_id('2')
+
+        primary.secondaries << secondary
+        primary_2.secondaries << secondary
+
+        expect(secondary.primaries.intersect(:active => false).exists?('9')).to be true
+        expect(secondary.primaries.intersect(:active => false).exists?('8')).to be false
+      end
+
+      it "finds a record through a has_and_belongs_to_many filter" do
+        create_primary(:id => '9', :active => false)
+
+        primary = primary_class.find_by_id('8')
+        primary_2 = primary_class.find_by_id('9')
+        secondary = secondary_class.find_by_id('2')
+
+        primary.secondaries << secondary
+        primary_2.secondaries << secondary
+
+        james = secondary.primaries.intersect(:active => false).find_by_id('9')
+        expect(james).not_to be_nil
+        expect(james).to be_a(primary_class)
+        expect(james.id).to eq(primary_2.id)
+      end
+
+      it 'clears a has_and_belongs_to_many association when a record is deleted'
+
+      it 'returns associated ids for multiple parent ids' do
+        create_primary(:id => '9', :active => false)
+        primary_9 = primary_class.find_by_id('9')
+
+        create_primary(:id => '10', :active => true)
+        primary_10 = primary_class.find_by_id('10')
+
+        create_secondary(:id => '3')
+        create_secondary(:id => '4')
+
+        secondary_2 = secondary_class.find_by_id('2')
+        secondary_3 = secondary_class.find_by_id('3')
+        secondary_4 = secondary_class.find_by_id('4')
+
+        primary_9.secondaries.add(secondary_2)
+        primary_10.secondaries.add(secondary_3, secondary_4)
+
+        assoc_ids = primary_class.intersect(:id => ['8', '9', '10']).
+          associated_ids_for(:secondaries)
+        expect(assoc_ids).to eq('8'  => Set.new([]),
+                                '9'  => Set.new(['2']),
+                                '10' => Set.new(['3', '4']))
+      end
+    end
+  end
+
+  context 'redis', :redis => true, :has_and_belongs_to_many => true do
+
+    let(:redis) { Zermelo.redis }
+
+    module ZermeloExamples
+      class AssociationsHasAndBelongsToManyPrimaryRedis
+        include Zermelo::Records::Redis
+        define_attributes :active => :boolean
+        index_by :active
+        has_and_belongs_to_many :secondaries,
+          :class_name => 'ZermeloExamples::AssociationsHasAndBelongsToManySecondaryRedis',
+          :inverse_of => :primaries
+      end
+
+      class AssociationsHasAndBelongsToManySecondaryRedis
+        include Zermelo::Records::Redis
+        # define_attributes :important => :boolean
+        # index_by :important
+        has_and_belongs_to_many :primaries,
+          :class_name => 'ZermeloExamples::AssociationsHasAndBelongsToManyPrimaryRedis',
+          :inverse_of => :secondaries
+      end
     end
 
-    it "filters has_and_belongs_to_many records by indexed attribute values" do
-      create_example(:id => '9', :name => 'James Smith',
-                     :email => 'jsmith@example.com', :active => false)
-      create_example(:id => '10', :name => 'Alpha Beta',
-                     :email => 'abc@example.com', :active => true)
+    let(:primary_class) { ZermeloExamples::AssociationsHasAndBelongsToManyPrimaryRedis }
+    let(:secondary_class) { ZermeloExamples::AssociationsHasAndBelongsToManySecondaryRedis }
 
-      example = Zermelo::RedisExample.find_by_id('8')
-      example_2 = Zermelo::RedisExample.find_by_id('9')
-      example_3 = Zermelo::RedisExample.find_by_id('10')
-      template = Zermelo::Template.find_by_id('2')
+    # primary and secondary keys
+    let(:pk) { 'associations_has_and_belongs_to_many_primary_redis' }
+    let(:sk) { 'associations_has_and_belongs_to_many_secondary_redis' }
 
-      example.templates << template
-      example_2.templates << template
-      example_3.templates << template
-
-      examples = template.examples.intersect(:active => true).all
-      expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
-      expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(['8', '10'])
+    def create_primary(attrs = {})
+      redis.sadd("#{pk}::attrs:ids", attrs[:id])
+      redis.hmset("#{pk}:#{attrs[:id]}:attrs",
+                  {'active' => attrs[:active]}.to_a.flatten)
+      redis.sadd("#{pk}::indices:by_active:boolean:#{!!attrs[:active]}", attrs[:id])
     end
 
-    it "checks whether a record id exists through a has_and_belongs_to_many filter"  do
-      create_example(:id => '9', :name => 'James Smith',
-                     :email => 'jsmith@example.com', :active => false)
-
-      example = Zermelo::RedisExample.find_by_id('8')
-      example_2 = Zermelo::RedisExample.find_by_id('9')
-      template = Zermelo::Template.find_by_id('2')
-
-      example.templates << template
-      example_2.templates << template
-
-      expect(template.examples.intersect(:active => false).exists?('9')).to be_truthy
-      expect(template.examples.intersect(:active => false).exists?('8')).to be_falsey
+    def create_secondary(attrs = {})
+      redis.sadd("#{sk}::attrs:ids", attrs[:id])
     end
 
-    it "finds a record through a has_and_belongs_to_many filter" do
-      create_example(:id => '9', :name => 'James Smith',
-                     :email => 'jsmith@example.com', :active => false)
+    it "sets a has_and_belongs_to_many relationship between two records" do
+      create_primary(:id => '8', :active => true)
+      create_secondary(:id => '2')
 
-      example = Zermelo::RedisExample.find_by_id('8')
-      example_2 = Zermelo::RedisExample.find_by_id('9')
-      template = Zermelo::Template.find_by_id('2')
+      primary = primary_class.find_by_id('8')
+      secondary = secondary_class.find_by_id('2')
 
-      example.templates << template
-      example_2.templates << template
+      primary.secondaries << secondary
 
-      james = template.examples.intersect(:active => false).find_by_id('9')
-      expect(james).not_to be_nil
-      expect(james).to be_a(Zermelo::RedisExample)
-      expect(james.id).to eq(example_2.id)
+      expect(redis.keys('*')).to match_array([
+        "#{pk}::attrs:ids",
+        "#{pk}::indices:by_active:boolean:true",
+        "#{pk}:8:attrs",
+        "#{pk}:8:assocs:secondaries_ids",
+        "#{sk}::attrs:ids",
+        "#{sk}:2:assocs:primaries_ids"
+      ])
+
+      expect(redis.smembers("#{pk}::attrs:ids")).to eq(['8'])
+      expect(redis.smembers("#{pk}::indices:by_active:boolean:true")).to eq(['8'])
+      expect(redis.hgetall("#{pk}:8:attrs")).to eq('active' => 'true')
+      expect(redis.smembers("#{pk}:8:assocs:secondaries_ids")).to eq(['2'])
+
+      expect(redis.smembers("#{sk}::attrs:ids")).to eq(['2'])
+      expect(redis.smembers("#{sk}:2:assocs:primaries_ids")).to eq(['8'])
+    end
+
+    it "removes a has_and_belongs_to_many relationship between two records" do
+      create_primary(:id => '8', :active => true)
+      create_secondary(:id => '2')
+
+      primary = primary_class.find_by_id('8')
+      secondary = secondary_class.find_by_id('2')
+
+      secondary.primaries << primary
+
+      expect(redis.smembers("#{sk}::attrs:ids")).to eq(['2'])
+      expect(redis.smembers("#{pk}:8:assocs:secondaries_ids")).to eq(['2'])
+
+      primary.secondaries.delete(secondary)
+
+      expect(redis.smembers("#{sk}::attrs:ids")).to eq(['2'])       # secondary not deleted
+      expect(redis.smembers("#{pk}:8:assocs:secondaries_ids")).to eq([]) # but association is
     end
 
     it 'clears a has_and_belongs_to_many association when a record is deleted'
-
-    it 'returns associated ids for multiple parent ids' do
-      create_example(:id => '9', :name => 'Jane Johnson',
-                     :email => 'jjohnson@example.com', :active => 'true')
-      example_9 = Zermelo::RedisExample.find_by_id('9')
-
-      create_example(:id => '10', :name => 'Jim Smith',
-                     :email => 'jsmith@example.com', :active => 'true')
-      example_10 = Zermelo::RedisExample.find_by_id('10')
-
-      create_template(:id => '3', :name => 'Template 3')
-      create_template(:id => '4', :name => 'Template 4')
-
-      template_2 = Zermelo::Template.find_by_id('2')
-      template_3 = Zermelo::Template.find_by_id('3')
-      template_4 = Zermelo::Template.find_by_id('4')
-
-      example_9.templates.add(template_2)
-      example_10.templates.add(template_3, template_4)
-
-      assoc_ids = Zermelo::RedisExample.intersect(:id => ['8', '9', '10']).
-        associated_ids_for(:templates)
-      expect(assoc_ids).to eq('8'  => Set.new([]),
-                              '9'  => Set.new(['2']),
-                              '10' => Set.new(['3', '4']))
-    end
 
   end
 
