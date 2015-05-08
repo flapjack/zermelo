@@ -26,6 +26,18 @@ describe Zermelo::Associations::HasAndBelongsToMany do
       expect(other_secondary.id).to eq(secondary.id)
     end
 
+    it 'raises an error when calling add on has_and_belongs_to_many without an argument' do
+      expect {
+        primary.secondaries.add
+      }.to raise_error
+    end
+
+    it 'raises an error when calling delete on has_and_belongs_to_many without an argument' do
+      expect {
+        primary.secondaries.delete
+      }.to raise_error
+    end
+
     context 'filters' do
 
       it "filters has_and_belongs_to_many records by indexed attribute values" do

@@ -23,6 +23,20 @@ describe Zermelo::Records::InstMethods do
       expect(example_class.count).to eq(1)
     end
 
+    it "updates a value" do
+      create_example(:id => '1', :name => 'Jane Doe')
+
+      example = example_class.find_by_id('1')
+      expect(example).not_to be_nil
+
+      example.name = 'John Smith'
+      example.save
+
+      other_example = example_class.find_by_id('1')
+      expect(other_example).not_to be_nil
+      expect(other_example.name).to eq('John Smith')
+    end
+
     it 'raises an RecordInvalid exception if validation fails while saving' do
       example = example_class.new(:id => '1')
 
@@ -61,7 +75,14 @@ describe Zermelo::Records::InstMethods do
     it "stores a set as an attribute value"
     it "stores a hash as an attribute value"
 
-    it 'destroys a record'
+    it 'destroys a record' do
+      create_example(:id => '1', :name => 'Jane Doe')
+
+      example = example_class.find_by_id('1')
+      example.destroy
+      example_chk = example_class.find_by_id('1')
+      expect(example_chk).to be_nil
+    end
   end
 
   context 'redis', :redis => true, :instance_methods => true do

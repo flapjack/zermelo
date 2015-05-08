@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'zermelo/records/redis'
+require 'zermelo/records/influxdb'
 require 'zermelo/associations/has_many'
 
 describe Zermelo::Associations::HasMany do
@@ -57,6 +58,18 @@ describe Zermelo::Associations::HasMany do
     #   expect(parent.children).to be_empty
     #   expect(parent.read).to eq([:pre, :post])
     # end
+
+    it 'raises an error when calling add on has_many without an argument' do
+      expect {
+        parent.children.add
+      }.to raise_error
+    end
+
+    it 'raises an error when calling delete on has_many without an argument' do
+      expect {
+        parent.children.delete
+      }.to raise_error
+    end
 
     context 'filters' do
 
@@ -243,6 +256,118 @@ describe Zermelo::Associations::HasMany do
       expect(redis.keys).to match_array(["#{ck}::attrs:ids",
                             "#{ck}::indices:by_important:boolean:true",
                             "#{ck}:6:attrs"])
+    end
+
+  end
+
+  context 'influxdb', :influxdb => true, :has_many => true do
+
+    before do
+      skip "FIXME"
+    end
+
+    let(:influxdb) { Zermelo.influxdb }
+
+    module Zermelo
+      class InfluxDBExample
+        include Zermelo::Records::InfluxDB
+
+        define_attributes :name   => :string,
+                          :email  => :string,
+                          :active => :boolean
+
+        validates :name, :presence => true
+
+        has_many :children, :class_name => 'Zermelo::InfluxDBChild'
+        # has_sorted_set :sorted, :class_name => 'Zermelo::InfluxDBSorted'
+      end
+
+      class InfluxDBChild
+        include Zermelo::Records::InfluxDB
+
+        define_attributes :name => :string,
+                          :important => :boolean
+
+        belongs_to :example, :class_name => 'Zermelo::InfluxDBExample', :inverse_of => :children
+
+        validates :name, :presence => true
+      end
+
+      class InfluxDBSorted
+        include Zermelo::Records::InfluxDB
+
+        define_attributes :name => :string,
+                          :important => :boolean
+
+        belongs_to :example, :class_name => 'Zermelo::InfluxDBExample', :inverse_of => :sorted
+
+        validates :name, :presence => true
+      end
+    end
+
+    def create_example(attrs = {})
+      Zermelo.influxdb.write_point("influx_db_example/#{attrs[:id]}", attrs)
+    end
+
+    it "sets a parent/child has_many relationship between two records in influxdb" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      child = Zermelo::InfluxDBChild.new(:id => '3', :name => 'Abel Tasman')
+      expect(child.save).to be_truthy
+
+      children = example.children.all
+
+      expect(children).to be_an(Array)
+      expect(children).to be_empty
+
+      example.children << child
+
+      children = example.children.all
+
+      expect(children).to be_an(Array)
+      expect(children.size).to eq(1)
+    end
+
+    it "applies an intersect filter to a has_many association" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      child_1 = Zermelo::InfluxDBChild.new(:id => '3', :name => 'John Smith')
+      expect(child_1.save).to be_truthy
+
+      child_2 = Zermelo::InfluxDBChild.new(:id => '4', :name => 'Jane Doe')
+      expect(child_2.save).to be_truthy
+
+      example.children.add(child_1, child_2)
+      expect(example.children.count).to eq(2)
+
+      result = example.children.intersect(:name => 'John Smith').all
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(1)
+      expect(result.map(&:id)).to eq(['3'])
+    end
+
+    it "applies chained intersect and union filters to a has_many association" do
+      create_example(:id => '8', :name => 'John Jones',
+                     :email => 'jjones@example.com', :active => 'true')
+      example = Zermelo::InfluxDBExample.find_by_id('8')
+
+      child_1 = Zermelo::InfluxDBChild.new(:id => '3', :name => 'John Smith')
+      expect(child_1.save).to be_truthy
+
+      child_2 = Zermelo::InfluxDBChild.new(:id => '4', :name => 'Jane Doe')
+      expect(child_2.save).to be_truthy
+
+      example.children.add(child_1, child_2)
+      expect(example.children.count).to eq(2)
+
+      result = example.children.intersect(:name => 'John Smith').union(:id => '4').all
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(2)
+      expect(result.map(&:id)).to eq(['3', '4'])
     end
 
   end
