@@ -184,7 +184,7 @@ describe Zermelo::Associations::HasMany do
       expect(redis.smembers("#{ck}::attrs:ids")).to eq(['3'])
     end
 
-    it "removes a parent/child has_many relationship between two records in redis" do
+    it "removes a parent/child has_many relationship between two records" do
       create_parent(:id => '8')
       parent = parent_class.find_by_id('8')
 

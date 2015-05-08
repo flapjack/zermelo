@@ -57,7 +57,7 @@ module Zermelo
           begin
             initial_id_data =
               Zermelo.influxdb.query(ii_query)["#{initial_class_key}/#{@initial_key.id}"]
-          rescue InfluxDB::Error => ide
+          rescue ::InfluxDB::Error => ide
             raise unless
               /^Field #{@initial_key.name} doesn't exist in series #{initial_class_key}\/#{@initial_key.id}$/ === ide.message
 
@@ -93,7 +93,7 @@ module Zermelo
 
         begin
           result = Zermelo.influxdb.query(query)
-        rescue InfluxDB::Error => ide
+        rescue ::InfluxDB::Error => ide
           raise unless /^Couldn't look up columns$/ === ide.message
           result = {}
         end

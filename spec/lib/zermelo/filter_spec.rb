@@ -23,6 +23,41 @@ describe Zermelo::Filter do
       active; inactive
     end
 
+    it "finds a record by id" do
+      example = example_class.find_by_id('8')
+      expect(example).not_to be_nil
+      expect(example.id).to eq('8')
+      expect(example.name).to eq('John Jones')
+    end
+
+    it "finds records by a uniquely indexed value" do
+      examples = example_class.intersect(:name => 'John Jones').all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(1)
+      example = examples.first
+      expect(example.id).to eq('8')
+      expect(example.name).to eq('John Jones')
+    end
+
+    it 'finds records by regex match against an indexed value'
+
+    it 'finds records by regex match against a uniquely indexed value' do
+      examples = example_class.intersect(:name => /hn Jones/).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(1)
+      example = examples.first
+      expect(example.id).to eq('8')
+      expect(example.name).to eq('John Jones')
+    end
+
+    it 'cannot find records by regex match against non-string values' do
+      expect {
+        example_class.intersect(:active => /alse/).all
+      }.to raise_error
+    end
+
     it 'can append to a filter chain fragment more than once' do
       inter = example_class.intersect(:active => true)
       expect(inter.ids).to eq(['8'])
@@ -146,7 +181,28 @@ describe Zermelo::Filter do
 
   end
 
-  context 'redis', :redis => true, :filter => true do
+  shared_examples 'pagination functions work', :pagination => true do
+    it "returns paginated query responses" do
+      create_example(:id => '1', :name => 'mno')
+      create_example(:id => '2', :name => 'abc')
+      create_example(:id => '3', :name => 'jkl')
+      create_example(:id => '4', :name => 'ghi')
+      create_example(:id => '5', :name => 'def')
+
+      expect(example_class.sort(:id).page(1, :per_page => 3).map(&:id)).to eq(['1', '2', '3'])
+      expect(example_class.sort(:id).page(2, :per_page => 2).map(&:id)).to eq(['3', '4'])
+      expect(example_class.sort(:id).page(3, :per_page => 2).map(&:id)).to eq(['5', '8'])
+      expect(example_class.sort(:id).page(3, :per_page => 3).map(&:id)).to eq(['9'])
+
+      # sort is case-sensitive, may want a non-case sensitive version
+      expect(example_class.sort(:name).page(1, :per_page => 3).map(&:id)).to eq(['9', '8', '2'])
+      expect(example_class.sort(:name).page(2, :per_page => 3).map(&:id)).to eq(['5', '4', '3'])
+      expect(example_class.sort(:name).page(3, :per_page => 3).map(&:id)).to eq(['1'])
+      expect(example_class.sort(:name).page(4, :per_page => 3).map(&:id)).to eq([])
+    end
+  end
+
+  context 'redis', :redis => true, :filter => true, :pagination => true do
 
     let(:redis) { Zermelo.redis }
 
