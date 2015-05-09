@@ -7,11 +7,29 @@ describe Zermelo::Associations::HasMany do
 
   shared_examples "has_many functions work", :has_many => true do
 
-    let(:parent) { parent_class.find_by_id('8') }
+    let(:parent) {
+      create_parent(:id => '8')
+      parent_class.find_by_id('8')
+    }
+
+    it "sets a parent/child has_many relationship between two records" do
+      child = child_class.new(:id => '3', :important => true)
+      expect(child.save).to be_truthy
+
+      children = parent.children.all
+
+      expect(children).to be_an(Array)
+      expect(children).to be_empty
+
+      parent.children << child
+
+      children = parent.children.all
+
+      expect(children).to be_an(Array)
+      expect(children.size).to eq(1)
+    end
 
     it "loads a child from a parent's has_many relationship" do
-      create_parent(:id => '8')
-      parent = parent_class.find_by_id('8')
       create_child(parent, :id => '3')
 
       children = parent.children.all
@@ -24,8 +42,6 @@ describe Zermelo::Associations::HasMany do
     end
 
     it "loads a parent from a child's belongs_to relationship" do
-      create_parent(:id => '8')
-      parent = parent_class.find_by_id('8')
       create_child(parent, :id => '3')
       child = child_class.find_by_id('3')
 
@@ -36,9 +52,6 @@ describe Zermelo::Associations::HasMany do
     end
 
     it "does not add a child if the before_add callback raises an exception" # do
-    #   create_parent(:id => '8')
-    #   parent = parent_class.find_by_id('8')
-
     #   create_child(nil, :id => '6', :important => true)
     #   child = child_class.find_by_id('6')
 
@@ -50,10 +63,6 @@ describe Zermelo::Associations::HasMany do
     # end
 
     it 'calls the before/after_read callbacks as part of query execution' # do
-    #   create_parent(:id => '8', :name => 'John Jones',
-    #                  :email => 'jjones@parent.com', :active => 'true')
-    #   parent = parent_class.find_by_id('8')
-
     #   expect(parent.read).to be_nil
     #   expect(parent.children).to be_empty
     #   expect(parent.read).to eq([:pre, :post])
@@ -74,14 +83,12 @@ describe Zermelo::Associations::HasMany do
     context 'filters' do
 
       before do
-        create_parent(:id => '8')
-
         create_child(parent, :id => '3', :important => true)
         create_child(parent, :id => '4', :important => true)
         create_child(parent, :id => '5', :important => false)
       end
 
-      it "filters has_many records by indexed attribute values" do
+      it "by indexed attribute values" do
         important_kids = parent.children.intersect(:important => true).all
         expect(important_kids).not_to be_nil
         expect(important_kids).to be_an(Array)
@@ -89,12 +96,22 @@ describe Zermelo::Associations::HasMany do
         expect(important_kids.map(&:id)).to match_array(['3', '4'])
       end
 
-      it "filters has_many records by intersecting ids" do
+      it "by intersecting ids" do
         important_kids = parent.children.intersect(:important => true, :id => ['4', '5']).all
         expect(important_kids).not_to be_nil
         expect(important_kids).to be_an(Array)
         expect(important_kids.size).to eq(1)
         expect(important_kids.map(&:id)).to match_array(['4'])
+      end
+
+      it "applies chained intersect and union filters to a has_many association" do
+        create_child(parent, :id => '3', :important => true)
+        create_child(parent, :id => '4', :important => false)
+
+        result = parent.children.intersect(:important => true).union(:id => '4').all
+        expect(result).to be_an(Array)
+        expect(result.size).to eq(2)
+        expect(result.map(&:id)).to eq(['3', '4'])
       end
 
       it "checks whether a record id exists through a has_many filter" do
@@ -107,28 +124,6 @@ describe Zermelo::Associations::HasMany do
         expect(child).not_to be_nil
         expect(child).to be_a(child_class)
         expect(child.id).to eq('3')
-      end
-
-      it 'returns associated ids for multiple parent ids' do
-        create_parent(:id => '9')
-        parent_9 = parent_class.find_by_id('9')
-
-        create_child(parent_9, :id => '6', :important => false)
-
-        create_parent(:id => '10')
-
-        assoc_ids = parent_class.intersect(:id => [ '8', '9', '10']).
-          associated_ids_for(:children)
-        expect(assoc_ids).to eq('8'  => Set.new(['3', '4', '5']),
-                                '9'  => Set.new(['6']),
-                                '10' => Set.new())
-
-        assoc_parent_ids = child_class.intersect(:id => ['3', '4', '5', '6']).
-          associated_ids_for(:parent)
-        expect(assoc_parent_ids).to eq('3' => '8',
-                                       '4' => '8',
-                                       '5' => '8',
-                                       '6' => '9')
       end
     end
   end
@@ -258,116 +253,76 @@ describe Zermelo::Associations::HasMany do
                             "#{ck}:6:attrs"])
     end
 
+    it 'returns associated ids for multiple parent ids' do
+      # copied from filters/before block
+      create_child(parent, :id => '3', :important => true)
+      create_child(parent, :id => '4', :important => true)
+      create_child(parent, :id => '5', :important => false)
+
+      # TODO fix for influxdb
+      create_parent(:id => '9')
+      parent_9 = parent_class.find_by_id('9')
+
+      create_child(parent_9, :id => '6', :important => false)
+
+      create_parent(:id => '10')
+
+      assoc_ids = parent_class.intersect(:id => [ '8', '9', '10']).
+        associated_ids_for(:children)
+      expect(assoc_ids).to eq('8'  => Set.new(['3', '4', '5']),
+                              '9'  => Set.new(['6']),
+                              '10' => Set.new())
+
+      assoc_parent_ids = child_class.intersect(:id => ['3', '4', '5', '6']).
+        associated_ids_for(:parent)
+      expect(assoc_parent_ids).to eq('3' => '8',
+                                     '4' => '8',
+                                     '5' => '8',
+                                     '6' => '9')
+    end
+
   end
 
   context 'influxdb', :influxdb => true, :has_many => true do
 
-    before do
-      skip "FIXME"
-    end
-
     let(:influxdb) { Zermelo.influxdb }
 
-    module Zermelo
-      class InfluxDBExample
+    module ZermeloExamples
+      class AssociationsHasManyParentInfluxDB
         include Zermelo::Records::InfluxDB
-
-        define_attributes :name   => :string,
-                          :email  => :string,
-                          :active => :boolean
-
-        validates :name, :presence => true
-
-        has_many :children, :class_name => 'Zermelo::InfluxDBChild'
-        # has_sorted_set :sorted, :class_name => 'Zermelo::InfluxDBSorted'
+        has_many :children, :class_name => 'ZermeloExamples::AssociationsHasManyChildInfluxDB',
+          :inverse_of => :parent
       end
 
-      class InfluxDBChild
+      class AssociationsHasManyChildInfluxDB
         include Zermelo::Records::InfluxDB
-
-        define_attributes :name => :string,
-                          :important => :boolean
-
-        belongs_to :example, :class_name => 'Zermelo::InfluxDBExample', :inverse_of => :children
-
-        validates :name, :presence => true
-      end
-
-      class InfluxDBSorted
-        include Zermelo::Records::InfluxDB
-
-        define_attributes :name => :string,
-                          :important => :boolean
-
-        belongs_to :example, :class_name => 'Zermelo::InfluxDBExample', :inverse_of => :sorted
-
-        validates :name, :presence => true
+        define_attributes :important => :boolean
+        index_by :important
+        belongs_to :parent, :class_name => 'ZermeloExamples::AssociationsHasManyParentInfluxDB',
+          :inverse_of => :children
       end
     end
 
-    def create_example(attrs = {})
-      Zermelo.influxdb.write_point("influx_db_example/#{attrs[:id]}", attrs)
+    let(:parent_class) { ZermeloExamples::AssociationsHasManyParentInfluxDB }
+    let(:child_class) { ZermeloExamples::AssociationsHasManyChildInfluxDB }
+
+    # parent and child keys
+    let(:pk) { 'associations_has_many_parent_influx_db' }
+    let(:ck) { 'associations_has_many_child_influx_db' }
+
+    def create_parent(attrs = {})
+      Zermelo.influxdb.write_point("#{pk}/#{attrs[:id]}", attrs)
     end
 
-    it "sets a parent/child has_many relationship between two records in influxdb" do
-      create_example(:id => '8', :name => 'John Jones',
-                     :email => 'jjones@example.com', :active => 'true')
-      example = Zermelo::InfluxDBExample.find_by_id('8')
-
-      child = Zermelo::InfluxDBChild.new(:id => '3', :name => 'Abel Tasman')
-      expect(child.save).to be_truthy
-
-      children = example.children.all
-
-      expect(children).to be_an(Array)
-      expect(children).to be_empty
-
-      example.children << child
-
-      children = example.children.all
-
-      expect(children).to be_an(Array)
-      expect(children.size).to eq(1)
+    def create_child(par, attrs = {})
+      attrs[:important] = attrs[:important].to_s unless attrs[:important].nil?
+      Zermelo.influxdb.write_point("#{ck}/#{attrs[:id]}", attrs)
+      par.children.add(child_class.find_by_id!(attrs[:id]))
     end
 
-    it "applies an intersect filter to a has_many association" do
-      create_example(:id => '8', :name => 'John Jones',
-                     :email => 'jjones@example.com', :active => 'true')
-      example = Zermelo::InfluxDBExample.find_by_id('8')
-
-      child_1 = Zermelo::InfluxDBChild.new(:id => '3', :name => 'John Smith')
-      expect(child_1.save).to be_truthy
-
-      child_2 = Zermelo::InfluxDBChild.new(:id => '4', :name => 'Jane Doe')
-      expect(child_2.save).to be_truthy
-
-      example.children.add(child_1, child_2)
-      expect(example.children.count).to eq(2)
-
-      result = example.children.intersect(:name => 'John Smith').all
-      expect(result).to be_an(Array)
-      expect(result.size).to eq(1)
-      expect(result.map(&:id)).to eq(['3'])
-    end
-
-    it "applies chained intersect and union filters to a has_many association" do
-      create_example(:id => '8', :name => 'John Jones',
-                     :email => 'jjones@example.com', :active => 'true')
-      example = Zermelo::InfluxDBExample.find_by_id('8')
-
-      child_1 = Zermelo::InfluxDBChild.new(:id => '3', :name => 'John Smith')
-      expect(child_1.save).to be_truthy
-
-      child_2 = Zermelo::InfluxDBChild.new(:id => '4', :name => 'Jane Doe')
-      expect(child_2.save).to be_truthy
-
-      example.children.add(child_1, child_2)
-      expect(example.children.count).to eq(2)
-
-      result = example.children.intersect(:name => 'John Smith').union(:id => '4').all
-      expect(result).to be_an(Array)
-      expect(result.size).to eq(2)
-      expect(result.map(&:id)).to eq(['3', '4'])
+    it 'returns associated ids for multiple parent ids' do
+      # see definition in redis-only spec
+      skip "broken, FIXME"
     end
 
   end

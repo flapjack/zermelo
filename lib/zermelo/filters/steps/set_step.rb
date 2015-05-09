@@ -90,27 +90,53 @@ module Zermelo
             case @options[:op]
             when :intersect, :union
               query += @attributes.collect {|k, v|
-                op, value = case v
-                when String
-                  ["=~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
+                if v.is_a?(Enumerable)
+                  qq = v.each_with_object([]) do |vv, memo|
+                    ov = case vv
+                    when String
+                      "=~ /^#{Regexp.escape(vv).gsub(/\\\\/, "\\")}$/"
+                    else
+                      "= '#{vv}'"
+                    end
+                    memo << "#{k} #{ov}"
+                  end
+                  "((#{qq.join(') OR (')}))"
                 else
-                  ["=",  "'#{v}'"]
+                  op_value = case v
+                  when String
+                    "=~ /^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"
+                  else
+                    "= '#{v}'"
+                  end
+                  "(#{k} #{op_value})"
                 end
-
-               "#{k} #{op} #{value}"
               }.join(' AND ')
 
             when :diff
               query += @attributes.collect {|k, v|
-                op, value = case v
-                when String
-                  ["!~", "/^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"]
+                if v.is_a?(Enumerable)
+                  qq = v.each_with_object([]) do |vv, memo|
+                    ov = case vv
+                    when String
+                      "!~ /^#{Regexp.escape(vv).gsub(/\\\\/, "\\")}$/"
+                    else
+                      "!= '#{vv}'"
+                    end
+                    memo << "#{k} #{ov}"
+                  end
+                  "((#{qq.join(') OR (')}))"
                 else
-                  ["!=",  "'#{v}'"]
-                end
+                  op_value = case v
+                  when String
+                    "!~ /^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"
+                  else
+                    "!= '#{v}'"
+                  end
 
-                "#{k} #{op} #{value}"
+                  "(#{k} #{op_value})"
+                end
               }.join(' AND ')
+
             else
               raise "Unhandled filter operation '#{@options[:op]}'"
             end

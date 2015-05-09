@@ -327,6 +327,9 @@ describe Zermelo::Filter do
     end
 
     it "allows multiple attributes in an intersect filter" do
+      create_example(:id => '3', :name => 'Fred Bloggs',
+        :email => 'fbloggs@example.com', :active => 'true')
+
       example = example_class.intersect(:active => true,
         :name => 'John Jones').all
       expect(example).not_to be_nil

@@ -130,11 +130,29 @@ module Zermelo
           class_key = key.klass.send(:class_key)
 
           records[class_key]         ||= {}
-          records[class_key][key.id] ||= {}
 
-          records[class_key][key.id][key.name] = case op
+          if records[class_key][key.id].nil?
+            begin
+              result = Zermelo.influxdb.query("SELECT * FROM \"#{class_key}/#{key.id}\" LIMIT 1")["#{class_key}/#{key.id}"]
+              if result.nil?
+                records[class_key][key.id] = {}
+              else
+                records[class_key][key.id] = result.first
+                records[class_key][key.id].delete_if {|k,v| ["time", "sequence_number"].include?(k) }
+              end
+            rescue ::InfluxDB::Error => ide
+              raise unless
+                (/^Couldn't look up columns for series: #{class_key}\/#{key.id}$/ === ide.message) ||
+                (/^Couldn't look up columns$/ === ide.message) ||
+                (/^Couldn't find series: #{class_key}\/#{key.id}$/ === ide.message)
+
+              records[class_key][key.id] = {}
+            end
+          end
+
+          case op
           when :set
-            case key.type
+            records[class_key][key.id][key.name] = case key.type
             when :string, :integer
               value.nil? ? nil : value.to_s
             when :timestamp
@@ -148,12 +166,32 @@ module Zermelo
             end
           when :add
             case key.type
-            when :list, :hash
-              value
+            when :hash
+              if records[class_key][key.id][key.name].nil?
+                records[class_key][key.id][key.name] = value
+              else
+                records[class_key][key.id][key.name].update(value)
+              end
+            when :list
+              if records[class_key][key.id][key.name].nil?
+                records[class_key][key.id][key.name] = value
+              else
+                records[class_key][key.id][key.name] += value
+              end
             when :set
-              value.to_a
+              v = value.to_a
+              if records[class_key][key.id][key.name].nil?
+                records[class_key][key.id][key.name] = v
+              else
+                records[class_key][key.id][key.name] += v
+              end
             when :sorted_set
-              (1...value.size).step(2).collect {|i| value[i] }
+              v = (1...value.size).step(2).collect {|i| value[i] }
+              if records[class_key][key.id][key.name].nil?
+                records[class_key][key.id][key.name] = v
+              else
+                records[class_key][key.id][key.name] += v
+              end
             end
           when :purge
             purges << "\"#{class_key}/#{key.id}\""
@@ -163,19 +201,8 @@ module Zermelo
 
         records.each_pair do |class_key, klass_records|
           klass_records.each_pair do |id, data|
-            begin
-              prior = Zermelo.influxdb.query("SELECT * FROM \"#{class_key}/#{id}\" LIMIT 1")["#{class_key}/#{id}"]
-            rescue ::InfluxDB::Error => ide
-              raise unless
-                (/^Couldn't look up columns for series: #{class_key}\/#{id}$/ === ide.message) ||
-                (/^Couldn't look up columns$/ === ide.message) ||
-                (/^Couldn't find series: #{class_key}\/#{id}$/ === ide.message)
-
-              prior = nil
-            end
-            record = prior.nil? ? {} : prior.first.delete_if {|k,v| ["time", "sequence_number"].include?(k) }
             data.delete('time') if data.has_key?('time') && data['time'].nil?
-            Zermelo.influxdb.write_point("#{class_key}/#{id}", record.merge(data).merge('id' => id))
+            Zermelo.influxdb.write_point("#{class_key}/#{id}", data.merge('id' => id))
           end
         end
 

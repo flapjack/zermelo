@@ -317,9 +317,8 @@ module Zermelo
               when :set
                 Zermelo.redis.smove(complex_attr_key, key_to_redis_key(key_to), value)
               when :list
-                # TODO would do via sort 'nosort', except for
-                # https://github.com/antirez/redis/issues/2079 -- instead,
-                # copy the workaround from redis_filter.rb
+                # TODO via sort 'nosort', or the workaround required prior to
+                # https://github.com/antirez/redis/issues/2079
                 raise "Not yet implemented"
               when :hash
                 Zermelo.redis.hdel(complex_attr_key, *value.keys)
