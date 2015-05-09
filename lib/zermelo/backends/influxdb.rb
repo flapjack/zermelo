@@ -50,9 +50,16 @@ module Zermelo
           memo[class_key][attr_key.id] ||= {}
 
           memo[class_key][attr_key.id][attr_key.name.to_s] = if value.nil?
-            nil
+            case attr_key.type
+            when :list
+              []
+            when :hash
+              {}
+            when :set
+              Set.new()
+            else nil
+            end
           else
-
             case attr_key.type
             when :string
               value.to_s

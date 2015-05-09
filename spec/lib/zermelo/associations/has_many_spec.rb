@@ -125,6 +125,29 @@ describe Zermelo::Associations::HasMany do
         expect(child).to be_a(child_class)
         expect(child.id).to eq('3')
       end
+
+      it 'returns associated ids for multiple parent ids' do
+        create_parent(:id => '9')
+        parent_9 = parent_class.find_by_id('9')
+
+        create_child(parent_9, :id => '6', :important => false)
+
+        create_parent(:id => '10')
+
+        assoc_ids = parent_class.intersect(:id => [ '8', '9', '10']).
+          associated_ids_for(:children)
+        expect(assoc_ids).to eq('8'  => Set.new(['3', '4', '5']),
+                                '9'  => Set.new(['6']),
+                                '10' => Set.new())
+
+        assoc_parent_ids = child_class.intersect(:id => ['3', '4', '5', '6']).
+          associated_ids_for(:parent)
+        expect(assoc_parent_ids).to eq('3' => '8',
+                                       '4' => '8',
+                                       '5' => '8',
+                                       '6' => '9')
+      end
+
     end
   end
 
@@ -253,34 +276,6 @@ describe Zermelo::Associations::HasMany do
                             "#{ck}:6:attrs"])
     end
 
-    it 'returns associated ids for multiple parent ids' do
-      # copied from filters/before block
-      create_child(parent, :id => '3', :important => true)
-      create_child(parent, :id => '4', :important => true)
-      create_child(parent, :id => '5', :important => false)
-
-      # TODO fix for influxdb
-      create_parent(:id => '9')
-      parent_9 = parent_class.find_by_id('9')
-
-      create_child(parent_9, :id => '6', :important => false)
-
-      create_parent(:id => '10')
-
-      assoc_ids = parent_class.intersect(:id => [ '8', '9', '10']).
-        associated_ids_for(:children)
-      expect(assoc_ids).to eq('8'  => Set.new(['3', '4', '5']),
-                              '9'  => Set.new(['6']),
-                              '10' => Set.new())
-
-      assoc_parent_ids = child_class.intersect(:id => ['3', '4', '5', '6']).
-        associated_ids_for(:parent)
-      expect(assoc_parent_ids).to eq('3' => '8',
-                                     '4' => '8',
-                                     '5' => '8',
-                                     '6' => '9')
-    end
-
   end
 
   context 'influxdb', :influxdb => true, :has_many => true do
@@ -318,11 +313,6 @@ describe Zermelo::Associations::HasMany do
       attrs[:important] = attrs[:important].to_s unless attrs[:important].nil?
       Zermelo.influxdb.write_point("#{ck}/#{attrs[:id]}", attrs)
       par.children.add(child_class.find_by_id!(attrs[:id]))
-    end
-
-    it 'returns associated ids for multiple parent ids' do
-      # see definition in redis-only spec
-      skip "broken, FIXME"
     end
 
   end
