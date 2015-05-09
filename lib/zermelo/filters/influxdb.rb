@@ -84,15 +84,20 @@ module Zermelo
 
           first_step = steps.first
 
+          attr_types = @associated_class.send(:attribute_types)
+
           query += @steps.collect {|step|
-            step.resolve(backend, @associated_class, :first => (step == first_step))
+            step.resolve(backend, @associated_class, :first => (step == first_step),
+              :attr_types  => attr_types)
           }.join("")
         end
 
-        query += " LIMIT 1"
+        query += " ORDER ASC LIMIT 1"
 
         begin
+          # p query
           result = Zermelo.influxdb.query(query)
+          # p result
         rescue ::InfluxDB::Error => ide
           raise unless /^Couldn't look up columns$/ === ide.message
           result = {}
@@ -100,6 +105,7 @@ module Zermelo
 
         data_keys = result.keys.select {|k| k =~ /^#{class_key}\// }
 
+        # r =
         case result_type
         when :ids
           data_keys.empty? ? [] : data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 }
@@ -109,6 +115,11 @@ module Zermelo
             memo
           end
         end
+
+        # p r
+
+        # r
+
       end
     end
   end

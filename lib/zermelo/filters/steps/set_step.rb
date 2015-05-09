@@ -78,6 +78,8 @@ module Zermelo
           when Zermelo::Backends::InfluxDB
             query = ''
 
+            attr_types = opts[:attr_types]
+
             unless opts[:first].is_a?(TrueClass)
               case @options[:op]
               when :intersect, :diff
@@ -90,9 +92,15 @@ module Zermelo
             case @options[:op]
             when :intersect, :union
               query += @attributes.collect {|k, v|
+
+                attr_type = attr_types[k]
+
                 if v.is_a?(Enumerable)
                   qq = v.each_with_object([]) do |vv, memo|
                     ov = case vv
+                    when Regexp
+                      raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                      "=~ /#{vv.source.gsub(/\\\\/, "\\")}/"
                     when String
                       "=~ /^#{Regexp.escape(vv).gsub(/\\\\/, "\\")}$/"
                     else
@@ -103,6 +111,9 @@ module Zermelo
                   "((#{qq.join(') OR (')}))"
                 else
                   op_value = case v
+                  when Regexp
+                    raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                    "=~ /#{v.source.gsub(/\\\\/, "\\")}/"
                   when String
                     "=~ /^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"
                   else
@@ -117,6 +128,9 @@ module Zermelo
                 if v.is_a?(Enumerable)
                   qq = v.each_with_object([]) do |vv, memo|
                     ov = case vv
+                    when Regexp
+                      raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                      "!~ /#{vv.source.gsub(/\\\\/, "\\")}/"
                     when String
                       "!~ /^#{Regexp.escape(vv).gsub(/\\\\/, "\\")}$/"
                     else
@@ -127,6 +141,9 @@ module Zermelo
                   "((#{qq.join(') OR (')}))"
                 else
                   op_value = case v
+                  when Regexp
+                    raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                    "!~ /#{v.source.gsub(/\\\\/, "\\")}/"
                   when String
                     "!~ /^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"
                   else

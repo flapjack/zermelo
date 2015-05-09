@@ -23,6 +23,15 @@ describe Zermelo::Associations::HasOne do
                               '10' => '4')
     end
 
+    it 'calls before/after_read callbacks when the value is read' # do
+    #   create_parent(:id => '8')
+    #   parent = parent_class.find_by_id('8')
+
+    #   expect(parent.read).to be_nil
+    #   expect(parent.child).to be_nil
+    #   expect(parent.read).to eq([:pre, :post])
+    # end
+
   end
 
   context 'redis', :redis => true, :has_one => true do
@@ -93,15 +102,6 @@ describe Zermelo::Associations::HasOne do
       expect(child2.id).to eq('22')
       expect(child2.parent.id).to eq('8')
     end
-
-    it 'calls before/after_read callbacks when the value is read' # do
-    #   create_parent(:id => '8')
-    #   parent = parent_class.find_by_id('8')
-
-    #   expect(parent.read).to be_nil
-    #   expect(parent.child).to be_nil
-    #   expect(parent.read).to eq([:pre, :post])
-    # end
 
     it 'clears the belongs_to association when the child record is deleted' do
       create_parent(:id => '8')
