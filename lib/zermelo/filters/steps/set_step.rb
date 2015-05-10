@@ -134,7 +134,7 @@ module Zermelo
                     when String
                       "!~ /^#{Regexp.escape(vv).gsub(/\\\\/, "\\")}$/"
                     else
-                      "!= '#{vv}'"
+                      "<> '#{vv}'"
                     end
                     memo << "#{k} #{ov}"
                   end
@@ -147,7 +147,7 @@ module Zermelo
                   when String
                     "!~ /^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"
                   else
-                    "!= '#{v}'"
+                    "<> '#{v}'"
                   end
 
                   "(#{k} #{op_value})"

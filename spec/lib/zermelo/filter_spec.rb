@@ -208,6 +208,15 @@ describe Zermelo::Filter do
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['9', '10'])
     end
+
+    it 'excludes particular records' do
+      example = example_class.diff(:active => true).all
+      expect(example).not_to be_nil
+      expect(example).to be_an(Array)
+      expect(example.size).to eq(1)
+      expect(example.map(&:id)).to eq(['9'])
+    end
+
   end
 
   context 'redis', :redis => true, :filter => true do
@@ -244,14 +253,6 @@ describe Zermelo::Filter do
     end
 
     # following only working in Redis for now
-    it 'excludes particular records' do
-      example = example_class.diff(:active => true).all
-      expect(example).not_to be_nil
-      expect(example).to be_an(Array)
-      expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(['9'])
-    end
-
     it 'sorts records by an attribute' do
       example = example_class.sort(:name, :order => 'alpha').all
       expect(example).not_to be_nil
@@ -336,7 +337,6 @@ describe Zermelo::Filter do
     end
 
     # need to fix the influxdb driver to work with these (see Redis examples above)
-    it 'excludes particular records'
     it 'sorts records by an attribute'
     it 'filters by records created before a certain time'
     it 'filters by records created after a certain time'
