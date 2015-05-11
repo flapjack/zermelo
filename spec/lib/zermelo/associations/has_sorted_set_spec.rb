@@ -1,14 +1,20 @@
 require 'spec_helper'
 require 'zermelo/records/redis'
+require 'zermelo/records/influxdb'
 require 'zermelo/associations/has_sorted_set'
 
 describe Zermelo::Associations::HasSortedSet do
 
-  context 'redis', :redis => true do
-
-    let(:redis) { Zermelo.redis }
+  shared_examples "has_sorted_set functions work", :has_sorted_set => true do
 
     let(:time) { Time.now }
+
+    # TODO
+  end
+
+  context 'redis', :redis => true, :has_sorted_set => true do
+
+    let(:redis) { Zermelo.redis }
 
     module ZermeloExamples
       class AssociationsHasSortedSetParentRedis
@@ -113,60 +119,47 @@ describe Zermelo::Associations::HasSortedSet do
       expect(redis.zrange("#{pk}:8:assocs.children_ids", 0, -1)).to eq([]) # but association is
     end
 
-  #   it "clears the belongs_to association when the parent record is deleted" do
-  #     create_parent(:id => '8', :name => 'John Jones',
-  #                    :email => 'jjones@example.com', :active => 'true')
-  #     parent = parent_class.find_by_id('8')
+    it "clears the belongs_to association when the parent record is deleted" do
+      create_child(parent, :id => '6', :timestamp => time,
+        :emotion => 'upset')
 
-  #     time = Time.now
+      expect(redis.keys).to match_array(["#{pk}::attrs:ids",
+                            "#{pk}:8:assocs:children_ids",
+                            "#{ck}::attrs:ids",
+                            "#{ck}::indices:by_timestamp",
+                            "#{ck}::indices:by_emotion:string:upset",
+                            "#{ck}:6:attrs",
+                            "#{ck}:6:assocs:belongs_to"])
 
-  #     create_child(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
-  #       :emotion => 'upset')
+      parent.destroy
 
-  #     expect(redis.keys).to match_array(["#{pk}::attrs:ids",
-  #                           "#{pk}::indices:by_name",
-  #                           "#{pk}::indices:by_active:boolean:true",
-  #                           "#{pk}:8:attrs",
-  #                           "#{pk}:8:assocs:data_ids",
-  #                           "#{ck}::attrs:ids",
-  #                           "#{ck}::indices:by_emotion:string:upset",
-  #                           "#{ck}:6:attrs",
-  #                           "#{ck}:6:assocs:belongs_to"])
+      expect(redis.keys).to match_array(["#{ck}::attrs:ids",
+                            "#{ck}::indices:by_timestamp",
+                            "#{ck}::indices:by_emotion:string:upset",
+                            "#{ck}:6:attrs"])
+    end
 
-  #     example.destroy
+    it 'returns associated ids for multiple parent ids' do
+      create_parent(:id => '9')
 
-  #     expect(redis.keys).to match_array(["#{ck}::attrs:ids",
-  #                           "#{ck}::indices:by_emotion:string:upset",
-  #                           "#{ck}:6:attrs"])
-  #   end
+      create_parent(:id => '10')
+      parent_10 = parent_class.find_by_id('10')
 
-  #   it 'returns associated ids for multiple parent ids' do
-  #     create_parent(:id => '8', :name => 'John Jones',
-  #                    :email => 'jjones@example.com', :active => 'true')
-  #     example_8 = parent_class.find_by_id('8')
+      time = Time.now.to_i
 
-  #     create_parent(:id => '9', :name => 'Jane Johnson',
-  #                    :email => 'jjohnson@example.com', :active => 'true')
+      create_child(parent, :id => '3', :timestamp => time - 20,
+        :emotion => 'ok')
+      create_child(parent, :id => '4', :timestamp => time - 10,
+        :emotion => 'ok')
+      create_child(parent_10, :id => '5', :timestamp => time,
+        :emotion => 'not_ok')
 
-  #     create_parent(:id => '10', :name => 'Jim Smith',
-  #                    :email => 'jsmith@example.com', :active => 'true')
-  #     example_10 = parent_class.find_by_id('10')
-
-  #     time = Time.now.to_i
-
-  #     create_child(example_8, :id => '3', :summary => 'aaargh', :timestamp => time.to_i + 20,
-  #       :emotion => 'ok')
-  #     create_child(example_8, :id => '4', :summary => 'aaargh', :timestamp => time.to_i + 30,
-  #       :emotion => 'ok')
-  #     create_child(example_10, :id => '5', :summary => 'aaargh', :timestamp => time.to_i + 40,
-  #       :emotion => 'not_ok')
-
-  #     assoc_ids = parent_class.intersect(:id => ['8', '9', '10']).
-  #       associated_ids_for(:data)
-  #     expect(assoc_ids).to eq('8'  => ['3', '4'],
-  #                             '9'  => [],
-  #                             '10' => ['5'])
-  #   end
+      assoc_ids = parent_class.intersect(:id => ['8', '9', '10']).
+        associated_ids_for(:children)
+      expect(assoc_ids).to eq('8'  => ['3', '4'],
+                              '9'  => [],
+                              '10' => ['5'])
+    end
 
     context 'filters' do
       before do
@@ -213,7 +206,7 @@ describe Zermelo::Associations::HasSortedSet do
       end
 
       it "a subset of a sorted set by score" do
-        range = Zermelo::Filters::IndexRange.new((time - 25).to_f, (time - 5).to_f, :by_score => true)
+        range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, :by_score => true)
         children = parent.children.intersect(:timestamp => range).all
         expect(children).not_to be_nil
         expect(children).to be_an(Array)
@@ -222,7 +215,7 @@ describe Zermelo::Associations::HasSortedSet do
       end
 
       it "a reversed subset of a sorted set by score" do
-        range = Zermelo::Filters::IndexRange.new((time - 25).to_f, (time - 5).to_f, :by_score => true)
+        range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, :by_score => true)
         children = parent.children.intersect(:timestamp => range).
                      sort(:timestamp, :desc => true).all
         expect(children).not_to be_nil
@@ -258,62 +251,67 @@ describe Zermelo::Associations::HasSortedSet do
         expect(children.map(&:id)).to eq(['6'])
       end
 
-    #   it "a reversed exclusion of a sorted set by index" do
-    #     data = example.data.diff_range(2, 2).sort(:id, :desc => true).all
-    #     expect(data).not_to be_nil
-    #     expect(data).to be_an(Array)
-    #     expect(data.size).to eq(2)
-    #     expect(data.map(&:id)).to eq(['5', '4'])
-    #   end
+      it "a reversed exclusion of a sorted set by index" do
+        range = Zermelo::Filters::IndexRange.new(2, 2)
+        children = parent.children.diff(:timestamp => range).sort(:id, :desc => true).all
+        expect(children).not_to be_nil
+        expect(children).to be_an(Array)
+        expect(children.size).to eq(2)
+        expect(children.map(&:id)).to eq(['5', '4'])
+      end
 
-    #   it "the exclusion of a sorted set by score" do
-    #     data = example.data.diff_range(time.to_i - 1, time.to_i + 15, :by_score => true).all
-    #     expect(data).not_to be_nil
-    #     expect(data).to be_an(Array)
-    #     expect(data.size).to eq(1)
-    #     expect(data.map(&:id)).to eq(['6'])
-    #   end
+      it "the exclusion of a sorted set by score" do
+        range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, :by_score => true)
+        children = parent.children.diff(:timestamp => range).all
+        expect(children).not_to be_nil
+        expect(children).to be_an(Array)
+        expect(children.size).to eq(1)
+        expect(children.map(&:id)).to eq(['6'])
+      end
 
-    #   it "a reversed exclusion of a sorted set by score" do
-    #     data = example.data.diff_range(time.to_i - 1, time.to_i + 8, :by_score => true).
-    #       sort(:timestamp, :desc => true).all
-    #     expect(data).not_to be_nil
-    #     expect(data).to be_an(Array)
-    #     expect(data.size).to eq(2)
-    #     expect(data.map(&:id)).to eq(['6', '5'])
-    #   end
+      it "a reversed exclusion of a sorted set by score" do
+        range = Zermelo::Filters::IndexRange.new(time - 5, time, :by_score => true)
+        children = parent.children.diff(:timestamp => range).sort(:timestamp, :desc => true).all
+        expect(children).not_to be_nil
+        expect(children).to be_an(Array)
+        expect(children.size).to eq(2)
+        expect(children.map(&:id)).to eq(['5', '4'])
+      end
 
     end
 
-  #   it 'clears the belongs_to association when the child record is deleted' do
-  #     create_parent(:id => '8', :name => 'John Jones',
-  #                    :email => 'jjones@example.com', :active => 'true')
-  #     parent = parent_class.find_by_id('8')
+  end
 
-  #     time = Time.now
+  context 'influxdb', :influxdb => true, :has_sorted_set => true do
 
-  #     create_child(example, :id => '6', :summary => 'aaargh', :timestamp => time.to_i + 20,
-  #       :emotion => 'upset')
-  #     child = child_class.find_by_id('6')
+    let(:influxdb) { Zermelo.influxdb }
 
-  #     expect(redis.keys).to match_array(["#{pk}::attrs:ids",
-  #                           "#{pk}::indices:by_name",
-  #                           "#{pk}::indices:by_active:boolean:true",
-  #                           "#{pk}:8:attrs",
-  #                           "#{pk}:8:assocs:data_ids",
-  #                           "#{ck}::attrs:ids",
-  #                           "#{ck}::indices:by_emotion:string:upset",
-  #                           "#{ck}:6:attrs",
-  #                           "#{ck}:6:assocs:belongs_to"])
+    module ZermeloExamples
+      class AssociationsHasSortedSetParentInfluxDB
+        include Zermelo::Records::InfluxDB
+        has_sorted_set :children, :class_name => 'ZermeloExamples::AssociationsHasSortedSetChildInfluxDB',
+          :inverse_of => :parent, :sort_key => :timestamp
+      end
 
-  #     datum.destroy
+      class AssociationsHasSortedSetChildInfluxDB
+        include Zermelo::Records::InfluxDB
+        define_attributes :emotion => :string,
+                          :timestamp => :timestamp
+        index_by :emotion
+        range_index_by :timestamp
+        belongs_to :parent, :class_name => 'ZermeloExamples::AssociationsHasSortedSetParentInfluxDB',
+          :inverse_of => :children
+      end
+    end
 
-  #     expect(redis.keys).to match_array(["#{pk}::attrs:ids",
-  #                           "#{pk}::indices:by_name",
-  #                           "#{pk}::indices:by_active:boolean:true",
-  #                           "#{pk}:8:attrs"])
-  #   end
+    let(:parent_class) { ZermeloExamples::AssociationsHasSortedSetParentInfluxDB }
+    let(:child_class) { ZermeloExamples::AssociationsHasSortedSetChildInfluxDB }
 
+    # parent and child keys
+    let(:pk) { 'associations_has_sorted_set_parent_influx_db' }
+    let(:ck) { 'associations_has_sorted_set_child_influx_db' }
+
+    # TODO
   end
 
 end
