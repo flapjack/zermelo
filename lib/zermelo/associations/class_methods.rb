@@ -195,9 +195,9 @@ module Zermelo
                                   }
         )
 
-        # if klass.name == Zermelo::Associations::HasSortedSet.name
-        #   data.sort_key = (args[:key] || :id)
-        # end
+        if klass.name == Zermelo::Associations::HasSortedSet.name
+          data.sort_key = (args[:sort_key] || :id)
+        end
 
         @lock.synchronize do
           @association_data ||= {}
