@@ -4,7 +4,6 @@ require 'zermelo/records/errors'
 
 require 'zermelo/filters/steps/list_step'
 require 'zermelo/filters/steps/set_step'
-require 'zermelo/filters/steps/sorted_set_step'
 require 'zermelo/filters/steps/sort_step'
 
 module Zermelo
@@ -73,36 +72,6 @@ module Zermelo
         ::Zermelo::Filters::Steps::ListStep.new({:offset => start,
           :limit => per_page}, {}))
     end
-
-    # def intersect_range(start, finish, attrs_opts = {})
-    #   self.class.new(@backend, @initial_key, @associated_class,
-    #     @callback_target, @callbacks, self,
-    #     ::Zermelo::Filters::Steps::SortedSetStep.new(
-    #       {:op => :intersect_range, :start => start, :finish => finish,
-    #        :by_score => attrs_opts.delete(:by_score)},
-    #       attrs_opts)
-    #     )
-    # end
-
-    # def union_range(start, finish, attrs_opts = {})
-    #   self.class.new(@backend, @initial_key, @associated_class,
-    #     @callback_target, @callbacks, self,
-    #     ::Zermelo::Filters::Steps::SortedSetStep.new(
-    #       {:op => :union_range, :start => start, :finish => finish,
-    #        :by_score => attrs_opts.delete(:by_score)},
-    #       attrs_opts)
-    #     )
-    # end
-
-    # def diff_range(start, finish, attrs_opts = {})
-    #   self.class.new(@backend, @initial_key, @associated_class,
-    #     @callback_target, @callbacks, self,
-    #     ::Zermelo::Filters::Steps::SortedSetStep.new(
-    #       {:op => :diff_range, :start => start, :finish => finish,
-    #        :by_score => attrs_opts.delete(:by_score)},
-    #       attrs_opts)
-    #     )
-    # end
 
     # step users
     def exists?(e_id)

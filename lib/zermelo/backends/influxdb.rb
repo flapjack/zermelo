@@ -15,9 +15,9 @@ module Zermelo
 
       include Zermelo::Backend
 
-      # def default_sorted_set_key
-      #   :time
-      # end
+      def default_sorted_set_key
+        :time
+      end
 
       def filter(ids_key, record, callback_target = nil, callbacks = nil)
         Zermelo::Filters::InfluxDB.new(self, ids_key, record, callback_target, callbacks)

@@ -11,9 +11,9 @@ module Zermelo
 
       include Zermelo::Backend
 
-      # def default_sorted_set_key
-      #   :timestamp
-      # end
+      def default_sorted_set_key
+        :timestamp
+      end
 
       def generate_lock
         Zermelo::Locks::RedisLock.new
@@ -228,19 +228,22 @@ module Zermelo
 
           case index
           when Zermelo::Associations::RangeIndex
-            idx_key = associated_class.send(:temp_key, :set)
-            temp_keys << idx_key
-
             r_index_key = key_to_redis_key(index.key)
-            range_start  = value.start.nil?  ? '-inf' : safe_value(attr_type, value.start)
-            range_finish = value.finish.nil? ? '+inf' : safe_value(attr_type, value.finish)
+            range = if value.by_score
+              range_start  = value.start.nil?  ? '-inf' : safe_value(attr_type, value.start)
+              range_finish = value.finish.nil? ? '+inf' : safe_value(attr_type, value.finish)
+              Zermelo.redis.zrangebyscore(r_index_key, range_start, range_finish)
+            else
+              range_start  = value.start  ||  0
+              range_finish = value.finish || -1
+              Zermelo.redis.zrange(r_index_key, range_start, range_finish)
+            end
 
             # TODO another way for index_lookup to indicate 'empty result', rather
             # than creating & returning an empty key
-            if Zermelo.redis.zcount(r_index_key, range_start, range_finish) > 0
-              Zermelo.redis.sadd(key_to_redis_key(idx_key),
-                Zermelo.redis.zrangebyscore(r_index_key, range_start, range_finish))
-            end
+            idx_key = associated_class.send(:temp_key, :set)
+            temp_keys << idx_key
+            Zermelo.redis.sadd(key_to_redis_key(idx_key), range) unless range.empty?
             idx_key
           when Zermelo::Associations::UniqueIndex
             idx_key = associated_class.send(:temp_key, :set)

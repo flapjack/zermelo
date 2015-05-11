@@ -38,6 +38,14 @@ RSpec.configure do |config|
   #     --seed 1234
   config.order = 'random'
 
+  config.around(:each, :logger => true) do |example|
+    MockLogger.configure_log('zermelo')
+    Zermelo.logger = MockLogger.new
+    example.run
+    puts Zermelo.logger.messages.compact.join("\n")
+    Zermelo.logger.clear
+  end
+
   config.before(:all, :redis => true) do
     Zermelo.redis = ::Redis.new(:db => 14)
   end

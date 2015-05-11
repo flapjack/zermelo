@@ -65,7 +65,7 @@ module Zermelo
           sc_klass = {
             :list       => Zermelo::Filters::Steps::ListStep,
             :set        => Zermelo::Filters::Steps::SetStep,
-            :sorted_set => Zermelo::Filters::Steps::SortedSetStep
+            :sorted_set => Zermelo::Filters::Steps::SetStep::Sorted
           }[@initial_key.type]
           sc = sc_klass.const_get(:REDIS_SHORTCUTS)[shortcut]
           ret = if sc.nil?

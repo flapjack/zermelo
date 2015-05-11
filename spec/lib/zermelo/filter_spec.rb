@@ -261,16 +261,16 @@ describe Zermelo::Filter do
       expect(example.map(&:id)).to eq(['9', '8'])
     end
 
-    it 'filters by records created before a certain time' do
-      examples = example_class.intersect(:created_at => Zermelo::Filters::IndexRange.new(nil, time - 150))
-      expect(examples.count).to eq(1)
-      expect(examples.map(&:id)).to eq(['8'])
-    end
+    it 'sorts by multiple fields' do
+      data = {:active => true, :created_at => Time.now}
+      create_example(data.merge(:id => '1', :name => 'abc'))
+      create_example(data.merge(:id => '2', :name => 'def'))
+      create_example(data.merge(:id => '3', :name => 'abc'))
+      create_example(data.merge(:id => '4', :name => 'def'))
 
-    it 'filters by records created after a certain time' do
-      examples = example_class.intersect(:created_at => Zermelo::Filters::IndexRange.new(time - 150, nil))
-      expect(examples.count).to eq(1)
-      expect(examples.map(&:id)).to eq(['9'])
+      expect(example_class.sort(:name => :asc, :id => :desc).map(&:id)).to eq(
+        ['9', '8', '3', '1', '4', '2']
+      )
     end
 
     # NB sort is case-sensitive, may want a non-case sensitive version
@@ -293,18 +293,17 @@ describe Zermelo::Filter do
       expect(example_class.sort(:name).page(4, :per_page => 3).map(&:id)).to eq([])
     end
 
-    it 'sorts by multiple fields' do
-      data = {:active => true, :created_at => Time.now}
-      create_example(data.merge(:id => '1', :name => 'abc'))
-      create_example(data.merge(:id => '2', :name => 'def'))
-      create_example(data.merge(:id => '3', :name => 'abc'))
-      create_example(data.merge(:id => '4', :name => 'def'))
-
-      expect(example_class.sort(:name => :asc, :id => :desc).map(&:id)).to eq(
-        ['9', '8', '3', '1', '4', '2']
-      )
+    it 'filters by records created before a certain time' do
+      examples = example_class.intersect(:created_at => Zermelo::Filters::IndexRange.new(nil, time - 150, :by_score => true))
+      expect(examples.count).to eq(1)
+      expect(examples.map(&:id)).to eq(['8'])
     end
 
+    it 'filters by records created after a certain time' do
+      examples = example_class.intersect(:created_at => Zermelo::Filters::IndexRange.new(time - 150, nil, :by_score => true))
+      expect(examples.count).to eq(1)
+      expect(examples.map(&:id)).to eq(['9'])
+    end
   end
 
   context 'influxdb', :influxdb => true, :filter => true do
@@ -338,10 +337,10 @@ describe Zermelo::Filter do
 
     # need to fix the influxdb driver to work with these (see Redis examples above)
     it 'sorts records by an attribute'
+    it 'sorts by multiple fields'
+    it "returns paginated query responses"
     it 'filters by records created before a certain time'
     it 'filters by records created after a certain time'
-    it "returns paginated query responses"
-    it 'sorts by multiple fields'
 
   end
 end
