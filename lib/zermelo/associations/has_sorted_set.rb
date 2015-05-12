@@ -31,7 +31,7 @@ module Zermelo
           @associated_class = data.data_klass
           @lock_klasses     = [data.data_klass] + data.related_klasses
           @inverse          = data.inverse
-          @sort_key         = data.sort_key || @backend.default_sorted_set_key
+          @sort_key         = data.sort_key
           @callbacks        = data.callbacks
         end
       end

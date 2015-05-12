@@ -20,7 +20,7 @@ describe Zermelo::Associations::HasSortedSet do
       class AssociationsHasSortedSetParentRedis
         include Zermelo::Records::Redis
         has_sorted_set :children, :class_name => 'ZermeloExamples::AssociationsHasSortedSetChildRedis',
-          :inverse_of => :parent, :sort_key => :timestamp
+          :inverse_of => :parent, :key => :timestamp
       end
 
       class AssociationsHasSortedSetChildRedis
@@ -316,7 +316,7 @@ describe Zermelo::Associations::HasSortedSet do
       class AssociationsHasSortedSetParentInfluxDB
         include Zermelo::Records::InfluxDB
         has_sorted_set :children, :class_name => 'ZermeloExamples::AssociationsHasSortedSetChildInfluxDB',
-          :inverse_of => :parent, :sort_key => :timestamp
+          :inverse_of => :parent, :key => :timestamp
       end
 
       class AssociationsHasSortedSetChildInfluxDB
