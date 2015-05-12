@@ -63,6 +63,7 @@ module Zermelo
           :limit => opts[:limit]}, {}))
     end
 
+    # (a different syntax to the above)
     def page(num, opts = {})
       per_page = opts[:per_page].to_i || 20
       start  = per_page * (num - 1)

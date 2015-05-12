@@ -12,6 +12,28 @@ module Zermelo
 
       include Zermelo::Filter
 
+      SHORTCUTS = {
+        :list => {
+          :ids     => proc {|key|     Zermelo.redis.lrange(key, 0, -1) },
+          :count   => proc {|key|     Zermelo.redis.llen(key) },
+          :exists? => proc {|key, id| Zermelo.redis.lrange(key, 0, -1).include?(id) },
+          :first   => proc {|key|     Zermelo.redis.lrange(key, 0, 0).first },
+          :last    => proc {|key|     Zermelo.redis.lrevrange(key, 0, 0).first }
+        },
+        :set => {
+          :ids     => proc {|key|     Zermelo.redis.smembers(key) },
+          :count   => proc {|key|     Zermelo.redis.scard(key) },
+          :exists? => proc {|key, id| Zermelo.redis.sismember(key, id) }
+        },
+        :sorted_set => {
+          :ids     => proc {|key|     Zermelo.redis.zrange(key, 0, -1) },
+          :count   => proc {|key|     Zermelo.redis.zcard(key) },
+          :exists? => proc {|key, id| !Zermelo.redis.zscore(key, id).nil? },
+          :first   => proc {|key|     Zermelo.redis.zrange(key, 0, 0).first },
+          :last    => proc {|key|     Zermelo.redis.zrevrange(key, 0, 0).first }
+        }
+      }
+
       # TODO polite error when first/last applied to set
 
       # more step users
@@ -62,12 +84,7 @@ module Zermelo
             @callback_target.send(br) if !br.nil? && @callback_target.respond_to?(br)
           end
 
-          sc_klass = {
-            :list       => Zermelo::Filters::Steps::ListStep,
-            :set        => Zermelo::Filters::Steps::SetStep,
-            :sorted_set => Zermelo::Filters::Steps::SetStep::Sorted
-          }[@initial_key.type]
-          sc = sc_klass.const_get(:REDIS_SHORTCUTS)[shortcut]
+          sc = Zermelo::Filters::Redis::SHORTCUTS[@initial_key.type][shortcut]
           ret = if sc.nil?
             yield(@initial_key)
           else

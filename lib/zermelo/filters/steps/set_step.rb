@@ -6,27 +6,11 @@ module Zermelo
     class Steps
       class SetStep < Zermelo::Filters::Steps::BaseStep
         def self.accepted_types
-          [:set, :sorted_set] # TODO should allow :list as well
+          [:set, :sorted_set] # TODO should allow :list as well?
         end
 
         def self.returns_type
           :set
-        end
-
-        REDIS_SHORTCUTS = {
-          :ids     => proc {|key|     Zermelo.redis.smembers(key) },
-          :count   => proc {|key|     Zermelo.redis.scard(key) },
-          :exists? => proc {|key, id| Zermelo.redis.sismember(key, id) }
-        }
-
-        class Sorted
-          REDIS_SHORTCUTS = {
-          :ids     => proc {|key|     Zermelo.redis.zrange(key, 0, -1) },
-          :count   => proc {|key|     Zermelo.redis.zcard(key) },
-          :exists? => proc {|key, id| !Zermelo.redis.zscore(key, id).nil? },
-          :first   => proc {|key|     Zermelo.redis.zrange(key, 0, 0).first },
-          :last    => proc {|key|     Zermelo.redis.zrevrange(key, 0, 0).first }
-          }
         end
 
         def resolve(backend, associated_class, opts = {})
@@ -51,13 +35,14 @@ module Zermelo
                 idx_class = idx_attrs[att.to_s]
                 raise "'#{att}' property is not indexed" if idx_class.nil?
 
-                if idx_class == Zermelo::Associations::RangeIndex
-                  raise "range index must be passed a range" unless val.is_a?(Zermelo::Filters::IndexRange)
-                  memo << backend.index_lookup(att, associated_class,
-                            idx_class, val, attr_types[att], temp_keys)
-                elsif val.is_a?(Enumerable)
-                  conditions_set = associated_class.send(:temp_key, :set)
+                if val.is_a?(Enumerable)
+                  conditions_set = associated_class.send(:temp_key, source.type)
                   r_conditions_set = backend.key_to_redis_key(conditions_set)
+
+                  store_op = {
+                    :set        => :sunionstore,
+                    :sorted_set => :zunionstore
+                  }[source.type]
 
                   backend.temp_key_wrap do |conditions_temp_keys|
                     index_keys = val.collect {|v|
@@ -66,7 +51,7 @@ module Zermelo
                       backend.key_to_redis_key(il)
                     }
 
-                    Zermelo.redis.sunionstore(r_conditions_set, *index_keys)
+                    Zermelo.redis.send(store_op, r_conditions_set, *index_keys)
                   end
                   memo << conditions_set
                 else
@@ -76,8 +61,67 @@ module Zermelo
               end
             end
 
-            self.class.evaluate(backend, @options[:op], associated_class,
-              source, source_keys, opts)
+            r_source_key  = backend.key_to_redis_key(source)
+            r_source_keys = source_keys.collect {|sk| backend.key_to_redis_key(sk) }
+
+            op = @options[:op]
+            shortcut = opts[:shortcut]
+
+            if :ids.eql?(shortcut) && (source.type == :set)
+              case op
+              when :union
+                backend.temp_key_wrap do |shortcut_temp_keys|
+                  dest_set = associated_class.send(:temp_key, :set)
+                  shortcut_temp_keys << dest_set
+                  r_dest_set = backend.key_to_redis_key(dest_set)
+
+                  Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
+                  Zermelo.redis.sunion(r_source_key, r_dest_set)
+                end
+              when :intersect
+                Zermelo.redis.sinter(r_source_key, *r_source_keys)
+              when :diff
+                backend.temp_key_wrap do |shortcut_temp_keys|
+                  dest_set = associated_class.send(:temp_key, :set)
+                  shortcut_temp_keys << dest_set
+                  r_dest_set = backend.key_to_redis_key(dest_set)
+
+                  Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
+                  Zermelo.redis.sdiff(r_source_key, r_dest_set)
+                end
+              end
+            else
+              dest_set = associated_class.send(:temp_key, source.type)
+              r_dest_set = backend.key_to_redis_key(dest_set)
+              temp_keys << dest_set
+
+              case op
+              when :union
+                if source.type == :sorted_set
+                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key] + r_source_keys, :aggregate => 'max')
+                else
+                  Zermelo.redis.sunionstore(r_dest_set, r_source_key, *r_source_keys)
+                end
+              when :intersect
+                if source.type == :sorted_set
+                  Zermelo.redis.zinterstore(r_dest_set, [r_source_key] + r_source_keys, :aggregate => 'max')
+                else
+                  Zermelo.redis.sinterstore(r_dest_set, r_source_key, *r_source_keys)
+                end
+              when :diff
+                if source.type == :sorted_set
+                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key] + r_source_keys, :weights => [1] + [0] * r_source_keys.length, :aggregate => 'min')
+                  Zermelo.redis.zremrangebyscore(r_dest_set, "0", "0")
+                else
+                  Zermelo.redis.sdiffstore(r_dest_set, r_source_key, *r_source_keys)
+                end
+              end
+
+              return dest_set if shortcut.nil?
+
+              Zermelo::Filters::Redis::SHORTCUTS[source.type][shortcut].
+                call(*([r_dest_set] + opts[:shortcut_args]))
+            end
 
           when Zermelo::Backends::InfluxDB
             query = ''
@@ -166,97 +210,6 @@ module Zermelo
 
             query
           end
-        end
-
-        def self.evaluate(backend, op, associated_class, source, source_keys, opts = {})
-          temp_keys  = opts[:temp_keys]
-          shortcut = opts[:shortcut]
-
-          r_source_key  = backend.key_to_redis_key(source)
-          r_source_keys = source_keys.collect {|sk| backend.key_to_redis_key(sk) }
-
-          if :ids.eql?(shortcut) && (source.type == :set)
-            case op
-            when :union
-              backend.temp_key_wrap do |shortcut_temp_keys|
-                dest_set = associated_class.send(:temp_key, :set)
-                shortcut_temp_keys << dest_set
-                r_dest_set = backend.key_to_redis_key(dest_set)
-
-                Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
-                Zermelo.redis.sunion(r_dest_set, r_source_key)
-              end
-            when :intersect
-              Zermelo.redis.sinter(r_source_key, *r_source_keys)
-            when :diff
-              backend.temp_key_wrap do |shortcut_temp_keys|
-                dest_set = associated_class.send(:temp_key, :set)
-                shortcut_temp_keys << dest_set
-                r_dest_set = backend.key_to_redis_key(dest_set)
-
-                Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
-                Zermelo.redis.sdiff(r_source_key, r_dest_set)
-              end
-            end
-          else
-            dest_set = associated_class.send(:temp_key, :set)
-            r_dest_set = backend.key_to_redis_key(dest_set)
-            temp_keys << dest_set
-
-            # TODO a more efficient way to get the ids from sorted sets extracted into sets
-            case op
-            when :union
-              if source.type == :sorted_set
-                backend.temp_key_wrap do |shortcut_temp_keys|
-                  dest_sorted_set = associated_class.send(:temp_key, :sorted_set)
-                  shortcut_temp_keys << dest_sorted_set
-                  r_dest_sorted_set = backend.key_to_redis_key(dest_sorted_set)
-
-                  Zermelo.redis.zunionstore(r_dest_sorted_set, [r_source_key] + r_source_keys, :aggregate => 'max')
-                  ids = Zermelo.redis.zrange(r_dest_sorted_set, 0, -1)
-                  Zermelo.redis.sadd(r_dest_set, ids) unless ids.empty?
-                end
-              else
-                Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
-                Zermelo.redis.sunionstore(r_dest_set, r_source_key, r_dest_set)
-              end
-            when :intersect
-              if source.type == :sorted_set
-                backend.temp_key_wrap do |shortcut_temp_keys|
-                  dest_sorted_set = associated_class.send(:temp_key, :sorted_set)
-                  shortcut_temp_keys << dest_sorted_set
-                  r_dest_sorted_set = backend.key_to_redis_key(dest_sorted_set)
-
-                  Zermelo.redis.zinterstore(r_dest_sorted_set, [r_source_key] + r_source_keys, :aggregate => 'max')
-                  ids = Zermelo.redis.zrange(r_dest_sorted_set, 0, -1)
-                  Zermelo.redis.sadd(r_dest_set, ids) unless ids.empty?
-                end
-              else
-                Zermelo.redis.sinterstore(r_dest_set, r_source_key, *r_source_keys)
-              end
-            when :diff
-              if source.type == :sorted_set
-                backend.temp_key_wrap do |shortcut_temp_keys|
-                  dest_sorted_set = associated_class.send(:temp_key, :sorted_set)
-                  shortcut_temp_keys << dest_sorted_set
-                  r_dest_sorted_set = backend.key_to_redis_key(dest_sorted_set)
-
-                  Zermelo.redis.zunionstore(r_dest_sorted_set, [r_source_key] + r_source_keys, :weights => [1] + [0] * r_source_keys.length, :aggregate => 'min')
-                  Zermelo.redis.zremrangebyscore(r_dest_sorted_set, "0", "0")
-                  ids = Zermelo.redis.zrange(r_dest_sorted_set, 0, -1)
-                  Zermelo.redis.sadd(r_dest_set, ids) unless ids.empty?
-                end
-              else
-                Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
-                Zermelo.redis.sdiffstore(r_dest_set, r_source_key, r_dest_set)
-              end
-            end
-
-            return dest_set if shortcut.nil?
-
-            REDIS_SHORTCUTS[shortcut].call(*([r_dest_set] + opts[:shortcut_args]))
-          end
-
         end
 
       end

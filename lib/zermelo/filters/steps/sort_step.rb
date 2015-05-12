@@ -92,7 +92,7 @@ module Zermelo
             shortcut = opts[:shortcut]
 
             return dest_list if shortcut.nil?
-            Zermelo::Filters::Steps::ListStep::REDIS_SHORTCUTS[shortcut].
+            Zermelo::Filters::Redis::SHORTCUTS[:list][shortcut].
               call(*([r_dest_list] + opts[:shortcut_args]))
           end
         end

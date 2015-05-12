@@ -12,14 +12,6 @@ module Zermelo
           :list
         end
 
-        REDIS_SHORTCUTS = {
-          :ids     => proc {|key|     Zermelo.redis.lrange(key, 0, -1) },
-          :count   => proc {|key|     Zermelo.redis.llen(key) },
-          :exists? => proc {|key, id| Zermelo.redis.lrange(key, 0, -1).include?(id) },
-          :first   => proc {|key|     Zermelo.redis.lrange(key, 0, 0).first },
-          :last    => proc {|key|     Zermelo.redis.lrevrange(key, 0, 0).first }
-        }
-
         def resolve(backend, associated_class, opts = {})
           shortcut = opts[:shortcut]
 
@@ -69,7 +61,9 @@ module Zermelo
             end
 
             return result if shortcut.nil?
-            REDIS_SHORTCUTS[shortcut].call(*([r_result] + opts[:shortcut_args]))
+
+            Zermelo::Filters::Redis::SHORTCUTS[:list][shortcut].
+              call(*([r_result] + opts[:shortcut_args]))
           end
         end
       end

@@ -168,22 +168,11 @@ module Zermelo
       # TODO converge usage of idx_class and _index lookup invocation
 
       def index_lookup(att, associated_class, idx_class, value, attr_type, temp_keys)
+        if (idx_class == Zermelo::Associations::RangeIndex) && !value.is_a?(Zermelo::Filters::IndexRange)
+          raise "Range index must be passed a range"
+        end
+
         case value
-        # when Zermelo::Filters::RedisFilter
-
-          # TODO (maybe) if a filter from different backend, resolve to ids and
-          # put that in a Redis temp set
-
-          # collection, should_be_deleted = value.resolve_steps
-
-          # if should_be_deleted
-          #   temp_sets << collection.name
-          # end
-
-          # unless :set.eql?(collection.type)
-          #   raise "Unsure as yet if non-sets are safe as Filter step values"
-          # end
-
         when Regexp
           raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
 
