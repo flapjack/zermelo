@@ -268,6 +268,23 @@ describe Zermelo::Associations::HasSortedSet do
       it "the union of a sorted set by score"
       it "a reversed union of a sorted set by score"
 
+      it "ANDs multiple union arguments, not ORs them" do
+        children = parent.children.intersect(:id => ['4']).
+                     union(:emotion => 'upset', :id => ['4', '6']).all
+        expect(children).not_to be_nil
+        expect(children).to be_an(Array)
+        expect(children.size).to eq(2)
+        expect(children.map(&:id)).to eq(['4', '6'])
+      end
+
+      it "ANDs multiple diff arguments, not ORs them" do
+        children = parent.children.diff(:emotion => 'upset', :id => ['4', '5']).all
+        expect(children).not_to be_nil
+        expect(children).to be_an(Array)
+        expect(children.size).to eq(2)
+        expect(children.map(&:id)).to eq(['5', '6'])
+      end
+
       it "the exclusion of a sorted set by index" do
         range = Zermelo::Filters::IndexRange.new(0, 1)
         children = parent.children.diff(:timestamp => range).all

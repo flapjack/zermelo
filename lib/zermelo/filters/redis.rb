@@ -115,7 +115,8 @@ module Zermelo
             :index_attrs => idx_attrs,
             :attr_types  => attr_types,
             :temp_keys   => temp_keys,
-            :source      => @initial_key
+            :source      => @initial_key,
+            :initial_key => @initial_key
           }
 
           @steps.each do |step|

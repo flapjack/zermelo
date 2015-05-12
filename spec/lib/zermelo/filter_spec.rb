@@ -178,6 +178,16 @@ describe Zermelo::Filter do
       expect(examples.map(&:id)).to match_array(['8', '10'])
     end
 
+    it "ANDs multiple diff arguments, not ORs them" do
+      create_example(:id => '10', :name => 'Jay Johns', :active => true)
+      examples = example_class.intersect(:id => ['8', '9', '10']).
+                   diff(:id => ['9', '10'], :active => false).all
+      expect(examples).not_to be_nil
+      expect(examples).to be_an(Array)
+      expect(examples.size).to eq(2)
+      expect(examples.map(&:id)).to match_array(['8', '10'])
+    end
+
     it 'supports a regex as argument in union after intersect' do
       create_example(:id => '10', :name => 'Jay Johns', :active => true)
       examples = example_class.intersect(:id => ['8']).

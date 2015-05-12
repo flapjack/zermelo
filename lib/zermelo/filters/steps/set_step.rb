@@ -17,10 +17,11 @@ module Zermelo
 
           case backend
           when Zermelo::Backends::Redis
-            source     = opts[:source]
-            idx_attrs  = opts[:index_attrs]
-            attr_types = opts[:attr_types]
-            temp_keys  = opts[:temp_keys]
+            initial_key = opts[:initial_key]
+            source      = opts[:source]
+            idx_attrs   = opts[:index_attrs]
+            attr_types  = opts[:attr_types]
+            temp_keys   = opts[:temp_keys]
 
             source_keys = @attributes.each_with_object([]) do |(att, value), memo|
 
@@ -97,10 +98,17 @@ module Zermelo
 
               case op
               when :union
+                r_initial_key = backend.key_to_redis_key(initial_key)
+
                 if source.type == :sorted_set
-                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key] + r_source_keys, :aggregate => 'max')
+                  Zermelo.redis.zinterstore(r_dest_set,
+                    [r_initial_key] + r_source_keys,
+                    :weights => [1.0] + ([0.0] * source_keys.length), :aggregate => 'max')
+
+                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], :aggregate => 'max')
                 else
-                  Zermelo.redis.sunionstore(r_dest_set, r_source_key, *r_source_keys)
+                  Zermelo.redis.sinterstore(r_dest_set, r_initial_key, *r_source_keys)
+                  Zermelo.redis.sunionstore(r_dest_set, r_dest_set, r_source_key)
                 end
               when :intersect
                 if source.type == :sorted_set
@@ -110,10 +118,12 @@ module Zermelo
                 end
               when :diff
                 if source.type == :sorted_set
-                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key] + r_source_keys, :weights => [1] + [0] * r_source_keys.length, :aggregate => 'min')
+                  Zermelo.redis.zinterstore(r_dest_set, r_source_keys, :aggregate => 'max')
+                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], :weights => [1.0, 0.0], :aggregate => 'min')
                   Zermelo.redis.zremrangebyscore(r_dest_set, "0", "0")
                 else
-                  Zermelo.redis.sdiffstore(r_dest_set, r_source_key, *r_source_keys)
+                  Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
+                  Zermelo.redis.sdiffstore(r_dest_set, r_dest_set, r_source_key)
                 end
               end
 
