@@ -39,11 +39,6 @@ module Zermelo
                   conditions_set = associated_class.send(:temp_key, source.type)
                   r_conditions_set = backend.key_to_redis_key(conditions_set)
 
-                  store_op = {
-                    :set        => :sunionstore,
-                    :sorted_set => :zunionstore
-                  }[source.type]
-
                   backend.temp_key_wrap do |conditions_temp_keys|
                     index_keys = val.collect {|v|
                       il = backend.index_lookup(att, associated_class,
@@ -51,7 +46,12 @@ module Zermelo
                       backend.key_to_redis_key(il)
                     }
 
-                    Zermelo.redis.send(store_op, r_conditions_set, *index_keys)
+                    case source.type
+                    when :set
+                      Zermelo.redis.sunionstore(r_conditions_set, *index_keys)
+                    when :sorted_set
+                      Zermelo.redis.zunionstore(r_conditions_set, index_keys)
+                    end
                   end
                   memo << conditions_set
                 else
