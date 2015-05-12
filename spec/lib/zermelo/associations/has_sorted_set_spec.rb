@@ -139,6 +139,32 @@ describe Zermelo::Associations::HasSortedSet do
                             "#{ck}:6:attrs"])
     end
 
+    it 'returns the first record' do
+      create_child(parent, :id => '4', :timestamp => time - 20,
+        :emotion => 'upset')
+      create_child(parent, :id => '5', :timestamp => time - 10,
+        :emotion => 'happy')
+      create_child(parent, :id => '6', :timestamp => time,
+        :emotion => 'upset')
+
+      child = parent.children.first
+      expect(child).not_to be_nil
+      expect(child.id).to eq('4')
+    end
+
+    it 'returns the last record' do
+      create_child(parent, :id => '4', :timestamp => time - 20,
+        :emotion => 'upset')
+      create_child(parent, :id => '5', :timestamp => time - 10,
+        :emotion => 'happy')
+      create_child(parent, :id => '6', :timestamp => time,
+        :emotion => 'upset')
+
+      child = parent.children.last
+      expect(child).not_to be_nil
+      expect(child.id).to eq('6')
+    end
+
     it 'returns associated ids for multiple parent ids' do
       create_parent(:id => '9')
 
