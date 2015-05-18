@@ -22,6 +22,7 @@ module Zermelo
             idx_attrs   = opts[:index_attrs]
             attr_types  = opts[:attr_types]
             temp_keys   = opts[:temp_keys]
+            order       = opts[:sort_order]
 
             source_keys = @attributes.each_with_object([]) do |(att, value), memo|
 
@@ -129,8 +130,14 @@ module Zermelo
 
               return dest_set if shortcut.nil?
 
+              shortcut_params = if source.type == :sorted_set
+                [r_dest_set, order] + opts[:shortcut_args]
+              else
+                [r_dest_set] + opts[:shortcut_args]
+              end
+
               Zermelo::Filters::Redis::SHORTCUTS[source.type][shortcut].
-                call(*([r_dest_set] + opts[:shortcut_args]))
+                call(*shortcut_params)
             end
 
           when Zermelo::Backends::InfluxDB

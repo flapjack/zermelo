@@ -11,16 +11,18 @@ module Zermelo
 
       include Zermelo::Backend
 
-      def default_sorted_set_key
-        :timestamp
-      end
+      # def default_sorted_set_key
+      #   :timestamp
+      # end
 
       def generate_lock
         Zermelo::Locks::RedisLock.new
       end
 
-      def filter(ids_key, record, callback_target = nil, callbacks = nil)
-        Zermelo::Filters::Redis.new(self, ids_key, record, callback_target, callbacks)
+      def filter(ids_key, associated_class, callback_target = nil, callbacks = nil,
+        sort_order = nil)
+        Zermelo::Filters::Redis.new(self, ids_key, associated_class,
+                                    callback_target, callbacks, sort_order)
       end
 
       def get_multiple(*attr_keys)

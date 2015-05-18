@@ -32,6 +32,7 @@ module Zermelo
           @lock_klasses     = [data.data_klass] + data.related_klasses
           @inverse          = data.inverse
           @sort_key         = data.sort_key
+          @sort_order       = data.sort_order
           @callbacks        = data.callbacks
         end
       end
@@ -102,7 +103,7 @@ module Zermelo
       # creates a new filter class each time it's called, to store the
       # state for this particular filter chain
       def filter
-        @backend.filter(@record_ids_key, @associated_class, @callbacks)
+        @backend.filter(@record_ids_key, @associated_class, @parent, @callbacks, @sort_order)
       end
 
       def self.associated_ids_for(backend, klass, name, *these_ids)

@@ -196,7 +196,9 @@ module Zermelo
         )
 
         if klass.name == Zermelo::Associations::HasSortedSet.name
-          data.sort_key = args[:key]
+          data.sort_key   = args[:key]
+          data.sort_order =
+            !args[:order].nil? && :desc.eql?(args[:order].to_sym) ? :desc : :asc
         end
 
         @lock.synchronize do

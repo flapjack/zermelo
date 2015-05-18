@@ -21,6 +21,8 @@ describe Zermelo::Associations::HasSortedSet do
         include Zermelo::Records::Redis
         has_sorted_set :children, :class_name => 'ZermeloExamples::AssociationsHasSortedSetChildRedis',
           :inverse_of => :parent, :key => :timestamp
+        has_sorted_set :reversed_children, :class_name => 'ZermeloExamples::AssociationsHasSortedSetChildRedis',
+          :inverse_of => :reversed_parent, :key => :timestamp, :order => :desc
       end
 
       class AssociationsHasSortedSetChildRedis
@@ -31,6 +33,8 @@ describe Zermelo::Associations::HasSortedSet do
         range_index_by :timestamp
         belongs_to :parent, :class_name => 'ZermeloExamples::AssociationsHasSortedSetParentRedis',
           :inverse_of => :children
+        belongs_to :reversed_parent, :class_name => 'ZermeloExamples::AssociationsHasSortedSetParentRedis',
+          :inverse_of => :reversed_children
       end
     end
 
@@ -55,6 +59,19 @@ describe Zermelo::Associations::HasSortedSet do
       redis.zadd("#{ck}::indices:by_timestamp", attrs[:timestamp].to_f, attrs[:id])
       redis.hmset("#{ck}:#{attrs[:id]}:assocs:belongs_to",
                   {'parent_id' => parent.id}.to_a.flatten) unless parent.nil?
+      redis.sadd("#{ck}::attrs:ids", attrs[:id])
+    end
+
+    def create_reversed_child(parent, attrs = {})
+      redis.zadd("#{pk}:#{parent.id}:assocs:reversed_children_ids",  attrs[:timestamp].to_f, attrs[:id]) unless parent.nil?
+
+      redis.hmset("#{ck}:#{attrs[:id]}:attrs", {:emotion => attrs[:emotion],
+        'timestamp' => attrs[:timestamp].to_f}.to_a.flatten)
+
+      redis.sadd("#{ck}::indices:by_emotion:string:#{attrs[:emotion]}", attrs[:id])
+      redis.zadd("#{ck}::indices:by_timestamp", attrs[:timestamp].to_f, attrs[:id])
+      redis.hmset("#{ck}:#{attrs[:id]}:assocs:belongs_to",
+                  {'reversed_parent_id' => parent.id}.to_a.flatten) unless parent.nil?
       redis.sadd("#{ck}::attrs:ids", attrs[:id])
     end
 
@@ -152,6 +169,19 @@ describe Zermelo::Associations::HasSortedSet do
       expect(child.id).to eq('4')
     end
 
+    it 'returns the last record for first if reversed' do
+      create_reversed_child(parent, :id => '4', :timestamp => time - 20,
+        :emotion => 'upset')
+      create_reversed_child(parent, :id => '5', :timestamp => time - 10,
+        :emotion => 'happy')
+      create_reversed_child(parent, :id => '6', :timestamp => time,
+        :emotion => 'upset')
+
+      child = parent.reversed_children.first
+      expect(child).not_to be_nil
+      expect(child.id).to eq('6')
+    end
+
     it 'returns the last record' do
       create_child(parent, :id => '4', :timestamp => time - 20,
         :emotion => 'upset')
@@ -163,6 +193,19 @@ describe Zermelo::Associations::HasSortedSet do
       child = parent.children.last
       expect(child).not_to be_nil
       expect(child.id).to eq('6')
+    end
+
+    it 'returns the first record for last if reversed' do
+      create_reversed_child(parent, :id => '4', :timestamp => time - 20,
+        :emotion => 'upset')
+      create_reversed_child(parent, :id => '5', :timestamp => time - 10,
+        :emotion => 'happy')
+      create_reversed_child(parent, :id => '6', :timestamp => time,
+        :emotion => 'upset')
+
+      child = parent.reversed_children.last
+      expect(child).not_to be_nil
+      expect(child.id).to eq('4')
     end
 
     it 'returns associated ids for multiple parent ids' do

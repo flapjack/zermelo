@@ -26,11 +26,17 @@ module Zermelo
           :exists? => proc {|key, id| Zermelo.redis.sismember(key, id) }
         },
         :sorted_set => {
-          :ids     => proc {|key|     Zermelo.redis.zrange(key, 0, -1) },
-          :count   => proc {|key|     Zermelo.redis.zcard(key) },
-          :exists? => proc {|key, id| !Zermelo.redis.zscore(key, id).nil? },
-          :first   => proc {|key|     Zermelo.redis.zrange(key, 0, 0).first },
-          :last    => proc {|key|     Zermelo.redis.zrevrange(key, 0, 0).first }
+          :ids     => proc {|key, order|
+            Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, -1)
+          },
+          :count   => proc {|key, order|     Zermelo.redis.zcard(key) },
+          :exists? => proc {|key, order, id| !Zermelo.redis.zscore(key, id).nil? },
+          :first   => proc {|key, order|
+            Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, 0).first
+          },
+          :last    => proc {|key, order|
+            Zermelo.redis.send((:desc.eql?(order) ? :zrange : :zrevrange), key, 0, 0).first
+          }
         }
       }
 
@@ -88,7 +94,13 @@ module Zermelo
           ret = if sc.nil?
             yield(@initial_key)
           else
-            sc.call(*([backend.key_to_redis_key(@initial_key)] + args))
+            r_key = backend.key_to_redis_key(@initial_key)
+            shortcut_params = if @initial_key.type == :sorted_set
+              [r_key, @sort_order] + args
+            else
+              [r_key] + args
+            end
+            sc.call(*shortcut_params)
           end
 
           unless @callback_target.nil? || @callbacks.nil?
@@ -116,7 +128,8 @@ module Zermelo
             :attr_types  => attr_types,
             :temp_keys   => temp_keys,
             :source      => @initial_key,
-            :initial_key => @initial_key
+            :initial_key => @initial_key,
+            :sort_order  => @sort_order
           }
 
           @steps.each do |step|
