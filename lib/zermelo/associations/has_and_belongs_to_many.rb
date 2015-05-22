@@ -67,16 +67,14 @@ module Zermelo
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.lock(*@lock_klasses) do
-          br = @callbacks[:before_remove]
-          if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
-            records.each do |record|
-              @associated_class.send(:load, record.id).send(@inverse.to_sym).
-                send(:delete_without_inverse, @parent)
-            end
-            delete_without_inverse(*records)
-            ar = @callbacks[:after_remove]
-            @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
-          end
+          _delete(*records)
+        end
+      end
+
+      def clear
+        @parent.class.lock(*@lock_klasses) do
+          records = filter.all
+          _delete(*records) unless records.empty?
         end
       end
 
@@ -102,6 +100,19 @@ module Zermelo
             send(:delete_without_inverse, @parent)
         end
         @backend.purge(@record_ids_key)
+      end
+
+      def _delete(*records)
+        br = @callbacks[:before_remove]
+        if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
+          records.each do |record|
+            @associated_class.send(:load, record.id).send(@inverse.to_sym).
+              send(:delete_without_inverse, @parent)
+          end
+          delete_without_inverse(*records)
+          ar = @callbacks[:after_remove]
+          @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
+        end
       end
 
       # creates a new filter class each time it's called, to store the

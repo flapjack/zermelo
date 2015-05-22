@@ -201,6 +201,25 @@ module Zermelo
                 records[class_key][key.id][key.name] += v
               end
             end
+          when :delete
+            case key.type
+            when :hash
+              unless records[class_key][key.id][key.name].nil?
+                # FIXME
+              end
+            when :list
+              unless records[class_key][key.id][key.name].nil?
+                records[class_key][key.id][key.name] -= value
+              end
+            when :set
+              unless records[class_key][key.id][key.name].nil?
+                records[class_key][key.id][key.name] -= value.to_a
+              end
+            when :sorted_set
+              unless records[class_key][key.id][key.name].nil?
+                records[class_key][key.id][key.name] -= (1...value.size).step(2).collect {|i| value[i] }
+              end
+            end
           when :purge
             purges << "\"#{class_key}/#{key.id}\""
           end

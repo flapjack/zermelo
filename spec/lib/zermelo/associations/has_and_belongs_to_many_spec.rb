@@ -38,6 +38,50 @@ describe Zermelo::Associations::HasAndBelongsToMany do
       }.to raise_error
     end
 
+    it "deletes a record from the set" do
+      create_primary(:id => '9', :active => false)
+      primary = primary_class.find_by_id('8')
+      primary_2 = primary_class.find_by_id('9')
+      secondary = secondary_class.find_by_id('2')
+
+      secondary.primaries.add(primary, primary_2)
+
+      expect(secondary.primaries.count).to eq(2)
+      expect(primary.secondaries.count).to eq(1)
+      expect(primary_2.secondaries.count).to eq(1)
+
+      secondary.primaries.delete(primary)
+
+      expect(secondary.primaries.count).to eq(1)
+      expect(primary.secondaries.count).to eq(0)
+      expect(primary_2.secondaries.count).to eq(1)
+      expect(secondary.primaries.ids).to eq(['9'])
+      expect(primary.secondaries.ids).to eq([])
+      expect(primary_2.secondaries.ids).to eq(['2'])
+    end
+
+    it "clears all records from the set" do
+      create_primary(:id => '9', :active => false)
+      primary = primary_class.find_by_id('8')
+      primary_2 = primary_class.find_by_id('9')
+      secondary = secondary_class.find_by_id('2')
+
+      secondary.primaries.add(primary, primary_2)
+
+      expect(secondary.primaries.count).to eq(2)
+      expect(primary.secondaries.count).to eq(1)
+      expect(primary_2.secondaries.count).to eq(1)
+
+      secondary.primaries.clear
+
+      expect(secondary.primaries.count).to eq(0)
+      expect(primary.secondaries.count).to eq(0)
+      expect(primary_2.secondaries.count).to eq(0)
+      expect(secondary.primaries.ids).to eq([])
+      expect(primary.secondaries.ids).to eq([])
+      expect(primary_2.secondaries.ids).to eq([])
+    end
+
     context 'filters' do
 
       it "filters has_and_belongs_to_many records by indexed attribute values" do

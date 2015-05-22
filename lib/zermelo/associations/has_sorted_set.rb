@@ -70,20 +70,14 @@ module Zermelo
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
         @parent.class.lock(*@lock_klasses) do
-          br = @callbacks[:before_remove]
-          if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
-            unless @inverse.nil?
-              records.each do |record|
-                @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
-              end
-            end
+          _delete(*records)
+        end
+      end
 
-            new_txn = @backend.begin_transaction
-            @backend.delete(@record_ids_key, records.map(&:id))
-            @backend.commit_transaction if new_txn
-            ar = @callbacks[:after_remove]
-            @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
-          end
+      def clear
+        @parent.class.lock(*@lock_klasses) do
+          records = filter.all
+          _delete(*records) unless records.empty?
         end
       end
 
@@ -98,6 +92,23 @@ module Zermelo
           end
         end
         @backend.clear(@record_ids_key)
+      end
+
+      def _delete(*records)
+        br = @callbacks[:before_remove]
+        if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
+          unless @inverse.nil?
+            records.each do |record|
+              @associated_class.send(:load, record.id).send("#{@inverse}=", nil)
+            end
+          end
+
+          new_txn = @backend.begin_transaction
+          @backend.delete(@record_ids_key, records.map(&:id))
+          @backend.commit_transaction if new_txn
+          ar = @callbacks[:after_remove]
+          @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
+        end
       end
 
       # creates a new filter class each time it's called, to store the

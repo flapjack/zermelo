@@ -95,9 +95,7 @@ module Zermelo
         query += " ORDER ASC LIMIT 1"
 
         begin
-          # p query
           result = Zermelo.influxdb.query(query)
-          # p result
         rescue ::InfluxDB::Error => ide
           raise unless /^Couldn't look up columns$/ === ide.message
           result = {}
@@ -105,21 +103,12 @@ module Zermelo
 
         data_keys = result.keys.select {|k| k =~ /^#{class_key}\// }
 
-        # r =
         case result_type
         when :ids
           data_keys.empty? ? [] : data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 }
         when :count
-          data_keys.empty? ?  0 : data_keys.inject(0) do |memo, k|
-            memo += result[k].first['count']
-            memo
-          end
+          data_keys.empty? ?  0 : data_keys.size
         end
-
-        # p r
-
-        # r
-
       end
     end
   end

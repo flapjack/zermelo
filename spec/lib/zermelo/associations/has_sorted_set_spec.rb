@@ -230,6 +230,32 @@ describe Zermelo::Associations::HasSortedSet do
                               '10' => ['5'])
     end
 
+    it "deletes a record from the set" do
+      create_child(parent, :id => '3', :timestamp => time - 20,
+        :emotion => 'ok')
+      create_child(parent, :id => '4', :timestamp => time - 10,
+        :emotion => 'ok')
+
+      expect(parent.children.count).to eq(2)
+      child = child_class.find_by_id('3')
+      parent.children.delete(child)
+      expect(parent.children.count).to eq(1)
+      expect(parent.children.ids).to eq(['4'])
+    end
+
+    it "clears all records from the set" do
+      create_child(parent, :id => '3', :timestamp => time - 20,
+        :emotion => 'ok')
+      create_child(parent, :id => '4', :timestamp => time - 10,
+        :emotion => 'ok')
+
+      expect(parent.children.count).to eq(2)
+      child = child_class.find_by_id('3')
+      parent.children.clear
+      expect(parent.children.count).to eq(0)
+      expect(parent.children.ids).to eq([])
+    end
+
     context 'filters' do
       before do
         create_child(parent, :id => '4', :timestamp => time - 20,

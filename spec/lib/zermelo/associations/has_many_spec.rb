@@ -51,6 +51,28 @@ describe Zermelo::Associations::HasMany do
       expect(other_parent.id).to eq('8')
     end
 
+    it "deletes a record from the set" do
+      create_child(parent, :id => '3')
+      create_child(parent, :id => '4')
+
+      expect(parent.children.count).to eq(2)
+      child = child_class.find_by_id('3')
+      parent.children.delete(child)
+      expect(parent.children.count).to eq(1)
+      expect(parent.children.ids).to eq(['4'])
+    end
+
+    it "clears all records from the set" do
+      create_child(parent, :id => '3')
+      create_child(parent, :id => '4')
+
+      expect(parent.children.count).to eq(2)
+      child = child_class.find_by_id('3')
+      parent.children.clear
+      expect(parent.children.count).to eq(0)
+      expect(parent.children.ids).to eq([])
+    end
+
     it "does not add a child if the before_add callback raises an exception" # do
     #   create_child(nil, :id => '6', :important => true)
     #   child = child_class.find_by_id('6')
