@@ -82,8 +82,8 @@ module Zermelo
       def on_remove
         unless value.nil?
           assoc = value.send("#{@inverse}_proxy".to_sym)
-          if assoc.respond_to?(:delete)
-            assoc.send(:delete, @parent)
+          if assoc.respond_to?(:remove)
+            assoc.send(:remove, @parent)
           elsif assoc.respond_to?(:value=)
             assoc.send(:value=, nil)
           end

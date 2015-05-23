@@ -65,27 +65,27 @@ module Zermelo
         end
       end
 
-      def delete(*records)
+      def remove(*records)
         raise 'No records to remove' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?}
         @parent.class.lock(*@lock_klasses) do
-          _delete(*records)
+          _remove(*records)
         end
       end
 
-      def delete_ids(*record_ids)
+      def remove_ids(*record_ids)
         raise 'No records to remove' if record_ids.empty?
         @parent.class.lock(*@lock_klasses) do
           records = filter.find_by_ids!(*record_ids)
-          _delete(*records)
+          _remove(*records)
         end
       end
 
       def clear
         @parent.class.lock(*@lock_klasses) do
           records = filter.all
-          _delete(*records) unless records.empty?
+          _remove(*records) unless records.empty?
         end
       end
 
@@ -102,7 +102,7 @@ module Zermelo
         @backend.clear(@record_ids_key)
       end
 
-      def _delete(*records)
+      def _remove(*records)
         br = @callbacks[:before_remove]
         if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
           unless @inverse.nil?

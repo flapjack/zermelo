@@ -130,7 +130,7 @@ describe Zermelo::Associations::HasSortedSet do
       expect(redis.smembers("#{ck}::attrs:ids")).to eq(['4'])
       expect(redis.zrange("#{pk}:8:assocs:children_ids", 0, -1)).to eq(['4'])
 
-      parent.children.delete(child)
+      parent.children.remove(child)
 
       expect(redis.smembers("#{ck}::attrs:ids")).to eq(['4'])    # child not deleted
       expect(redis.zrange("#{pk}:8:assocs.children_ids", 0, -1)).to eq([]) # but association is
@@ -238,7 +238,7 @@ describe Zermelo::Associations::HasSortedSet do
 
       expect(parent.children.count).to eq(2)
       child = child_class.find_by_id('3')
-      parent.children.delete(child)
+      parent.children.remove(child)
       expect(parent.children.count).to eq(1)
       expect(parent.children.ids).to eq(['4'])
     end
@@ -250,7 +250,7 @@ describe Zermelo::Associations::HasSortedSet do
         :emotion => 'ok')
 
       expect(parent.children.count).to eq(2)
-      parent.children.delete_ids('3')
+      parent.children.remove_ids('3')
       expect(parent.children.count).to eq(1)
       expect(parent.children.ids).to eq(['4'])
     end

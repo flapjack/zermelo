@@ -61,28 +61,28 @@ module Zermelo
         end
       end
 
-      # TODO support dependent delete, for now just deletes the association
-      def delete(*records)
+      # TODO support dependent delete, for now just removes the association
+      def remove(*records)
         raise 'No records to remove' if records.empty?
         raise 'Invalid record class' unless records.all? {|r| r.is_a?(@associated_class)}
         raise "Record(s) must have been saved" unless records.all? {|r| r.persisted?}
         @parent.class.lock(*@lock_klasses) do
-          _delete(*records)
+          _remove(*records)
         end
       end
 
-      def delete_ids(*record_ids)
+      def remove_ids(*record_ids)
         raise 'No records to remove' if record_ids.empty?
         @parent.class.lock(*@lock_klasses) do
           records = filter.find_by_ids!(*record_ids)
-          _delete(*records)
+          _remove(*records)
         end
       end
 
       def clear
         @parent.class.lock(*@lock_klasses) do
           records = filter.all
-          _delete(*records) unless records.empty?
+          _remove(*records) unless records.empty?
         end
       end
 
@@ -94,7 +94,7 @@ module Zermelo
         @backend.commit_transaction if new_txn
       end
 
-      def delete_without_inverse(*records)
+      def remove_without_inverse(*records)
         new_txn = @backend.begin_transaction
         @backend.delete(@record_ids_key, records.map(&:id))
         @backend.commit_transaction if new_txn
@@ -105,19 +105,19 @@ module Zermelo
       def on_remove
         ids.each do |record_id|
           @associated_class.send(:load, record_id).send(@inverse.to_sym).
-            send(:delete_without_inverse, @parent)
+            send(:remove_without_inverse, @parent)
         end
         @backend.purge(@record_ids_key)
       end
 
-      def _delete(*records)
+      def _remove(*records)
         br = @callbacks[:before_remove]
         if br.nil? || !@parent.respond_to?(br) || !@parent.send(br, *records).is_a?(FalseClass)
           records.each do |record|
             @associated_class.send(:load, record.id).send(@inverse.to_sym).
-              send(:delete_without_inverse, @parent)
+              send(:remove_without_inverse, @parent)
           end
-          delete_without_inverse(*records)
+          remove_without_inverse(*records)
           ar = @callbacks[:after_remove]
           @parent.send(ar, *records) if !ar.nil? && @parent.respond_to?(ar)
         end

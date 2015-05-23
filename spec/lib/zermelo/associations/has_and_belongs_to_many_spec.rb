@@ -34,7 +34,7 @@ describe Zermelo::Associations::HasAndBelongsToMany do
 
     it 'raises an error when calling delete on has_and_belongs_to_many without an argument' do
       expect {
-        primary.secondaries.delete
+        primary.secondaries.remove
       }.to raise_error
     end
 
@@ -50,7 +50,7 @@ describe Zermelo::Associations::HasAndBelongsToMany do
       expect(primary.secondaries.count).to eq(1)
       expect(primary_2.secondaries.count).to eq(1)
 
-      secondary.primaries.delete(primary)
+      secondary.primaries.remove(primary)
 
       expect(secondary.primaries.count).to eq(1)
       expect(primary.secondaries.count).to eq(0)
@@ -72,7 +72,7 @@ describe Zermelo::Associations::HasAndBelongsToMany do
       expect(primary.secondaries.count).to eq(1)
       expect(primary_2.secondaries.count).to eq(1)
 
-      secondary.primaries.delete_ids('8')
+      secondary.primaries.remove_ids('8')
 
       expect(secondary.primaries.count).to eq(1)
       expect(primary.secondaries.count).to eq(0)
@@ -265,7 +265,7 @@ describe Zermelo::Associations::HasAndBelongsToMany do
       expect(redis.smembers("#{sk}::attrs:ids")).to eq(['2'])
       expect(redis.smembers("#{pk}:8:assocs:secondaries_ids")).to eq(['2'])
 
-      primary.secondaries.delete(secondary)
+      primary.secondaries.remove(secondary)
 
       expect(redis.smembers("#{sk}::attrs:ids")).to eq(['2'])       # secondary not deleted
       expect(redis.smembers("#{pk}:8:assocs:secondaries_ids")).to eq([]) # but association is

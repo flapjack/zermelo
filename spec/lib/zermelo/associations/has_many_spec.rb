@@ -57,7 +57,7 @@ describe Zermelo::Associations::HasMany do
 
       expect(parent.children.count).to eq(2)
       child = child_class.find_by_id('3')
-      parent.children.delete(child)
+      parent.children.remove(child)
       expect(parent.children.count).to eq(1)
       expect(parent.children.ids).to eq(['4'])
     end
@@ -67,7 +67,7 @@ describe Zermelo::Associations::HasMany do
       create_child(parent, :id => '4')
 
       expect(parent.children.count).to eq(2)
-      parent.children.delete_ids('3')
+      parent.children.remove_ids('3')
       expect(parent.children.count).to eq(1)
       expect(parent.children.ids).to eq(['4'])
     end
@@ -108,7 +108,7 @@ describe Zermelo::Associations::HasMany do
 
     it 'raises an error when calling delete on has_many without an argument' do
       expect {
-        parent.children.delete
+        parent.children.remove
       }.to raise_error
     end
 
@@ -257,7 +257,7 @@ describe Zermelo::Associations::HasMany do
       expect(redis.smembers("#{ck}::attrs:ids")).to eq(['3'])
       expect(redis.smembers("#{pk}:8:assocs:children_ids")).to eq(['3'])
 
-      parent.children.delete(child)
+      parent.children.remove(child)
 
       expect(redis.smembers("#{ck}::attrs:ids")).to eq(['3'])   # child not deleted
       expect(redis.smembers("#{pk}:8:assocs:children_ids")).to eq([]) # but association is
