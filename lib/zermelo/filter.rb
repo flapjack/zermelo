@@ -85,7 +85,7 @@ module Zermelo
     end
 
     def find_by_id!(f_id)
-      ret = lock { _find_by_id(f_id) }
+      ret = find_by_id(f_id)
       raise ::Zermelo::Records::Errors::RecordNotFound.new(@associated_class, f_id) if ret.nil?
       ret
     end
@@ -95,7 +95,7 @@ module Zermelo
     end
 
     def find_by_ids!(*f_ids)
-      ret = lock { f_ids.collect {|f_id| _find_by_id(f_id) } }
+      ret = find_by_ids(*f_ids)
       if ret.any? {|r| r.nil? }
         raise ::Zermelo::Records::Errors::RecordsNotFound.new(@associated_class, f_ids - ret.compact.map(&:id))
       end

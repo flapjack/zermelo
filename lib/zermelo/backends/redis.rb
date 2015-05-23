@@ -95,19 +95,6 @@ module Zermelo
         end
       end
 
-      def exists?(key)
-        Zermelo.redis.exists(key_to_redis_key(key))
-      end
-
-      def include?(key, id)
-        case key.type
-        when :set
-          Zermelo.redis.sismember(key_to_redis_key(key), id)
-        else
-          raise "Not implemented"
-        end
-      end
-
       def begin_transaction
         return false unless @transaction_redis.nil?
         @transaction_redis = Zermelo.redis
