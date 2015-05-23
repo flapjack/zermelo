@@ -44,20 +44,15 @@ module Zermelo
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent.class.lock(*@lock_klasses) do
-          ba = @callbacks[:before_add]
-          if ba.nil? || !@parent.respond_to?(ba) || !@parent.send(ba, *records).is_a?(FalseClass)
-            unless @inverse.nil?
-              records.each do |record|
-                @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
-              end
-            end
+          _add(*records)
+        end
+      end
 
-            new_txn = @backend.begin_transaction
-            @backend.add(@record_ids_key, records.map(&:id))
-            @backend.commit_transaction if new_txn
-            aa = @callbacks[:after_add]
-            @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
-          end
+      def add_ids(*record_ids)
+        raise 'No record ids to add' if record_ids.empty?
+        @parent.class.lock(*@lock_klasses) do
+          records = @associated_class.find_by_ids!(*record_ids)
+          _add(*records)
         end
       end
 
@@ -72,7 +67,7 @@ module Zermelo
       end
 
       def remove_ids(*record_ids)
-        raise 'No records to remove' if record_ids.empty?
+        raise 'No record ids to remove' if record_ids.empty?
         @parent.class.lock(*@lock_klasses) do
           records = filter.find_by_ids!(*record_ids)
           _remove(*records)
@@ -96,6 +91,23 @@ module Zermelo
           end
         end
         @backend.clear(@record_ids_key)
+      end
+
+      def _add(*records)
+        ba = @callbacks[:before_add]
+        if ba.nil? || !@parent.respond_to?(ba) || !@parent.send(ba, *records).is_a?(FalseClass)
+          unless @inverse.nil?
+            records.each do |record|
+              @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
+            end
+          end
+
+          new_txn = @backend.begin_transaction
+          @backend.add(@record_ids_key, records.map(&:id))
+          @backend.commit_transaction if new_txn
+          aa = @callbacks[:after_add]
+          @parent.send(aa, *records) if !aa.nil? && @parent.respond_to?(aa)
+        end
       end
 
       def _remove(*records)
