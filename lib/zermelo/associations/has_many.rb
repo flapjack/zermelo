@@ -63,11 +63,19 @@ module Zermelo
 
       # TODO support dependent delete, for now just deletes the association
       def delete(*records)
-        raise 'No records to delete' if records.empty?
+        raise 'No records to remove' if records.empty?
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent.class.lock(*@lock_klasses) do
           _delete(*records) unless records.empty?
+        end
+      end
+
+      def delete_ids(*record_ids)
+        raise 'No records to remove' if record_ids.empty?
+        @parent.class.lock(*@lock_klasses) do
+          records = filter.find_by_ids!(*record_ids)
+          _delete(*records)
         end
       end
 

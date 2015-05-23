@@ -243,6 +243,18 @@ describe Zermelo::Associations::HasSortedSet do
       expect(parent.children.ids).to eq(['4'])
     end
 
+    it "deletes a record from the set by id" do
+      create_child(parent, :id => '3', :timestamp => time - 20,
+        :emotion => 'ok')
+      create_child(parent, :id => '4', :timestamp => time - 10,
+        :emotion => 'ok')
+
+      expect(parent.children.count).to eq(2)
+      parent.children.delete_ids('3')
+      expect(parent.children.count).to eq(1)
+      expect(parent.children.ids).to eq(['4'])
+    end
+
     it "clears all records from the set" do
       create_child(parent, :id => '3', :timestamp => time - 20,
         :emotion => 'ok')
