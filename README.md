@@ -319,12 +319,14 @@ Records are added and removed from their parent one-to-many or many-to-many asso
 
 ```ruby
 post.comments.add(comment) # or post.comments << comment
+post.comments.remove(comment)
 ```
 
-Associations' `.add` can also take more than one argument:
+Associations' `.add`/`.remove` can also take more than one argument:
 
 ```ruby
 post.comments.add(comment1, comment2, comment3)
+post.comments.remove(comment1, comment2, comment3)
 ```
 
 `has_one` associations are simply set with an `=` method on the association:
@@ -436,12 +438,9 @@ SADD post::indices:by_published:boolean:false 03c839ac-24af-432e-aa58-fd1d4bf73f
 
 | Name            | Input                 | Output       | Arguments                             | Options                                  |
 |-----------------|-----------------------|--------------|---------------------------------------|------------------------------------------|
-| intersect       | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
-| union           | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
-| diff            | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
-| intersect_range | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
-| union_range     | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
-| diff_range      | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
+| intersect       | `set` / `sorted_set`  | (as input)   | Query hash                            |                                          |
+| union           | `set` / `sorted_set`  | (as input)   | Query hash                            |                                          |
+| diff            | `set` / `sorted_set`  | (as input)   | Query hash                            |                                          |
 | sort            | `set` or `sorted_set` | `list`       | keys (Symbol or Array of Symbols)     | :limit (`Integer`), :offset (`Integer`)  |
 | offset          | `list`                | `list`       | amount (`Integer`)                    |                                          |
 | limit           | `list`                | `list`       | amount (`Integer`)                    |                                          |
@@ -481,12 +480,7 @@ DEL comment::tmp:fe8dd59e4a1197f62d19c8aa942c4ff9
 
 (where the name of the temporary Redis `SET` will of course change every time)
 
-The current implementation of the filtering is somewhat ad-hoc, and has these limitations:
-
-* no conversion of `list`s back into `set`s is allowed
-* `sort`/`offset`/`limit` can only be used once in a filter chain
-
-I plan to fix these as soon as I possibly can.
+FIXME: more query documentation needed, especially for IndexRange queries on sorted set values.
 
 ### Future
 
