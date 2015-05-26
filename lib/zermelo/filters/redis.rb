@@ -85,10 +85,12 @@ module Zermelo
       def resolve_steps(shortcut, *args)
         if @steps.empty?
 
-          unless @callback_target.nil? || @callbacks.nil?
-            br = @callbacks[:before_read]
-            @callback_target.send(br) if !br.nil? && @callback_target.respond_to?(br)
-          end
+          # FIXME callback class/id split
+
+          # unless @callback_target.nil? || @callbacks.nil?
+          #   br = @callbacks[:before_read]
+          #   @callback_target.send(br) if !br.nil? && @callback_target.respond_to?(br)
+          # end
 
           sc = Zermelo::Filters::Redis::SHORTCUTS[@initial_key.type][shortcut]
           ret = if sc.nil?
@@ -103,10 +105,12 @@ module Zermelo
             sc.call(*shortcut_params)
           end
 
-          unless @callback_target.nil? || @callbacks.nil?
-            ar = @callbacks[:after_read]
-            @callback_target.send(ar) if !ar.nil? && @callback_target.respond_to?(ar)
-          end
+          # FIXME callback class/id split
+
+          # unless @callback_target.nil? || @callbacks.nil?
+          #   ar = @callbacks[:after_read]
+          #   @callback_target.send(ar) if !ar.nil? && @callback_target.respond_to?(ar)
+          # end
 
           return(ret)
         end

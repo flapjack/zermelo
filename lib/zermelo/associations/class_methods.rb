@@ -1,11 +1,8 @@
 require 'zermelo/associations/association_data'
 require 'zermelo/associations/index_data'
 
-require 'zermelo/associations/belongs_to'
-require 'zermelo/associations/has_and_belongs_to_many'
-require 'zermelo/associations/has_many'
-require 'zermelo/associations/has_one'
-require 'zermelo/associations/has_sorted_set'
+require 'zermelo/associations/singular'
+require 'zermelo/associations/multiple'
 require 'zermelo/associations/index'
 require 'zermelo/associations/range_index'
 require 'zermelo/associations/unique_index'
@@ -48,27 +45,27 @@ module Zermelo
       end
 
       def has_many(name, args = {})
-        associate(::Zermelo::Associations::HasMany, name, args)
-        nil
-      end
-
-      def has_one(name, args = {})
-        associate(::Zermelo::Associations::HasOne, name, args)
+        associate(::Zermelo::Associations::Multiple, :has_many, name, args)
         nil
       end
 
       def has_sorted_set(name, args = {})
-        associate(::Zermelo::Associations::HasSortedSet, name, args)
+        associate(::Zermelo::Associations::Multiple, :has_sorted_set, name, args)
         nil
       end
 
       def has_and_belongs_to_many(name, args = {})
-        associate(::Zermelo::Associations::HasAndBelongsToMany, name, args)
+        associate(::Zermelo::Associations::Multiple, :has_and_belongs_to_many, name, args)
+        nil
+      end
+
+      def has_one(name, args = {})
+        associate(::Zermelo::Associations::Singular, :has_one, name, args)
         nil
       end
 
       def belongs_to(name, args = {})
-        associate(::Zermelo::Associations::BelongsTo, name, args)
+        associate(::Zermelo::Associations::Singular, :belongs_to, name, args)
         nil
       end
       # end used by client classes
@@ -160,7 +157,7 @@ module Zermelo
         instance_eval idx, __FILE__, __LINE__
       end
 
-      def add_association_data(klass, name, args = {})
+      def add_association_data(klass, type, name, args = {})
 
         # TODO have inverse be a reference (or copy?) of the association data
         # record for that inverse association; would need to defer lookup until
@@ -173,12 +170,9 @@ module Zermelo
         end
 
         callbacks = case klass.name
-        when ::Zermelo::Associations::HasMany.name,
-             ::Zermelo::Associations::HasSortedSet.name,
-             ::Zermelo::Associations::HasAndBelongsToMany.name
+        when ::Zermelo::Associations::Multiple.name
           [:before_add, :after_add, :before_remove, :after_remove, :before_read, :after_read]
-        when ::Zermelo::Associations::HasOne.name,
-             ::Zermelo::Associations::BelongsTo.name
+        when ::Zermelo::Associations::Singular.name
           [:before_set, :after_set, :before_clear, :after_clear, :before_read, :after_read]
         else
           []
@@ -187,6 +181,7 @@ module Zermelo
         data = Zermelo::Associations::AssociationData.new(
           :name                => name,
           :data_klass_name     => args[:class_name],
+          :data_type           => type,
           :type_klass          => klass,
           :inverse             => inverse,
           :related_klass_names => args[:related_class_names],
@@ -195,7 +190,7 @@ module Zermelo
                                   }
         )
 
-        if klass.name == Zermelo::Associations::HasSortedSet.name
+        if :has_sorted_set.eql?(type)
           data.sort_key   = args[:key]
           data.sort_order =
             !args[:order].nil? && :desc.eql?(args[:order].to_sym) ? :desc : :asc
@@ -207,15 +202,13 @@ module Zermelo
         end
       end
 
-      def associate(klass, name, args = {})
+      def associate(klass, type, name, args = {})
         return if name.nil?
 
-        add_association_data(klass, name, args)
+        add_association_data(klass, type, name, args)
 
         assoc = case klass.name
-        when ::Zermelo::Associations::HasMany.name,
-             ::Zermelo::Associations::HasSortedSet.name,
-             ::Zermelo::Associations::HasAndBelongsToMany.name
+        when ::Zermelo::Associations::Multiple.name
 
           %Q{
             def #{name}
@@ -223,8 +216,7 @@ module Zermelo
             end
           }
 
-        when ::Zermelo::Associations::HasOne.name,
-             ::Zermelo::Associations::BelongsTo.name
+        when ::Zermelo::Associations::Singular.name
 
           %Q{
             def #{name}
@@ -243,7 +235,7 @@ module Zermelo
           def #{name}_proxy
             raise "Associations cannot be invoked for records without an id" if self.id.nil?
 
-            @#{name}_proxy ||= #{klass.name}.new(self, '#{name}')
+            @#{name}_proxy ||= #{klass.name}.new(:#{type}, self.class, self.id, '#{name}')
           end
           private :#{name}_proxy
         }

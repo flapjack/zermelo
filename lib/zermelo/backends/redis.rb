@@ -19,10 +19,12 @@ module Zermelo
         Zermelo::Locks::RedisLock.new
       end
 
-      def filter(ids_key, associated_class, callback_target = nil, callbacks = nil,
-        sort_order = nil)
+      def filter(ids_key, associated_class, callback_target_class = nil,
+        callback_target_id = nil, callbacks = nil, sort_order = nil)
+
         Zermelo::Filters::Redis.new(self, ids_key, associated_class,
-                                    callback_target, callbacks, sort_order)
+                                    callback_target_class, callback_target_id,
+                                    callbacks, sort_order)
       end
 
       def get_multiple(*attr_keys)

@@ -18,12 +18,14 @@ module Zermelo
     # associated_class    the class of the result record
     # TODO hash for these params as it's getting too long
     def initialize(data_backend, initial_key, associated_class,
-                   callback_target = nil, callbacks = nil, sort_order = nil,
+                   callback_target_class = nil, callback_target_id = nil,
+                   callbacks = nil, sort_order = nil,
                    ancestor = nil, step = nil)
       @backend          = data_backend
       @initial_key      = initial_key
       @associated_class = associated_class
-      @callback_target  = callback_target
+      @callback_target_class  = callback_target_class
+      @callback_target_id = callback_target_id
       @callbacks        = callbacks
       @sort_order       = sort_order
       @steps            = ancestor.nil? ? [] : ancestor.steps.dup
@@ -32,26 +34,26 @@ module Zermelo
 
     def intersect(attrs = {})
       self.class.new(@backend, @initial_key, @associated_class,
-        @callback_target, @callbacks, @sort_order, self,
-        ::Zermelo::Filters::Steps::SetStep.new({:op => :intersect}, attrs))
+        @callback_target_class, @callback_target_id, @callbacks, @sort_order,
+        self, ::Zermelo::Filters::Steps::SetStep.new({:op => :intersect}, attrs))
     end
 
     def union(attrs = {})
       self.class.new(@backend, @initial_key, @associated_class,
-        @callback_target, @callbacks, @sort_order, self,
-        ::Zermelo::Filters::Steps::SetStep.new({:op => :union}, attrs))
+        @callback_target_class, @callback_target_id, @callbacks, @sort_order,
+        self, ::Zermelo::Filters::Steps::SetStep.new({:op => :union}, attrs))
     end
 
     def diff(attrs = {})
       self.class.new(@backend, @initial_key, @associated_class,
-        @callback_target, @callbacks, @sort_order, self,
-        ::Zermelo::Filters::Steps::SetStep.new({:op => :diff}, attrs))
+        @callback_target_class, @callback_target_id, @callbacks, @sort_order,
+        self, ::Zermelo::Filters::Steps::SetStep.new({:op => :diff}, attrs))
     end
 
     def sort(keys, opts = {})
       self.class.new(@backend, @initial_key, @associated_class,
-        @callback_target, @callbacks, @sort_order, self,
-        ::Zermelo::Filters::Steps::SortStep.new({:keys => keys,
+        @callback_target_class, @callback_target_id, @callbacks, @sort_order,
+        self, ::Zermelo::Filters::Steps::SortStep.new({:keys => keys,
           :desc => opts[:desc], :limit => opts[:limit],
           :offset => opts[:offset]}, {})
         )
@@ -59,8 +61,8 @@ module Zermelo
 
     def offset(amount, opts = {})
       self.class.new(@backend, @initial_key, @associated_class,
-        @callback_target, @callbacks, @sort_order, self,
-        ::Zermelo::Filters::Steps::ListStep.new({:offset => amount,
+        @callback_target_class, @callback_target_id, @callbacks, @sort_order,
+        self, ::Zermelo::Filters::Steps::ListStep.new({:offset => amount,
           :limit => opts[:limit]}, {}))
     end
 
@@ -70,8 +72,8 @@ module Zermelo
       start  = per_page * (num - 1)
       finish = start + (per_page - 1)
       self.class.new(@backend, @initial_key, @associated_class,
-        @callback_target, @callbacks, @sort_order, self,
-        ::Zermelo::Filters::Steps::ListStep.new({:offset => start,
+        @callback_target_class, @callback_target_id, @callbacks, @sort_order,
+        self, ::Zermelo::Filters::Steps::ListStep.new({:offset => start,
           :limit => per_page}, {}))
     end
 
@@ -143,18 +145,18 @@ module Zermelo
     end
 
     def associated_ids_for(name, options = {})
-      klass = @associated_class.send(:with_association_data, name.to_sym) do |data|
-        data.type_klass
+      data_type, type_klass = @associated_class.send(:with_association_data, name.to_sym) do |data|
+        [data.data_type, data.type_klass]
       end
 
       lock {
-        case klass.name
-        when ::Zermelo::Associations::BelongsTo.name
-          klass.send(:associated_ids_for, @backend,
+        case data_type
+        when :belongs_to
+          type_klass.send(:associated_ids_for, @backend, data_type,
             @associated_class, name,
             options[:inversed].is_a?(TrueClass), *_ids)
         else
-          klass.send(:associated_ids_for, @backend,
+          type_klass.send(:associated_ids_for, @backend, data_type,
             @associated_class, name, *_ids)
         end
       }
