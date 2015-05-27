@@ -33,28 +33,27 @@ module Zermelo
           @callbacks        = data.callbacks
         end
 
-        # this bit 'belongs_to' only
         raise ':inverse_of must be set' if @inverse.nil?
-        @inverse_key = "#{name}_id"
+        @inverse_key = "#{@name}_id"         # this bit 'belongs_to' only
       end
 
       def value=(record)
         if record.nil?
-          @parent.class.lock(*@lock_klasses) do
-            _clear(true)
+          @parent_klass.lock(*@lock_klasses) do
+            _clear(:callbacks => true)
           end
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
           @parent_klass.lock(*@lock_klasses) do
-            _set(true, record.id)
+            _set({:callbacks => true}, record.id)
           end
         end
       end
 
       def value
         v = nil
-        @parent.class.lock(*@lock_klasses) do
+        @parent_klass.lock(*@lock_klasses) do
           br = @callbacks[:before_read]
           @parent_klass.send(br, @parent_id) if !br.nil? && @parent_klass.respond_to?(br)
           id = case @type
@@ -74,86 +73,110 @@ module Zermelo
 
       private
 
-      def _clear(update_inverse)
+      # on_remove already runs inside a lock & transaction
+      def on_remove
+        _clear({:callbacks => false})
+      end
+
+      def _inverse
+        return @inverse_obj unless @inverse_obj.nil?
+        @associated_class.send(:with_association_data, @inverse.to_sym) do |data|
+          @inverse_obj = case @type
+          when :belongs_to
+            key_type = case data.data_type
+            when :has_many, :has_and_belongs_to_many
+              :set
+            when :has_sorted_set
+              :sorted_set
+            end
+
+            Zermelo::Records::Key.new(
+              :klass  => @associated_class,
+              :name   => "#{@inverse}_ids",
+              :type   => key_type,
+              :object => :association
+            )
+          when :has_one
+            # inverse is belongs_to
+            Zermelo::Records::Key.new(
+              :klass  => @associated_class,
+              :name   => 'belongs_to',
+              :type   => :hash,
+              :object => :association
+            )
+          end
+        end
+        @inverse_obj
+      end
+
+      def _clear(opts = {})
         bc = @callbacks[:before_clear]
-        if bc.nil? || !@parent_klass.respond_to?(bc) ||
+        if bc.nil? || !opts[:callbacks] || !@parent_klass.respond_to?(bc) ||
           !@parent_klass.send(bc, @parent_id).is_a?(FalseClass)
+
+          _inverse.id = case @type
+          when :belongs_to
+            @backend.get(@record_ids_key)[@inverse_key.to_s]
+          when :has_one
+            @backend.get(@record_id_key)
+          end
 
           new_txn = @backend.begin_transaction
 
-          if update_inverse
-            # FIXME
-          end
+          @backend.delete(_inverse, @parent_id)
 
           case @type
           when :belongs_to
             @backend.delete(@record_ids_key, @inverse_key)
           when :has_one
-            # FIXME
-            # delete_without_lock(r)
+            @backend.delete(@record_ids_key)
           end
 
           @backend.commit_transaction if new_txn
 
           ac = @callbacks[:after_clear]
-          @parent_klass.send(ac, @parent_id) if !ac.nil? && @parent_klass.respond_to?(ac)
+          if !ac.nil? && opts[:callbacks] && @parent_klass.respond_to?(ac)
+            @parent_klass.send(ac, @parent_id)
+          end
         end
       end
 
-      def _set(update_inverse, record_id)
+      def _set(opts = {}, record_id)
         bs = @callbacks[:before_set]
-        if bs.nil? || !@parent_klass.respond_to?(bs) ||
+        if bs.nil? || !opts[:callbacks] || !@parent_klass.respond_to?(bs) ||
           !@parent_klass.send(bs, @parent_id, record_id).is_a?(FalseClass)
+
+          _inverse.id = case @type
+          when :belongs_to
+            @backend.get(@record_ids_key)[@inverse_key.to_s]
+          when :has_one
+            @backend.get(@record_id_key)
+          end
 
           new_txn = @backend.begin_transaction
 
-          if update_inverse
-            # FIXME
-
-            # has_one
-            # unless @inverse.nil?
-            #   @associated_class.send(:load, record.id).send("#{@inverse}=", @parent)
-            # end
-          end
-
           case @type
           when :belongs_to
+            case _inverse.type
+            when :set
+              @backend.add(_inverse, @parent_id)
+            when :sorted_set
+              # # FIXME
+              # @backend.add(@record_ids_key, (records.map {|r| [r.send(@sort_key.to_sym).to_f, r.id]}.flatten))
+            end
             @backend.add(@record_ids_key, @inverse_key => record_id)
           when :has_one
+            @backend.add(_inverse, @inverse_key => @parent_id)
             @backend.set(@record_ids_key, record_id)
           end
 
           @backend.commit_transaction if new_txn
 
           as = @callbacks[:after_set]
-          @parent_klass.send(as, @parent_id, record_id) if !as.nil? && @parent_klass.respond_to?(as)
+          if !as.nil? && opts[:callbacks] && @parent_klass.respond_to?(as)
+            @parent_klass.send(as, @parent_id, record_id)
+          end
         end
-      end
-
-      # on_remove already runs inside a lock & transaction
-      def on_remove
-
-        # # belongs_to
-        # unless value.nil?
-        #   assoc = value.send("#{@inverse}_proxy".to_sym)
-        #   if assoc.respond_to?(:remove)
-        #     assoc.send(:remove, @parent)
-        #   elsif assoc.respond_to?(:value=)
-        #     assoc.send(:value=, nil)
-        #   end
-        # end
-        # @backend.clear(@record_ids_key)
-
-
-        # has_one
-
-        # unless @inverse.nil?
-        #   if record_id = @backend.get(@record_id_key)
-        #     @associated_class.send(:load, record_id).send("#{@inverse}=", nil)
-        #   end
-        # end
-        # @backend.clear(@record_id_key)
-
       end
 
       def self.associated_ids_for(backend, type, klass, name, inversed, *these_ids)

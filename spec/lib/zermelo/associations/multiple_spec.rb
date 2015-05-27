@@ -44,8 +44,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it "loads a parent from a child's belongs_to relationship" do
-        skip "broken"
-
         create_child(parent, :id => '3')
         child = child_class.find_by_id('3')
 
@@ -77,8 +75,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it "clears all records from the set" do
-        skip "broken"
-
         create_child(parent, :id => '3')
         create_child(parent, :id => '4')
 
@@ -165,8 +161,6 @@ describe Zermelo::Associations::Multiple do
         end
 
         it 'returns associated ids for multiple parent ids' do
-          skip "broken"
-
           create_parent(:id => '9')
           parent_9 = parent_class.find_by_id('9')
 
@@ -272,8 +266,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it 'clears the belongs_to association when the child record is deleted' do
-        skip "broken"
-
         create_parent(:id => '8')
         parent = parent_class.find_by_id('8')
 
@@ -295,8 +287,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it "clears the belongs_to association when the parent record is deleted" do
-        skip "broken"
-
         create_parent(:id => '8', :name => 'John Jones',
                        :email => 'jjones@parent.com', :active => 'true')
         parent = parent_class.find_by_id('8')
@@ -446,8 +436,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it "clears all records from the set" do
-        skip "broken"
-
         create_primary(:id => '9', :active => false)
         primary = primary_class.find_by_id('8')
         primary_2 = primary_class.find_by_id('9')
@@ -644,16 +632,18 @@ describe Zermelo::Associations::Multiple do
 
   context 'has_sorted_set' do
 
-    shared_examples "has_sorted_set functions work", :has_sorted_set => true do
+    # shared_examples "has_sorted_set functions work", :has_sorted_set => true do
 
-      let(:time) { Time.now }
+    #   let(:time) { Time.now }
 
-      # TODO
-    end
+    #   # TODO
+    # end
 
     context 'redis', :redis => true, :has_sorted_set => true do
 
       let(:redis) { Zermelo.redis }
+
+      let(:time) { Time.now }
 
       module ZermeloExamples
         class AssociationsHasSortedSetParentRedis
@@ -720,8 +710,6 @@ describe Zermelo::Associations::Multiple do
       }
 
       it "sets a parent/child has_sorted_set relationship between two records in redis" do
-        skip "broken"
-
         child = child_class.new(:id => '4', :emotion => 'indifferent',
                                 :timestamp => time)
         expect(child.save).to be_truthy
@@ -778,10 +766,10 @@ describe Zermelo::Associations::Multiple do
       end
 
       it "clears the belongs_to association when the parent record is deleted" do
-        skip "broken"
-
         create_child(parent, :id => '6', :timestamp => time,
           :emotion => 'upset')
+
+        p redis.zrange("#{pk}:8:assocs:children_ids", 0, -1, :withscores => true)
 
         expect(redis.keys).to match_array(["#{pk}::attrs:ids",
                               "#{pk}:8:assocs:children_ids",
@@ -903,8 +891,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it "clears all records from the set" do
-        skip "broken"
-
         create_child(parent, :id => '3', :timestamp => time - 20,
           :emotion => 'ok')
         create_child(parent, :id => '4', :timestamp => time - 10,
