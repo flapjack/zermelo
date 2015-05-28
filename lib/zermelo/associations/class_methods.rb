@@ -91,9 +91,6 @@ module Zermelo
         visited
       end
 
-      # TODO for each association: check whether it has changed
-      # would need an instance-level hash with association name as key,
-      #   boolean 'changed' value
       def with_associations(record)
         @lock.synchronize do
           @association_data ||= {}
@@ -119,7 +116,6 @@ module Zermelo
         end
        end
       # end used internally within Zermelo
-
 
       def add_index_data(klass, name, args = {})
         return if name.nil?
@@ -153,11 +149,6 @@ module Zermelo
       end
 
       def add_association_data(klass, type, name, args = {})
-
-        # TODO have inverse be a reference (or copy?) of the association data
-        # record for that inverse association; would need to defer lookup until
-        # all data in place for all assocs, so might be best if looked up and
-        # cached on first use
         inverse = if args[:inverse_of].nil? || args[:inverse_of].to_s.empty?
           nil
         else
@@ -204,7 +195,6 @@ module Zermelo
 
         assoc = case klass.name
         when ::Zermelo::Associations::Multiple.name
-
           %Q{
             def #{name}
               #{name}_proxy
@@ -212,7 +202,6 @@ module Zermelo
           }
 
         when ::Zermelo::Associations::Singular.name
-
           %Q{
             def #{name}
               #{name}_proxy.value

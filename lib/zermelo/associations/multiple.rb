@@ -68,7 +68,6 @@ module Zermelo
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent_klass.lock(*@lock_klasses) do
-
           record_ids = case @type
           when :has_many, :has_and_belongs_to_many
             records.is_a?(Zermelo::Filter) ? records.ids : records.map(&:id)
@@ -148,10 +147,12 @@ module Zermelo
         if ba.nil? || !opts[:callbacks] || !@parent_klass.respond_to?(ba) ||
           !@parent_klass.send(ba, @parent_id, *record_ids).is_a?(FalseClass)
 
+          new_txn = @backend.begin_transaction
+
+          # FIXME neater to do multiple hash keys at once for inverse, if backends support it
           case @type
           when :has_many
             # inverse is belongs_to
-            # FIXME neater to do multiple hash keys at once, if backends support it
             record_ids.each do |record_id|
               _inverse.id = record_id
               @backend.add(_inverse, "#{@inverse}_id" => @parent_id)
@@ -170,11 +171,8 @@ module Zermelo
             end
           end
 
-          new_txn = @backend.begin_transaction
-          case @type
-          when :has_many, :has_and_belongs_to_many, :has_sorted_set
-            @backend.add(@record_ids_key, record_ids)
-          end
+          @backend.add(@record_ids_key, record_ids)
+
           @backend.commit_transaction if new_txn
           aa = @callbacks[:after_add]
           if !aa.nil? && opts[:callbacks] && @parent_klass.respond_to?(aa)
@@ -188,10 +186,12 @@ module Zermelo
         if br.nil? || !opts[:callbacks] || !@parent_klass.respond_to?(br) ||
           !@parent_klass.send(br, @parent_id, *record_ids).is_a?(FalseClass)
 
+          new_txn = @backend.begin_transaction
+
+          # FIXME neater to do multiple hash keys at once for inverse, if backends support it
           case @type
           when :has_many, :has_sorted_set
             # inverse is belongs_to
-            # FIXME neater to do multiple hash keys at once, if backends support it
             record_ids.each do |record_id|
               _inverse.id = record_id
               @backend.delete(_inverse, "#{@inverse}_id")
@@ -204,12 +204,10 @@ module Zermelo
             end
           end
 
-          new_txn = @backend.begin_transaction
-          case @type
-          when :has_many, :has_and_belongs_to_many, :has_sorted_set
-            @backend.delete(@record_ids_key, record_ids)
-          end
+          @backend.delete(@record_ids_key, record_ids)
+
           @backend.commit_transaction if new_txn
+
           ar = @callbacks[:after_remove]
           if !ar.nil? && opts[:callbacks] && @parent_klass.respond_to?(ar)
             @parent_klass.send(ar, @parent_id, *record_ids)
@@ -225,7 +223,6 @@ module Zermelo
       end
 
       def self.associated_ids_for(backend, type, klass, name, *these_ids)
-
         key_type = case type
         when :has_many, :has_and_belongs_to_many
           :set
