@@ -70,6 +70,8 @@ module Zermelo
       end
       # end used by client classes
 
+      private
+
       # used internally by other parts of Zermelo to implement the above
       # configuration
 
@@ -83,7 +85,7 @@ module Zermelo
           @association_data.values.each do |data|
             klass = data.data_klass
             next if visited.include?(klass)
-            visited |= klass.associated_classes(visited, false)
+            visited |= klass.send(:associated_classes, visited, false)
           end
         end
         visited
@@ -118,13 +120,6 @@ module Zermelo
        end
       # end used internally within Zermelo
 
-      # # TODO  can remove need for some of the inverse mapping
-      # # was inverse_of(source, klass)
-      # with_association_data do |d|
-      #   d.detect {|name, data| data.klass == klass && data.inverse == source}
-      # end
-
-      private
 
       def add_index_data(klass, name, args = {})
         return if name.nil?
