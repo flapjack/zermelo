@@ -9,8 +9,6 @@ describe Zermelo::Associations::Singular do
     shared_examples "has_one functions work", :has_one => true do
 
       it 'returns associated ids for multiple parent ids' do
-        skip "broken"
-
         create_parent(:id => '8')
         create_parent(:id => '9')
         create_parent(:id => '10')
@@ -69,13 +67,11 @@ describe Zermelo::Associations::Singular do
 
       def create_child(parent, attrs = {})
         redis.hset("#{ck}:#{attrs[:id]}:assocs:belongs_to", 'parent_id', parent.id)
-        redis.hset("#{pk}:#{parent.id}:assocs", 'child_id', attrs[:id])
+        redis.hset("#{pk}:#{parent.id}:assocs:has_one", 'child_id', attrs[:id])
         redis.sadd("#{ck}::attrs:ids", attrs[:id])
       end
 
       it "sets and retrieves a record via a has_one association" do
-        skip "broken"
-
         create_parent(:id => '8')
 
         child = child_class.new(:id => '22')
@@ -86,14 +82,12 @@ describe Zermelo::Associations::Singular do
 
         expect(redis.keys('*')).to match_array([
           "#{pk}::attrs:ids",
-          # "#{pk}:8:attrs",
-          "#{pk}:8:assocs",
+          "#{pk}:8:assocs:has_one",
           "#{ck}::attrs:ids",
-          # "#{ck}:22:attrs",
           "#{ck}:22:assocs:belongs_to"
         ])
 
-        expect(redis.hgetall("#{pk}:8:assocs")).to eq("child_id" => "22")
+        expect(redis.hgetall("#{pk}:8:assocs:has_one")).to eq("child_id" => "22")
 
         expect(redis.smembers("#{ck}::attrs:ids")).to eq(["22"])
 
@@ -110,8 +104,6 @@ describe Zermelo::Associations::Singular do
       end
 
       it 'clears the belongs_to association when the child record is deleted' do
-        skip "broken"
-
         create_parent(:id => '8')
         parent = parent_class.find_by_id('8')
         create_child(parent, :id => '3')
@@ -119,7 +111,7 @@ describe Zermelo::Associations::Singular do
 
         expect(redis.keys).to match_array([
           "#{pk}::attrs:ids",
-          "#{pk}:8:assocs",
+          "#{pk}:8:assocs:has_one",
           "#{ck}::attrs:ids",
           "#{ck}:3:assocs:belongs_to"
         ])
@@ -132,15 +124,13 @@ describe Zermelo::Associations::Singular do
       end
 
       it "clears the belongs_to association when the parent record is deleted" do
-        skip "broken"
-
         create_parent(:id => '8')
         parent = parent_class.find_by_id('8')
         create_child(parent, :id => '3')
 
         expect(redis.keys).to match_array([
           "#{pk}::attrs:ids",
-          "#{pk}:8:assocs",
+          "#{pk}:8:assocs:has_one",
           "#{ck}::attrs:ids",
           "#{ck}:3:assocs:belongs_to"
         ])

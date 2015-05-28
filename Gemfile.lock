@@ -23,7 +23,7 @@ GEM
     influxdb (0.1.8)
       json
     json (1.8.2)
-    minitest (5.6.1)
+    minitest (5.7.0)
     rake (10.4.2)
     redis (3.2.1)
     rspec (3.2.0)

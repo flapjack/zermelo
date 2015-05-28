@@ -10,19 +10,11 @@ module Zermelo
 
         @backend = parent_klass.send(:backend)
 
-        key_name, key_type = case type
-        when :belongs_to
-          ['belongs_to', :hash]
-        when :has_one
-          # TODO can this be represented via a 'has_one' hash?
-          ["#{name}_id", :string]
-        end
-
-        @record_ids_key = Zermelo::Records::Key.new(
+        @record_id_key = Zermelo::Records::Key.new(
           :klass  => parent_klass,
           :id     => parent_id,
-          :name   => key_name,
-          :type   => key_type,
+          :name   => type.to_s,
+          :type   => :hash,
           :object => :association
         )
 
@@ -34,7 +26,7 @@ module Zermelo
         end
 
         raise ':inverse_of must be set' if @inverse.nil?
-        @inverse_key = "#{@name}_id"         # this bit 'belongs_to' only
+        @inverse_key = "#{@inverse}_id"
       end
 
       def value=(record)
@@ -46,7 +38,11 @@ module Zermelo
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
           @parent_klass.lock(*@lock_klasses) do
-            _set({:callbacks => true}, record.id)
+            opts = {:callbacks => true}
+            if :sorted_set.eql?(_inverse.type)
+              opts[:score] = record.send(@inverse_sort_key.to_sym).to_f
+            end
+            _set(opts, record.id)
           end
         end
       end
@@ -57,12 +53,10 @@ module Zermelo
           br = @callbacks[:before_read]
           @parent_klass.send(br, @parent_id) if !br.nil? && @parent_klass.respond_to?(br)
           id = case @type
-          when :belongs_to
-            @backend.get(@record_ids_key)[@inverse_key.to_s]
+          when :belongs_to, :has_one
+            @backend.get(@record_id_key)["#{@name}_id"]
             # # TODO maybe: uses hgetall, need separate getter for hash/list/set
-            # @backend.get_hash_value(@record_ids_key, @inverse_key.to_s)
-          when :has_one
-            @backend.get(@record_id_key)
+            # @backend.get_hash_value(@record_id_key, "#{@name}_id")
           end
           v = @associated_class.send(:load, id) unless id.nil?
           ar = @callbacks[:after_read]
@@ -83,16 +77,20 @@ module Zermelo
         @associated_class.send(:with_association_data, @inverse.to_sym) do |data|
           @inverse_obj = case @type
           when :belongs_to
-            key_type = case data.data_type
-            when :has_many, :has_and_belongs_to_many
-              :set
+            key_name, key_type = case data.data_type
+            when :has_many
+              ["#{@inverse}_ids", :set]
             when :has_sorted_set
-              :sorted_set
+              ["#{@inverse}_ids", :sorted_set]
+            when :has_one
+              ["has_one", :hash]
             end
+
+            @inverse_sort_key = data.sort_key
 
             Zermelo::Records::Key.new(
               :klass  => @associated_class,
-              :name   => "#{@inverse}_ids",
+              :name   => key_name,
               :type   => key_type,
               :object => :association
             )
@@ -115,28 +113,32 @@ module Zermelo
           !@parent_klass.send(bc, @parent_id).is_a?(FalseClass)
 
           _inverse.id = case @type
-          when :belongs_to
-            @backend.get(@record_ids_key)[@inverse_key.to_s]
-          when :has_one
-            @backend.get(@record_id_key)
+          when :belongs_to, :has_one
+            @backend.get(@record_id_key)["#{@name}_id"]
           end
+          record_id = @backend.get(@record_id_key)["#{@name}_id"]
 
           new_txn = @backend.begin_transaction
 
-          @backend.delete(_inverse, @parent_id)
-
           case @type
-          when :belongs_to
-            @backend.delete(@record_ids_key, @inverse_key)
-          when :has_one
-            @backend.delete(@record_ids_key)
+          when :belongs_to, :has_one
+
+            # FIXME can we access the assoc type instead?
+            case _inverse.type
+            when :set, :sorted_set
+              @backend.delete(_inverse, @parent_id)
+            when :hash
+              @backend.delete(_inverse, "#{@inverse}_id")
+            end
+
+            @backend.delete(@record_id_key, "#{@name}_id")
           end
 
           @backend.commit_transaction if new_txn
 
           ac = @callbacks[:after_clear]
           if !ac.nil? && opts[:callbacks] && @parent_klass.respond_to?(ac)
-            @parent_klass.send(ac, @parent_id)
+            @parent_klass.send(ac, @parent_id, record_id)
           end
         end
       end
@@ -146,28 +148,24 @@ module Zermelo
         if bs.nil? || !opts[:callbacks] || !@parent_klass.respond_to?(bs) ||
           !@parent_klass.send(bs, @parent_id, record_id).is_a?(FalseClass)
 
-          _inverse.id = case @type
-          when :belongs_to
-            @backend.get(@record_ids_key)[@inverse_key.to_s]
-          when :has_one
-            @backend.get(@record_id_key)
-          end
+          _inverse.id = record_id
 
           new_txn = @backend.begin_transaction
 
           case @type
-          when :belongs_to
+          when :belongs_to, :has_one
+
+            # FIXME can we access the assoc type instead?
             case _inverse.type
             when :set
               @backend.add(_inverse, @parent_id)
             when :sorted_set
-              # # FIXME
-              # @backend.add(@record_ids_key, (records.map {|r| [r.send(@sort_key.to_sym).to_f, r.id]}.flatten))
+              @backend.add(@record_id_key, [opts[:score], record_id])
+            when :hash
+              @backend.add(_inverse, @inverse_key => @parent_id)
             end
-            @backend.add(@record_ids_key, @inverse_key => record_id)
-          when :has_one
-            @backend.add(_inverse, @inverse_key => @parent_id)
-            @backend.set(@record_ids_key, record_id)
+
+            @backend.add(@record_id_key, "#{@name}_id" => record_id)
           end
 
           @backend.commit_transaction if new_txn
@@ -180,25 +178,17 @@ module Zermelo
       end
 
       def self.associated_ids_for(backend, type, klass, name, inversed, *these_ids)
-        key_name, key_type = case type
-        when :belongs_to
-          ['belongs_to', :hash]
-        when :has_one
-          # TODO can this be represented via a 'has_one' hash?
-          ["#{name}_id", :string]
-        end
-
         these_ids.each_with_object({}) do |this_id, memo|
           key = Zermelo::Records::Key.new(
             :klass  => klass,
             :id     => this_id,
-            :name   => key_name,
-            :type   => key_type,
+            :name   => type.to_s,
+            :type   => :hash,
             :object => :association
           )
 
           case type
-          when :belongs_to
+          when :belongs_to, :has_one
             assoc_id = backend.get(key)["#{name}_id"]
             # assoc_id = backend.get_hash_value(key, "#{name}_id")
 
@@ -208,8 +198,6 @@ module Zermelo
             else
               memo[this_id] = assoc_id
             end
-          when :has_one
-            memo[this_id] = backend.get(key)
           end
         end
       end

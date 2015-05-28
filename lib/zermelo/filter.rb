@@ -151,7 +151,7 @@ module Zermelo
 
       lock {
         case data_type
-        when :belongs_to
+        when :belongs_to, :has_one
           type_klass.send(:associated_ids_for, @backend, data_type,
             @associated_class, name,
             options[:inversed].is_a?(TrueClass), *_ids)

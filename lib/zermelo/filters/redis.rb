@@ -84,13 +84,12 @@ module Zermelo
 
       def resolve_steps(shortcut, *args)
         if @steps.empty?
-
-          # FIXME callback class/id split
-
-          # unless @callback_target.nil? || @callbacks.nil?
-          #   br = @callbacks[:before_read]
-          #   @callback_target.send(br) if !br.nil? && @callback_target.respond_to?(br)
-          # end
+          unless @callback_target_class.nil? || @callbacks.nil?
+            br = @callbacks[:before_read]
+            if !br.nil? && @callback_target_class.respond_to?(br)
+              @callback_target_class.send(br, @callback_target_id)
+            end
+          end
 
           sc = Zermelo::Filters::Redis::SHORTCUTS[@initial_key.type][shortcut]
           ret = if sc.nil?
@@ -105,12 +104,12 @@ module Zermelo
             sc.call(*shortcut_params)
           end
 
-          # FIXME callback class/id split
-
-          # unless @callback_target.nil? || @callbacks.nil?
-          #   ar = @callbacks[:after_read]
-          #   @callback_target.send(ar) if !ar.nil? && @callback_target.respond_to?(ar)
-          # end
+          unless @callback_target_class.nil? || @callbacks.nil?
+            ar = @callbacks[:after_read]
+            if !ar.nil? && @callback_target_class.respond_to?(ar)
+              @callback_target_class.send(ar, @callback_target_id)
+            end
+          end
 
           return(ret)
         end
@@ -145,16 +144,20 @@ module Zermelo
               step_opts.update(:shortcut => shortcut, :shortcut_args => args)
             end
 
-            unless @callback_target.nil? || @callbacks.nil?
+            unless @callback_target_class.nil? || @callbacks.nil?
               br = @callbacks[:before_read]
-              @callback_target.send(br) if !br.nil? && @callback_target.respond_to?(br)
+              if !br.nil? && @callback_target_class.respond_to?(br)
+                @callback_target_class.send(br, @callback_target_id)
+              end
             end
 
             result = step.resolve(backend, @associated_class, step_opts)
 
-            unless @callback_target.nil? || @callbacks.nil?
+            unless @callback_target_class.nil? || @callbacks.nil?
               ar = @callbacks[:after_read]
-              @callback_target.send(ar) if !ar.nil? && @callback_target.respond_to?(ar)
+              if !ar.nil? && @callback_target_class.respond_to?(ar)
+                @callback_target_class.send(ar, @callback_target_id)
+              end
             end
 
             step_opts[:source] = result unless step == last_step

@@ -221,7 +221,7 @@ module Zermelo
       # state for this particular filter chain
       def filter
         @backend.filter(@record_ids_key, @associated_class, @parent_klass,
-                        @parent_id, @callbacks)
+                        @parent_id, @callbacks, @sort_order)
       end
 
       def self.associated_ids_for(backend, type, klass, name, *these_ids)

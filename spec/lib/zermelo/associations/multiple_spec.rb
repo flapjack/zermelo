@@ -632,18 +632,16 @@ describe Zermelo::Associations::Multiple do
 
   context 'has_sorted_set' do
 
-    # shared_examples "has_sorted_set functions work", :has_sorted_set => true do
+    shared_examples "has_sorted_set functions work", :has_sorted_set => true do
 
-    #   let(:time) { Time.now }
+      let(:time) { Time.now }
 
-    #   # TODO
-    # end
+      # TODO
+    end
 
     context 'redis', :redis => true, :has_sorted_set => true do
 
       let(:redis) { Zermelo.redis }
-
-      let(:time) { Time.now }
 
       module ZermeloExamples
         class AssociationsHasSortedSetParentRedis
@@ -769,8 +767,6 @@ describe Zermelo::Associations::Multiple do
         create_child(parent, :id => '6', :timestamp => time,
           :emotion => 'upset')
 
-        p redis.zrange("#{pk}:8:assocs:children_ids", 0, -1, :withscores => true)
-
         expect(redis.keys).to match_array(["#{pk}::attrs:ids",
                               "#{pk}:8:assocs:children_ids",
                               "#{ck}::attrs:ids",
@@ -801,8 +797,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it 'returns the last record for first if reversed' do
-        skip "broken"
-
         create_reversed_child(parent, :id => '4', :timestamp => time - 20,
           :emotion => 'upset')
         create_reversed_child(parent, :id => '5', :timestamp => time - 10,
@@ -829,8 +823,6 @@ describe Zermelo::Associations::Multiple do
       end
 
       it 'returns the first record for last if reversed' do
-        skip "broken"
-
         create_reversed_child(parent, :id => '4', :timestamp => time - 20,
           :emotion => 'upset')
         create_reversed_child(parent, :id => '5', :timestamp => time - 10,
