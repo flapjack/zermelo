@@ -7,11 +7,11 @@ module Zermelo
     # module renamed to avoid ActiveSupport::Concern deprecation warning
     module InstMethods
 
-      def initialize(attributes = {})
+      def initialize(attrs = {})
         @is_new = true
-        @attributes = {}
-        attributes.each_pair do |k, v|
-          self.send("#{k}=".to_sym, v)
+        @attributes = self.class.attribute_types.keys.inject({}) do |memo, ak|
+          memo[ak.to_s] = attrs[ak]
+          memo
         end
       end
 
@@ -110,7 +110,7 @@ module Zermelo
             attr_keys = attribute_keys
 
             if creating
-              attribute_keys.each_pair do |att, attr_key|
+              attr_keys.each_pair do |att, attr_key|
                 apply_attribute.call(att, attr_key, [nil, @attributes[att]])
               end
             else
