@@ -62,8 +62,8 @@ module Zermelo
           yield
         rescue Exception => e
           backend.abort_transaction
-          p e.message
-          puts e.backtrace.join("\n")
+          # p e.message
+          # puts e.backtrace.join("\n")
           failed = true
         ensure
           backend.commit_transaction unless failed

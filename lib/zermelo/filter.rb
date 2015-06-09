@@ -70,7 +70,6 @@ module Zermelo
     def page(num, opts = {})
       per_page = opts[:per_page].to_i || 20
       start  = per_page * (num - 1)
-      finish = start + (per_page - 1)
       self.class.new(@backend, @initial_key, @associated_class,
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
         self, ::Zermelo::Filters::Steps::ListStep.new({:offset => start,

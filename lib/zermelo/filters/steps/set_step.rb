@@ -10,7 +10,7 @@ module Zermelo
         end
 
         def self.returns_type
-          :set
+          nil # same as the source type
         end
 
         def resolve(backend, associated_class, opts = {})
