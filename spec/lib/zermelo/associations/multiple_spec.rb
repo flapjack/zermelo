@@ -760,7 +760,7 @@ describe Zermelo::Associations::Multiple do
         parent.children.remove(child)
 
         expect(redis.smembers("#{ck}::attrs:ids")).to eq(['4'])    # child not deleted
-        expect(redis.zrange("#{pk}:8:assocs.children_ids", 0, -1)).to eq([]) # but association is
+        expect(redis.zrange("#{pk}:8:assocs:children_ids", 0, -1)).to eq([]) # but association is
       end
 
       it "clears the belongs_to association when the parent record is deleted" do
@@ -781,6 +781,16 @@ describe Zermelo::Associations::Multiple do
                               "#{ck}::indices:by_timestamp",
                               "#{ck}::indices:by_emotion:string:upset",
                               "#{ck}:6:attrs"])
+      end
+
+      it 'sets the score in a sorted set appropriately when assigned from the belongs_to' do
+        create_child(nil, :id => '4', :timestamp => time - 20,
+          :emotion => 'upset')
+
+        child = child_class.find_by_id!('4')
+        child.parent = parent
+
+        expect(redis.zrange("#{pk}:8:assocs:children_ids", 0, -1, :with_scores => true)).to eq([['4', (time - 20).to_f]])
       end
 
       it 'returns the first record' do

@@ -141,6 +141,7 @@ describe Zermelo::Associations::Singular do
           "#{ck}::attrs:ids"
         ])
       end
+
     end
 
   end

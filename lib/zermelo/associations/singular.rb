@@ -40,7 +40,7 @@ module Zermelo
           @parent_klass.lock(*@lock_klasses) do
             opts = {:callbacks => true}
             if :sorted_set.eql?(_inverse.type)
-              opts[:score] = record.send(@inverse_sort_key.to_sym).to_f
+              opts[:score] = @parent_klass.find_by_id!(@parent_id).send(@inverse_sort_key.to_sym).to_f
             end
             _set(opts, record.id)
           end
@@ -150,7 +150,7 @@ module Zermelo
           when :set
             @backend.add(_inverse, @parent_id)
           when :sorted_set
-            @backend.add(@record_id_key, [opts[:score], record_id])
+            @backend.add(_inverse, [opts[:score], @parent_id])
           when :hash
             @backend.add(_inverse, @inverse_key => @parent_id)
           end
