@@ -22,9 +22,12 @@ module Zermelo
     included do
       include ActiveModel::AttributeMethods
       extend ActiveModel::Callbacks
+      extend ActiveModel::Naming
       include ActiveModel::Dirty
       include ActiveModel::Validations
       include ActiveModel::Validations::Callbacks
+
+      extend Zermelo::Records::Attributes
 
       # include ActiveModel::MassAssignmentSecurity
 

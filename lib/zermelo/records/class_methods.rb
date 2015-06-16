@@ -5,7 +5,9 @@ require 'zermelo'
 
 require 'zermelo/backends/influxdb'
 require 'zermelo/backends/redis'
+require 'zermelo/backends/stub'
 
+require 'zermelo/records/attributes'
 require 'zermelo/records/key'
 
 module Zermelo
@@ -13,6 +15,8 @@ module Zermelo
   module Records
 
     module ClassMethods
+
+      include Zermelo::Records::Attributes
 
       extend Forwardable
 
@@ -38,14 +42,6 @@ module Zermelo
 
       def delete_id(id)
         backend.delete(ids_key, id.to_s)
-      end
-
-      def attribute_types
-        ret = nil
-        @lock.synchronize do
-          ret = (@attribute_types ||= {}).dup
-        end
-        ret
       end
 
       def lock(*klasses, &block)
@@ -80,23 +76,14 @@ module Zermelo
 
       protected
 
-      def define_attributes(options = {})
-        options.each_pair do |key, value|
-          raise "Unknown attribute type ':#{value}' for ':#{key}'" unless
-            Zermelo.valid_type?(value)
-          self.define_attribute_methods([key])
-        end
-        @lock.synchronize do
-          (@attribute_types ||= {}).update(options)
-        end
-      end
-
       def set_backend(backend_type)
         @backend ||= case backend_type.to_sym
         when :influxdb
           Zermelo::Backends::InfluxDB.new
         when :redis
           Zermelo::Backends::Redis.new
+        when :stub
+          Zermelo::Backends::Stub.new
         end
       end
 
