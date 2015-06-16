@@ -105,13 +105,13 @@ describe Zermelo::Associations::Multiple do
       it 'raises an error when calling add on has_many without an argument' do
         expect {
           parent.children.add
-        }.to raise_error
+        }.to raise_error("No records to add")
       end
 
       it 'raises an error when calling delete on has_many without an argument' do
         expect {
           parent.children.remove
-        }.to raise_error
+        }.to raise_error("No records to remove")
       end
 
       context 'filters' do
@@ -380,15 +380,19 @@ describe Zermelo::Associations::Multiple do
       end
 
       it 'raises an error when calling add on has_and_belongs_to_many without an argument' do
+        primary = primary_class.find_by_id('8')
+
         expect {
           primary.secondaries.add
-        }.to raise_error
+        }.to raise_error("No records to add")
       end
 
       it 'raises an error when calling delete on has_and_belongs_to_many without an argument' do
+        primary = primary_class.find_by_id('8')
+
         expect {
           primary.secondaries.remove
-        }.to raise_error
+        }.to raise_error("No records to remove")
       end
 
       it "deletes a record from the set" do

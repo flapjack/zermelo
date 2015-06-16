@@ -135,12 +135,6 @@ describe Zermelo::Filter do
       expect(scope.count).to eq 0
     end
 
-    it 'raises an error when trying to filter on a non-indexed value' do
-      expect {
-        example_class.intersect(:email => 'jjones@example.com').all
-      }.to raise_error
-    end
-
     it 'finds records by regex match against a uniquely indexed value' do
       examples = example_class.intersect(:name => /hn Jones/).all
       expect(examples).not_to be_nil
@@ -154,7 +148,7 @@ describe Zermelo::Filter do
     it 'cannot find records by regex match against non-string values' do
       expect {
         example_class.intersect(:active => /alse/).all
-      }.to raise_error
+      }.to raise_error("Can't query non-string values via regexp")
     end
 
     it 'can append to a filter chain fragment more than once' do
@@ -314,6 +308,13 @@ describe Zermelo::Filter do
       expect(examples.count).to eq(1)
       expect(examples.map(&:id)).to eq(['9'])
     end
+
+    it 'raises an error when trying to filter on a non-indexed value' do
+      expect {
+        example_class.intersect(:email => 'jjones@example.com').all
+      }.to raise_error("'email' property is not indexed")
+    end
+
   end
 
   context 'influxdb', :influxdb => true, :filter => true do
@@ -351,6 +352,12 @@ describe Zermelo::Filter do
     it "returns paginated query responses"
     it 'filters by records created before a certain time'
     it 'filters by records created after a certain time'
+
+    it 'raises an error when trying to filter on a non-indexed value' do
+      expect {
+        example_class.intersect(:email => 'jjones@example.com').all
+      }.to raise_error("Field email doesn't exist in series filter_influx_db/10")
+    end
 
   end
 end
