@@ -4,6 +4,8 @@
 
 Zermelo is an [ActiveModel](http://yehudakatz.com/2010/01/10/activemodel-make-any-ruby-object-feel-like-activerecord/)-based [Object-Relational Mapper](http://en.wikipedia.org/wiki/Object-relational_mapping) for [Redis](http://redis.io/), written in [Ruby](http://www.ruby-lang.org/).
 
+Please note that the following documentation has not yet been updated for the upcoming `v1.2.0` release of this gem. You may instead be looking for [documentation for the latest released version](https://github.com/flapjack/zermelo/blob/862fcdf9f688906966276c8a00930ee22e58d63c/README.md).
+
 ## Installation
 
 Add this line to your application's Gemfile:

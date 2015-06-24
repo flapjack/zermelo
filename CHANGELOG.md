@@ -1,5 +1,15 @@
 ## Zermelo Changelog
 
+# 1.2.0 - 2015-06-24
+
+* spec cleanup, apply to multiple backends if not backend-specific
+* fix sorted_sets to compose with other queries
+* range queries against sorted sets
+* improve setting association from its inverse side; all callbacks now called properly
+* renamed .delete on associations to .remove
+* also support .remove_ids on multiple associations, so record need not be loaded
+* stub record type
+
 # 1.1.0 - 2015-04-09
 
 * refactored query builder to improve composability
