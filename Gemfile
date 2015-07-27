@@ -1,20 +1,11 @@
 source 'https://rubygems.org'
 
-if RUBY_VERSION.split('.')[0] == '1' && RUBY_VERSION.split('.')[1] == '8'
-  gemspec :name => 'zermelo-ruby1.8'
-else
-  gemspec :name => 'zermelo'
-end
+gemspec :name => 'zermelo'
 
 group :test do
-  gem 'influxdb'
+  gem 'influxdb', '0.1.9'
   gem 'redis'
   gem 'rspec', '>= 3.0.0'
   gem 'simplecov', :require => false
-
-  if RUBY_VERSION.split('.')[0] == '1' && RUBY_VERSION.split('.')[1] == '8'
-    gem 'timecop', '0.6.1'
-  else
-    gem 'timecop'
-  end
+  gem 'timecop'
 end
