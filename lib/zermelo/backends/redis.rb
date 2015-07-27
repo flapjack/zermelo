@@ -15,10 +15,6 @@ module Zermelo
       #   :timestamp
       # end
 
-      def generate_lock
-        Zermelo::Locks::RedisLock.new
-      end
-
       def filter(ids_key, associated_class, callback_target_class = nil,
         callback_target_id = nil, callbacks = nil, sort_order = nil)
 
@@ -194,10 +190,22 @@ module Zermelo
               :object => :index
             ))
 
-            matching_sets = Zermelo.redis.keys(key_root + ":*").inject([]) do |memo, k|
+            key_pat = "#{key_root}:?*"
+
+            matching_sets = if (Zermelo.redis_version.split('.') <=> ['2', '8', '0']) == 1
+              # lock will be subsumed by outer lock if present -- required to
+              # know that scan is getting consistent results
+              associated_class.lock do
+                Zermelo.redis.scan_each(:match => key_pat).to_a
+              end
+            else
+              # SCAN is only supported in Redis >= 2.8.0
+              Zermelo.redis.keys(key_pat)
+            end
+
+            matching_sets.select! do |k|
               k =~ /^#{key_root}:(.+)$/
-              memo << k if value === $1
-              memo
+              value === $1
             end
 
             Zermelo.redis.sunionstore(idx_result, matching_sets) unless matching_sets.empty?
