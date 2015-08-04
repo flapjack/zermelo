@@ -39,6 +39,7 @@ module Zermelo
 
                 if val.is_a?(Enumerable)
                   conditions_set = associated_class.send(:temp_key, source.type)
+                  temp_keys << conditions_set
                   r_conditions_set = backend.key_to_redis_key(conditions_set)
 
                   backend.temp_key_wrap do |conditions_temp_keys|
