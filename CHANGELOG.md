@@ -1,5 +1,11 @@
 ## Zermelo Changelog
 
+# 1.2.1 - 2015-08-07
+
+ * 'empty' filter method (637d0c9c)
+ * bugfix; temp redis set not deleted when matching against multiple values for a field (9df5241d)
+ * use Redis .scan instead of .keys for regex index lookup if available (de75802c)
+
 # 1.2.0 - 2015-06-24
 
 * spec cleanup, apply to multiple backends if not backend-specific
