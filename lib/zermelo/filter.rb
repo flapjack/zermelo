@@ -4,6 +4,7 @@ require 'zermelo/records/errors'
 
 require 'zermelo/filters/steps/list_step'
 require 'zermelo/filters/steps/set_step'
+require 'zermelo/filters/steps/empty_step'
 require 'zermelo/filters/steps/sort_step'
 
 module Zermelo
@@ -74,6 +75,12 @@ module Zermelo
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
         self, ::Zermelo::Filters::Steps::ListStep.new({:offset => start,
           :limit => per_page}, {}))
+    end
+
+    def empty
+      self.class.new(@backend, @initial_key, @associated_class,
+        @callback_target_class, @callback_target_id, @callbacks, @sort_order,
+        self, ::Zermelo::Filters::Steps::EmptyStep.new({}, {}))
     end
 
     # step users

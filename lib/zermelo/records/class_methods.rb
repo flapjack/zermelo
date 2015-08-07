@@ -20,12 +20,13 @@ module Zermelo
 
       extend Forwardable
 
-      def_delegators :filter, :intersect, :union, :diff, :sort,
-                       :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
-                       :page, :all, :each, :collect, :map,
-                       :select, :find_all, :reject, :destroy_all,
-                       :ids, :count, :empty?, :exists?,
-                       :associated_ids_for
+      def_delegators :filter,
+        :intersect, :union, :diff, :sort, :offset, :page, :empty,
+        :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
+        :all, :each, :collect, :map,
+        :select, :find_all, :reject, :destroy_all,
+        :ids, :count, :empty?, :exists?,
+        :associated_ids_for
 
       def generate_id
         return SecureRandom.uuid if SecureRandom.respond_to?(:uuid)

@@ -131,7 +131,8 @@ module Zermelo
 
               return dest_set if shortcut.nil?
 
-              shortcut_params = if source.type == :sorted_set
+              shortcut_params = case source.type
+              when :sorted_set
                 [r_dest_set, order] + opts[:shortcut_args]
               else
                 [r_dest_set] + opts[:shortcut_args]
