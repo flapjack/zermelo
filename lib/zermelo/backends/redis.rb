@@ -1,6 +1,7 @@
 require 'zermelo/backend'
 
 require 'zermelo/filters/redis'
+require 'zermelo/ordered_set'
 require 'zermelo/locks/redis_lock'
 
 module Zermelo
@@ -54,7 +55,7 @@ module Zermelo
               end
             when :sorted_set
               if attr_key.accessor.nil?
-                Zermelo.redis.zrange(redis_attr_key, 0, -1)
+                Zermelo::OrderedSet.new(Zermelo.redis.zrange(redis_attr_key, 0, -1))
               else
                 # TODO
               end

@@ -79,10 +79,10 @@ module Zermelo
                   r_dest_set = backend.key_to_redis_key(dest_set)
 
                   Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
-                  Zermelo.redis.sunion(r_source_key, r_dest_set)
+                  Set.new(Zermelo.redis.sunion(r_source_key, r_dest_set))
                 end
               when :intersect
-                Zermelo.redis.sinter(r_source_key, *r_source_keys)
+                Set.new(Zermelo.redis.sinter(r_source_key, *r_source_keys))
               when :diff
                 backend.temp_key_wrap do |shortcut_temp_keys|
                   dest_set = associated_class.send(:temp_key, :set)
@@ -90,7 +90,7 @@ module Zermelo
                   r_dest_set = backend.key_to_redis_key(dest_set)
 
                   Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
-                  Zermelo.redis.sdiff(r_source_key, r_dest_set)
+                  Set.new(Zermelo.redis.sdiff(r_source_key, r_dest_set))
                 end
               end
             else

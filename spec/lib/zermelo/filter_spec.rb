@@ -27,7 +27,7 @@ describe Zermelo::Filter do
     it "returns all record ids" do
       examples = example_class.ids
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples).to contain_exactly('8', '9')
     end
@@ -42,7 +42,7 @@ describe Zermelo::Filter do
     it "returns all records" do
       examples = example_class.all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to contain_exactly('9', '8')
     end
@@ -57,7 +57,7 @@ describe Zermelo::Filter do
     it "finds records by a uniquely indexed value" do
       examples = example_class.intersect(:name => 'John Jones').all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_an(Set)
       expect(examples.size).to eq(1)
       example = examples.first
       expect(example.id).to eq('8')
@@ -67,7 +67,7 @@ describe Zermelo::Filter do
     it "filters all class records by indexed attribute values" do
       example = example_class.intersect(:active => true).all
       expect(example).not_to be_nil
-      expect(example).to be_an(Array)
+      expect(example).to be_a(Set)
       expect(example.size).to eq(1)
       expect(example.map(&:id)).to eq(['8'])
     end
@@ -75,7 +75,7 @@ describe Zermelo::Filter do
     it 'filters by id attribute values' do
       example = example_class.intersect(:id => '9').all
       expect(example).not_to be_nil
-      expect(example).to be_an(Array)
+      expect(example).to be_a(Set)
       expect(example.size).to eq(1)
       expect(example.map(&:id)).to eq(['9'])
     end
@@ -86,7 +86,7 @@ describe Zermelo::Filter do
 
       examples = example_class.intersect(:id => ['8', '10']).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['8', '10'])
     end
@@ -95,7 +95,7 @@ describe Zermelo::Filter do
       examples = example_class.intersect(:active => true).
                    union(:active => false).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['8', '9'])
     end
@@ -104,7 +104,7 @@ describe Zermelo::Filter do
       example = example_class.intersect(:active => true).
         intersect(:name => 'John Jones').all
       expect(example).not_to be_nil
-      expect(example).to be_an(Array)
+      expect(example).to be_a(Set)
       expect(example.size).to eq(1)
       expect(example.map(&:id)).to eq(['8'])
     end
@@ -113,7 +113,7 @@ describe Zermelo::Filter do
       example = example_class.intersect(:active => true,
         :name => 'John Jones').all
       expect(example).not_to be_nil
-      expect(example).to be_an(Array)
+      expect(example).to be_a(Set)
       expect(example.size).to eq(1)
       expect(example.map(&:id)).to eq(['8'])
     end
@@ -124,7 +124,7 @@ describe Zermelo::Filter do
 
       example = example_class.intersect(:active => true).diff(:name => 'Fred Bloggs').all
       expect(example).not_to be_nil
-      expect(example).to be_an(Array)
+      expect(example).to be_a(Set)
       expect(example.size).to eq(1)
       expect(example.map(&:id)).to eq(['8'])
     end
@@ -138,7 +138,7 @@ describe Zermelo::Filter do
     it 'finds records by regex match against a uniquely indexed value' do
       examples = example_class.intersect(:name => /hn Jones/).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(1)
       example = examples.first
       expect(example.id).to eq('8')
@@ -153,13 +153,13 @@ describe Zermelo::Filter do
 
     it 'can append to a filter chain fragment more than once' do
       inter = example_class.intersect(:active => true)
-      expect(inter.ids).to eq(['8'])
+      expect(inter.ids).to eq(Set.new(['8']))
 
       union = inter.union(:name => 'James Brown')
-      expect(union.ids).to match_array(['8', '9'])
+      expect(union.ids).to eq(Set.new(['8', '9']))
 
       diff = inter.diff(:id => ['8'])
-      expect(diff.ids).to eq([])
+      expect(diff.ids).to eq(Set.new)
     end
 
     it "ANDs multiple union arguments, not ORs them" do
@@ -167,7 +167,7 @@ describe Zermelo::Filter do
       examples = example_class.intersect(:id => ['8']).
                    union(:id => ['9', '10'], :active => true).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['8', '10'])
     end
@@ -177,7 +177,7 @@ describe Zermelo::Filter do
       examples = example_class.intersect(:id => ['8', '9', '10']).
                    diff(:id => ['9', '10'], :active => false).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['8', '10'])
     end
@@ -187,7 +187,7 @@ describe Zermelo::Filter do
       examples = example_class.intersect(:id => ['8']).
                    union(:id => ['9', '10'], :name => [nil, /^Jam/]).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['8', '9'])
     end
@@ -197,7 +197,7 @@ describe Zermelo::Filter do
 
       examples = example_class.intersect(:name => ['Jay Johns', 'James Brown']).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['9', '10'])
     end
@@ -208,7 +208,7 @@ describe Zermelo::Filter do
       examples = example_class.intersect(:active => false).
                    union(:name => ['Jay Johns', 'James Brown']).all
       expect(examples).not_to be_nil
-      expect(examples).to be_an(Array)
+      expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
       expect(examples.map(&:id)).to match_array(['9', '10'])
     end
@@ -216,7 +216,7 @@ describe Zermelo::Filter do
     it 'excludes particular records' do
       example = example_class.diff(:active => true).all
       expect(example).not_to be_nil
-      expect(example).to be_an(Array)
+      expect(example).to be_a(Set)
       expect(example.size).to eq(1)
       expect(example.map(&:id)).to eq(['9'])
     end
@@ -260,7 +260,7 @@ describe Zermelo::Filter do
     it 'sorts records by an attribute' do
       example = example_class.sort(:name, :order => 'alpha').all
       expect(example).not_to be_nil
-      expect(example).to be_an(Array)
+      expect(example).to be_a(Set)
       expect(example.size).to eq(2)
       expect(example.map(&:id)).to eq(['9', '8'])
     end

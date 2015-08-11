@@ -256,20 +256,20 @@ Classes that include `Zermelo::Record` have the following class methods made ava
 
 |Name                     | Arguments     | Returns |
 |-------------------------|---------------|---------|
-|`all`                    |               | Returns an Array of all the records stored for this class |
-|`each`                   |               | Yields all records to the provided block, returns the same Array as .all(): [Array#each](http://ruby-doc.org/core-2.1.2/Array.html#method-i-each)   |
-|`collect` / `map`        |               | Yields all records to the provided block, returns an Array with the values returned from the block: [Array#collect](http://ruby-doc.org/core-2.1.2/Array.html#method-i-collect)  |
-|`select` / `find_all`    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Array#select](http://ruby-doc.org/core-2.1.2/Array.html#method-i-select)  |
-|`reject`                 |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Array#reject](http://ruby-doc.org/core-2.1.2/Array.html#method-i-reject) |
-|`ids`                    |               | Returns an Array with the ids of all stored records |
+|`all`                    |               | Returns a Set of all the records stored for this class |
+|`each`                   |               | Yields all records to the provided block, returns the same Set as .all(): [Enumerable#each](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-each)   |
+|`collect` / `map`        |               | Yields all records to the provided block, returns an Array with the values returned from the block: [Enumerable#collect](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-collect)  |
+|`select` / `find_all`    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Enumerable#select](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-select)  |
+|`reject`                 |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Enumerable#reject](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-reject) |
+|`ids`                    |               | Returns a Set with the ids of all stored records |
 |`count`                  |               | Returns an Integer count of the number of stored records |
 |`empty?`                 |               | Returns true if no records are stored, false otherwise |
 |`destroy_all`            |               | Removes all stored records |
 |`exists?`                | ID            | Returns true if the record with the id is present, false if not |
 |`find_by_id`             | ID            | Returns the instantiated record for the id, or nil if not present |
-|`find_by_ids`            | ID, ID, ...   | Returns an Array of instantiated records for the ids, with nils if the respective record is not present |
+|`find_by_ids`            | ID, ID, ...   | Returns a Set of instantiated records for the ids, with nils if the respective record is not present |
 |`find_by_id!`            | ID            | Returns the instantiated record for the id, or raises a Zermelo::Records::RecordNotFound exception if not present |
-|`find_by_ids!`           | ID, ID, ...   | Returns an Array of instantiated records for the ids, or raises a Zermelo::Records::RecordsNotFound exception if any are not present |
+|`find_by_ids!`           | ID, ID, ...   | Returns a Set of instantiated records for the ids, or raises a Zermelo::Records::RecordsNotFound exception if any are not present |
 |`associated_ids_for`     | association   | (Defined in the `Associations` section below) |
 
 ### Instance methods
@@ -373,16 +373,16 @@ comment1.save
 comment2 = Comment.new(:id => '2')
 comment2.save
 
-p post.comments.ids # == []
-p Comment.ids       # == [1, 2]
+p post.comments.ids # == #<Set: {}>
+p Comment.ids       # == #<Set: {'1', '2'}>
 post.comments << comment1
-p post.comments.ids # == [1]
+p post.comments.ids # == #<Set: {'1'}>
 ```
 
 `.associated_ids_for` is somewhat of a special case; it uses the simplest queries possible to get the ids of the associated records of a set of records, e.g. for the data directly above:
 
 ```ruby
-Post.associated_ids_for(:comments)                       # => {'a' => ['1']}
+Post.associated_ids_for(:comments)                       # => {'a' => #<Set: {'1'}>}
 
 post_b = Post.new(:id => 'b')
 post_b.save
@@ -391,14 +391,14 @@ comment3 = Comment.new(:id => '3')
 comment3.save
 post.comments << comment3
 
-Post.associated_ids_for(:comments)                       # => {'a' => ['1', '3'], 'b' => ['2']}
+Post.associated_ids_for(:comments)                       # => {'a' => #<Set: {'1', '3'}>, 'b' => #<Set: {'2'}>}
 ```
 
 For `belongs to` associations, you may pass an extra option to `associated_ids_for`, `:inversed => true`, and you'll get the data back as if it were applied from the inverse side; however the data will only cover that used as the query root. Again, assuming the data from the last two code blocks, e.g.
 
 ```ruby
 Comment.associated_ids_for(:post)                    # => {'1' => 'a', '2' => 'b', '3' => 'a'}
-Comment.associated_ids_for(:post, :inversed => true) # => {'a' => ['1', '3'], 'b' => ['2']}
+Comment.associated_ids_for(:post, :inversed => true) # => {'a' => #<Set: {'1', '3'}>, 'b' => #<Set: {'2'}>}
 ```
 
 ### Class data indexing
@@ -466,7 +466,7 @@ are both valid, and the `Comment` instances returned by the first query would be
 The chained queries are only executed when the results are invoked (lazy evaluation) by the addition of one of the class methods listed above; e.g.
 
 ```ruby
-Comment.intersect(:title => 'Interesting').all    # -> [Comment, Comment, ...]
+Comment.intersect(:title => 'Interesting').all    # -> #<Set: {Comment, Comment, ...}>
 Comment.intersect(:title => 'Interesting', :promoted => true).count  # -> Integer
 ```
 
@@ -477,7 +477,7 @@ SINTER comment::attrs:ids comment::indices:by_title:string:Interesting
 HGET comment:ca9e427d-4d81-47f8-bcfe-bb614d40528c:attrs title
 ```
 
-with the result being an Array with one member, a Comment record with `{:id => 'ca9e427d-4d81-47f8-bcfe-bb614d40528c', :title => 'Interesting'}`
+with the result being a Set with one member, a Comment record with `{:id => 'ca9e427d-4d81-47f8-bcfe-bb614d40528c', :title => 'Interesting'}`
 
 and the second (`.count`) will execute these Redis commands.
 
@@ -507,9 +507,8 @@ comment2 = Comment.new(:id => '2', :created_at => t - 60)
 comment2.save
 
 range = Zermelo::Filters::IndexRange.new(t - 90, t, :by_score => true)
-Comment.ids # ['1', '2']
-Comment.intersect(:created_at => range).ids # ['2']
-
+Comment.ids # #<Set: {'1', '2'}>
+Comment.intersect(:created_at => range).ids # #<Set: {'2'}>
 ```
 
 ### Future
@@ -519,7 +518,7 @@ Some possible changes:
 * pluggable id generation strategies
 * pluggable key naming strategies
 * instrumentation for benchmarking etc.
-* multiple data backends; there's currently an experimental InfluxDB 0.8 backend (waiting for the Ruby driver to update for 0.9 support).
+* multiple data backends
 
 ## License
 

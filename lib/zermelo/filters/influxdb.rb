@@ -64,7 +64,15 @@ module Zermelo
             initial_id_data = nil
           end
 
-          return [] if initial_id_data.nil?
+          if initial_id_data.nil?
+            ret = case result_type
+            when :ids
+              Set.new
+            when :count
+              0
+            end
+            return ret
+          end
 
           initial_ids = initial_id_data.first[@initial_key.name]
 
@@ -105,9 +113,9 @@ module Zermelo
 
         case result_type
         when :ids
-          data_keys.empty? ? [] : data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 }
+          data_keys.empty? ? Set.new : Set.new(data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 })
         when :count
-          data_keys.empty? ?  0 : data_keys.size
+          data_keys.empty? ? 0 : data_keys.size
         end
       end
     end

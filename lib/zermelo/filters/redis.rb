@@ -2,6 +2,8 @@ require 'zermelo/filter'
 
 require 'zermelo/filters/index_range'
 
+require 'zermelo/ordered_set'
+
 # TODO check escaping of ids and index_keys -- shouldn't allow bare :
 
 module Zermelo
@@ -14,20 +16,20 @@ module Zermelo
 
       SHORTCUTS = {
         :list => {
-          :ids     => proc {|key|     Zermelo.redis.lrange(key, 0, -1) },
+          :ids     => proc {|key|     Zermelo::OrderedSet.new(Zermelo.redis.lrange(key, 0, -1)) },
           :count   => proc {|key|     Zermelo.redis.llen(key) },
           :exists? => proc {|key, id| Zermelo.redis.lrange(key, 0, -1).include?(id) },
           :first   => proc {|key|     Zermelo.redis.lrange(key, 0, 0).first },
           :last    => proc {|key|     Zermelo.redis.lrevrange(key, 0, 0).first }
         },
         :set => {
-          :ids     => proc {|key|     Zermelo.redis.smembers(key) },
+          :ids     => proc {|key|     Set.new(Zermelo.redis.smembers(key)) },
           :count   => proc {|key|     Zermelo.redis.scard(key) },
           :exists? => proc {|key, id| Zermelo.redis.sismember(key, id) }
         },
         :sorted_set => {
           :ids     => proc {|key, order|
-            Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, -1)
+            Zermelo::OrderedSet.new(Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, -1))
           },
           :count   => proc {|key, order|     Zermelo.redis.zcard(key) },
           :exists? => proc {|key, order, id| !Zermelo.redis.zscore(key, id).nil? },

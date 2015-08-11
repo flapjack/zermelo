@@ -2,6 +2,8 @@ require 'zermelo/backend'
 
 require 'zermelo/filters/influxdb'
 
+require 'zermelo/ordered_set'
+
 # NB influxdb doesn't support individually addressable deletes, so
 # this backend only works to write new records
 # (it could just write the new state of the record, and query id by newest limit 1,
@@ -59,7 +61,7 @@ module Zermelo
             when :hash
               {}
             when :set
-              Set.new()
+              Set.new
             else nil
             end
           else

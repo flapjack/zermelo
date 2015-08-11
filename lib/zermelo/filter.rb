@@ -193,7 +193,7 @@ module Zermelo
     end
 
     def _all
-      _ids.map {|id| _load(id) }
+      _ids.map! {|id| _load(id) }
     end
 
   end

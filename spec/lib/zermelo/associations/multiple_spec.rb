@@ -20,14 +20,14 @@ describe Zermelo::Associations::Multiple do
 
         children = parent.children.all
 
-        expect(children).to be_an(Array)
+        expect(children).to be_a(Set)
         expect(children).to be_empty
 
         parent.children << child
 
         children = parent.children.all
 
-        expect(children).to be_an(Array)
+        expect(children).to be_a(Set)
         expect(children.size).to eq(1)
       end
 
@@ -36,7 +36,7 @@ describe Zermelo::Associations::Multiple do
 
         children = parent.children.all
 
-        expect(children).to be_an(Array)
+        expect(children).to be_a(Set)
         expect(children.size).to eq(1)
         child = children.first
         expect(child).to be_a(child_class)
@@ -61,7 +61,7 @@ describe Zermelo::Associations::Multiple do
         child = child_class.find_by_id('3')
         parent.children.remove(child)
         expect(parent.children.count).to eq(1)
-        expect(parent.children.ids).to eq(['4'])
+        expect(parent.children.ids).to eq(Set.new(['4']))
       end
 
       it "deletes a record from the set by id" do
@@ -71,7 +71,7 @@ describe Zermelo::Associations::Multiple do
         expect(parent.children.count).to eq(2)
         parent.children.remove_ids('3')
         expect(parent.children.count).to eq(1)
-        expect(parent.children.ids).to eq(['4'])
+        expect(parent.children.ids).to eq(Set.new(['4']))
       end
 
       it "clears all records from the set" do
@@ -82,7 +82,7 @@ describe Zermelo::Associations::Multiple do
         child = child_class.find_by_id('3')
         parent.children.clear
         expect(parent.children.count).to eq(0)
-        expect(parent.children.ids).to eq([])
+        expect(parent.children.ids).to eq(Set.new)
       end
 
       it "does not add a child if the before_add callback raises an exception" # do
@@ -125,15 +125,15 @@ describe Zermelo::Associations::Multiple do
         it "by indexed attribute values" do
           important_kids = parent.children.intersect(:important => true).all
           expect(important_kids).not_to be_nil
-          expect(important_kids).to be_an(Array)
+          expect(important_kids).to be_a(Set)
           expect(important_kids.size).to eq(2)
-          expect(important_kids.map(&:id)).to match_array(['3', '4'])
+          expect(important_kids.map(&:id)).to eq(['3', '4'])
         end
 
         it "by intersecting ids" do
           important_kids = parent.children.intersect(:important => true, :id => ['4', '5']).all
           expect(important_kids).not_to be_nil
-          expect(important_kids).to be_an(Array)
+          expect(important_kids).to be_a(Set)
           expect(important_kids.size).to eq(1)
           expect(important_kids.map(&:id)).to match_array(['4'])
         end
@@ -143,7 +143,7 @@ describe Zermelo::Associations::Multiple do
           create_child(parent, :id => '4', :important => false)
 
           result = parent.children.intersect(:important => true).union(:id => '4').all
-          expect(result).to be_an(Array)
+          expect(result).to be_a(Set)
           expect(result.size).to eq(2)
           expect(result.map(&:id)).to eq(['3', '4'])
         end
@@ -172,7 +172,7 @@ describe Zermelo::Associations::Multiple do
             associated_ids_for(:children)
           expect(assoc_ids).to eq('8'  => Set.new(['3', '4', '5']),
                                   '9'  => Set.new(['6']),
-                                  '10' => Set.new())
+                                  '10' => Set.new)
 
           assoc_parent_ids = child_class.intersect(:id => ['3', '4', '5', '6']).
             associated_ids_for(:parent)
@@ -372,7 +372,7 @@ describe Zermelo::Associations::Multiple do
 
         secondaries = primary.secondaries.all
 
-        expect(secondaries).to be_an(Array)
+        expect(secondaries).to be_a(Set)
         expect(secondaries.size).to eq(1)
         other_secondary = secondaries.first
         expect(other_secondary).to be_a(secondary_class)
@@ -412,9 +412,9 @@ describe Zermelo::Associations::Multiple do
         expect(secondary.primaries.count).to eq(1)
         expect(primary.secondaries.count).to eq(0)
         expect(primary_2.secondaries.count).to eq(1)
-        expect(secondary.primaries.ids).to eq(['9'])
-        expect(primary.secondaries.ids).to eq([])
-        expect(primary_2.secondaries.ids).to eq(['2'])
+        expect(secondary.primaries.ids).to eq(Set.new(['9']))
+        expect(primary.secondaries.ids).to eq(Set.new)
+        expect(primary_2.secondaries.ids).to eq(Set.new(['2']))
       end
 
       it "deletes a record from the set by id" do
@@ -434,9 +434,9 @@ describe Zermelo::Associations::Multiple do
         expect(secondary.primaries.count).to eq(1)
         expect(primary.secondaries.count).to eq(0)
         expect(primary_2.secondaries.count).to eq(1)
-        expect(secondary.primaries.ids).to eq(['9'])
-        expect(primary.secondaries.ids).to eq([])
-        expect(primary_2.secondaries.ids).to eq(['2'])
+        expect(secondary.primaries.ids).to eq(Set.new(['9']))
+        expect(primary.secondaries.ids).to eq(Set.new)
+        expect(primary_2.secondaries.ids).to eq(Set.new(['2']))
       end
 
       it "clears all records from the set" do
@@ -456,9 +456,9 @@ describe Zermelo::Associations::Multiple do
         expect(secondary.primaries.count).to eq(0)
         expect(primary.secondaries.count).to eq(0)
         expect(primary_2.secondaries.count).to eq(0)
-        expect(secondary.primaries.ids).to eq([])
-        expect(primary.secondaries.ids).to eq([])
-        expect(primary_2.secondaries.ids).to eq([])
+        expect(secondary.primaries.ids).to eq(Set.new)
+        expect(primary.secondaries.ids).to eq(Set.new)
+        expect(primary_2.secondaries.ids).to eq(Set.new)
       end
 
       context 'filters' do
@@ -478,7 +478,7 @@ describe Zermelo::Associations::Multiple do
 
           primaries = secondary.primaries.intersect(:active => true).all
           expect(primaries).not_to be_nil
-          expect(primaries).to be_an(Array)
+          expect(primaries).to be_a(Set)
           expect(primaries.size).to eq(2)
           expect(primaries.map(&:id)).to match_array(['8', '10'])
         end
@@ -747,7 +747,7 @@ describe Zermelo::Associations::Multiple do
 
         children = parent.children.all
 
-        expect(children).to be_an(Array)
+        expect(children).to be_a(Zermelo::OrderedSet)
         expect(children.size).to eq(1)
         child = children.first
         expect(child).to be_a(child_class)
@@ -866,9 +866,9 @@ describe Zermelo::Associations::Multiple do
 
         assoc_ids = parent_class.intersect(:id => ['8', '9', '10']).
           associated_ids_for(:children)
-        expect(assoc_ids).to eq('8'  => ['3', '4'],
-                                '9'  => [],
-                                '10' => ['5'])
+        expect(assoc_ids).to eq('8'  => Zermelo::OrderedSet.new(['3', '4']),
+                                '9'  => Zermelo::OrderedSet.new,
+                                '10' => Zermelo::OrderedSet.new(['5']))
       end
 
       it "deletes a record from the set" do
@@ -881,7 +881,7 @@ describe Zermelo::Associations::Multiple do
         child = child_class.find_by_id('3')
         parent.children.remove(child)
         expect(parent.children.count).to eq(1)
-        expect(parent.children.ids).to eq(['4'])
+        expect(parent.children.ids).to eq(Set.new(['4']))
       end
 
       it "deletes a record from the set by id" do
@@ -893,7 +893,7 @@ describe Zermelo::Associations::Multiple do
         expect(parent.children.count).to eq(2)
         parent.children.remove_ids('3')
         expect(parent.children.count).to eq(1)
-        expect(parent.children.ids).to eq(['4'])
+        expect(parent.children.ids).to eq(Zermelo::OrderedSet.new(['4']))
       end
 
       it "clears all records from the set" do
@@ -906,7 +906,7 @@ describe Zermelo::Associations::Multiple do
         child = child_class.find_by_id('3')
         parent.children.clear
         expect(parent.children.count).to eq(0)
-        expect(parent.children.ids).to eq([])
+        expect(parent.children.ids).to eq(Zermelo::OrderedSet.new)
       end
 
       context 'filters' do
@@ -922,7 +922,7 @@ describe Zermelo::Associations::Multiple do
         it "by indexed attribute values" do
           upset_children = parent.children.intersect(:emotion => 'upset').all
           expect(upset_children).not_to be_nil
-          expect(upset_children).to be_an(Array)
+          expect(upset_children).to be_a(Zermelo::OrderedSet)
           expect(upset_children.size).to eq(2)
           expect(upset_children.map(&:id)).to eq(['4', '6'])
         end
@@ -930,7 +930,7 @@ describe Zermelo::Associations::Multiple do
         it "by indexed attribute values with a regex search" do
           upset_children = parent.children.intersect(:emotion => /^ups/).all
           expect(upset_children).not_to be_nil
-          expect(upset_children).to be_an(Array)
+          expect(upset_children).to be_a(Zermelo::OrderedSet)
           expect(upset_children.size).to eq(2)
           expect(upset_children.map(&:id)).to eq(['4', '6'])
         end
@@ -939,7 +939,7 @@ describe Zermelo::Associations::Multiple do
           range = Zermelo::Filters::IndexRange.new(0, 1)
           children = parent.children.intersect(:timestamp => range).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['4', '5'])
         end
@@ -948,7 +948,7 @@ describe Zermelo::Associations::Multiple do
           range = Zermelo::Filters::IndexRange.new(1, 2)
           children = parent.children.intersect(:timestamp => range).sort(:id, :desc => true).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['6', '5'])
         end
@@ -957,7 +957,7 @@ describe Zermelo::Associations::Multiple do
           range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, :by_score => true)
           children = parent.children.intersect(:timestamp => range).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['4', '5'])
         end
@@ -967,7 +967,7 @@ describe Zermelo::Associations::Multiple do
           children = parent.children.intersect(:timestamp => range).
                        sort(:timestamp, :desc => true).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['5', '4'])
         end
@@ -994,7 +994,7 @@ describe Zermelo::Associations::Multiple do
           children = parent.children.intersect(:id => ['4']).
                        union(:emotion => 'upset', :id => ['4', '6']).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['4', '6'])
         end
@@ -1002,7 +1002,7 @@ describe Zermelo::Associations::Multiple do
         it "ANDs multiple diff arguments, not ORs them" do
           children = parent.children.diff(:emotion => 'upset', :id => ['4', '5']).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['5', '6'])
         end
@@ -1011,7 +1011,7 @@ describe Zermelo::Associations::Multiple do
           range = Zermelo::Filters::IndexRange.new(0, 1)
           children = parent.children.diff(:timestamp => range).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(1)
           expect(children.map(&:id)).to eq(['6'])
         end
@@ -1020,7 +1020,7 @@ describe Zermelo::Associations::Multiple do
           range = Zermelo::Filters::IndexRange.new(2, 2)
           children = parent.children.diff(:timestamp => range).sort(:id, :desc => true).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['5', '4'])
         end
@@ -1029,7 +1029,7 @@ describe Zermelo::Associations::Multiple do
           range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, :by_score => true)
           children = parent.children.diff(:timestamp => range).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(1)
           expect(children.map(&:id)).to eq(['6'])
         end
@@ -1038,7 +1038,7 @@ describe Zermelo::Associations::Multiple do
           range = Zermelo::Filters::IndexRange.new(time - 5, time, :by_score => true)
           children = parent.children.diff(:timestamp => range).sort(:timestamp, :desc => true).all
           expect(children).not_to be_nil
-          expect(children).to be_an(Array)
+          expect(children).to be_a(Zermelo::OrderedSet)
           expect(children.size).to eq(2)
           expect(children.map(&:id)).to eq(['5', '4'])
         end
