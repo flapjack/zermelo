@@ -13,6 +13,14 @@ module Zermelo
           nil # same as the source type
         end
 
+        def assoc_filter_to_redis_key(backend, f)
+          k = f.instance_variable_get('@initial_key') # FIXME, add accessor
+          unless :association.eql?(k.object)
+            raise "Only association keys can be used as set filter values"
+          end
+          backend.key_to_redis_key(k)
+        end
+
         def resolve(backend, associated_class, opts = {})
 
           case backend
@@ -25,25 +33,34 @@ module Zermelo
             order       = opts[:sort_order]
 
             source_keys = @attributes.each_with_object([]) do |(att, value), memo|
-
-              val = value.is_a?(Set) ? value.to_a : value
-
-              if :id.eql?(att)
-                ts = associated_class.send(:temp_key, :set)
-                temp_keys << ts
-                Zermelo.redis.sadd(backend.key_to_redis_key(ts), val)
-                memo << ts
-              else
+              idx_class = nil
+              unless :id.eql?(att)
                 idx_class = idx_attrs[att.to_s]
                 raise "'#{att}' property is not indexed" if idx_class.nil?
+              end
 
-                if val.is_a?(Enumerable)
-                  conditions_set = associated_class.send(:temp_key, source.type)
-                  temp_keys << conditions_set
-                  r_conditions_set = backend.key_to_redis_key(conditions_set)
+              if [Set, Array].any? {|t| value.is_a?(t) }
+                conditions_set = associated_class.send(:temp_key, source.type)
+                temp_keys << conditions_set
+                r_conditions_set = backend.key_to_redis_key(conditions_set)
 
-                  backend.temp_key_wrap do |conditions_temp_keys|
-                    index_keys = val.collect {|v|
+                backend.temp_key_wrap do |conditions_temp_keys|
+                  if idx_class.nil?
+                    cond_filters, cond_ids = value.partition do |v|
+                      v.is_a?(Zermelo::Filter)
+                    end
+
+                    unless cond_filters.empty?
+                      cond_filt_keys = cond_filters.collect do |cf|
+                        assoc_filter_to_redis_key(backend, cf)
+                      end
+                      Zermelo.redis.sunionstore(r_conditions_set, *cond_filt_keys)
+                    end
+                    unless cond_ids.empty?
+                      Zermelo.redis.sadd(r_conditions_set, cond_ids)
+                    end
+                  else
+                    index_keys = value.to_a.collect {|v|
                       il = backend.index_lookup(att, associated_class,
                         idx_class, v, attr_types[att], conditions_temp_keys)
                       backend.key_to_redis_key(il)
@@ -56,11 +73,16 @@ module Zermelo
                       Zermelo.redis.zunionstore(r_conditions_set, index_keys)
                     end
                   end
-                  memo << conditions_set
-                else
-                  memo << backend.index_lookup(att, associated_class,
-                            idx_class, val, attr_types[att], temp_keys)
                 end
+                memo << conditions_set
+              elsif idx_class.nil?
+                ts = associated_class.send(:temp_key, :set)
+                temp_keys << ts
+                Zermelo.redis.sadd(backend.key_to_redis_key(ts), value)
+                memo << ts
+              else
+                memo << backend.index_lookup(att, associated_class,
+                          idx_class, value, attr_types[att], temp_keys)
               end
             end
 

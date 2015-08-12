@@ -182,6 +182,28 @@ describe Zermelo::Associations::Multiple do
                                          '6' => '9')
         end
 
+        it 'returns associated filters for multiple parent ids' do
+          create_parent(:id => '9')
+          parent_9 = parent_class.find_by_id('9')
+
+          create_child(parent_9, :id => '6', :important => false)
+
+          create_parent(:id => '10')
+
+          assoc_id_refs = parent_class.intersect(:id => [ '8', '9', '10']).
+            associated_filters_for(:children)
+          expect(assoc_id_refs).to be_a(Hash)
+          expect(assoc_id_refs.values.all? {|r| r.is_a?(Zermelo::Filter)}).to be true
+
+          expect(assoc_id_refs['8'].count).to eq(3)
+          expect(assoc_id_refs['8'].ids).to eq(Set.new(['3', '4', '5']))
+
+          expect(assoc_id_refs['9'].count).to eq(1)
+          expect(assoc_id_refs['9'].ids).to eq(Set.new(['6']))
+
+          expect(assoc_id_refs['10'].count).to eq(0)
+          expect(assoc_id_refs['10'].ids).to eq(Set.new())
+        end
       end
     end
 
@@ -310,6 +332,27 @@ describe Zermelo::Associations::Multiple do
                               "#{ck}:6:attrs"])
       end
 
+      it 'queries associated filters transparently' do
+        create_parent(:id => '8')
+        parent_8 = parent_class.find_by_id('8')
+        create_child(parent_8, :id => '5', :important => false)
+        create_child(parent_8, :id => '6', :important => false)
+
+        create_parent(:id => '9')
+        parent_9 = parent_class.find_by_id('9')
+
+        create_child(parent_9, :id => '7', :important => false)
+
+        create_parent(:id => '10')
+
+        assoc_id_refs = parent_class.intersect(:id => [ '8', '9', '10']).
+          associated_filters_for(:children)
+
+        children = child_class.intersect(:id => assoc_id_refs.values)
+        expect(children.count).to eq(3)
+        expect(children.ids).to eq(Set.new(['5', '6', '7']))
+      end
+
     end
 
     context 'influxdb', :influxdb => true, :has_many => true do
@@ -348,6 +391,9 @@ describe Zermelo::Associations::Multiple do
         Zermelo.influxdb.write_point("#{ck}/#{attrs[:id]}", attrs)
         par.children.add(child_class.find_by_id!(attrs[:id]))
       end
+
+      # FIXME not implemented yet for InfluxDB, see SetStep
+      it 'queries associated filters transparently'
 
     end
 

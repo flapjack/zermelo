@@ -270,7 +270,7 @@ Classes that include `Zermelo::Record` have the following class methods made ava
 |`find_by_ids`            | ID, ID, ...   | Returns a Set of instantiated records for the ids, with nils if the respective record is not present |
 |`find_by_id!`            | ID            | Returns the instantiated record for the id, or raises a Zermelo::Records::RecordNotFound exception if not present |
 |`find_by_ids!`           | ID, ID, ...   | Returns a Set of instantiated records for the ids, or raises a Zermelo::Records::RecordsNotFound exception if any are not present |
-|`associated_ids_for`     | association   | (Defined in the `Associations` section below) |
+|`associated_ids_for` &amp; `associated_filters_for` | association   | (Defined in the `Associations` section below) |
 
 ### Instance methods
 
@@ -400,6 +400,8 @@ For `belongs to` associations, you may pass an extra option to `associated_ids_f
 Comment.associated_ids_for(:post)                    # => {'1' => 'a', '2' => 'b', '3' => 'a'}
 Comment.associated_ids_for(:post, :inversed => true) # => {'a' => #<Set: {'1', '3'}>, 'b' => #<Set: {'2'}>}
 ```
+
+`.associated_filters_for` returns a chainable Zermelo filter object (as is, e.g. returned by an `.intersect` or `.union` method), rather than a set of ids, as the Hash values. Please note, `.associated_filters_for` only works with multiple associations (`has_many`, `has_and_belongs_to_many`, `has_sorted_set`).
 
 ### Class data indexing
 

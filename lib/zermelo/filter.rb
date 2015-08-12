@@ -168,6 +168,22 @@ module Zermelo
       }
     end
 
+    def associated_filters_for(name)
+      data_type, data_klass, type_klass = @associated_class.send(:with_association_data, name.to_sym) do |data|
+        [data.data_type, data.data_klass, data.type_klass]
+      end
+
+      lock {
+        case data_type
+        when :belongs_to, :has_one
+          raise "'associated_filters_for' only supports multiple associations"
+        else
+          type_klass.send(:associated_filters_for, @backend, data_type,
+            @associated_class, name, data_klass, *_ids)
+        end
+      }
+    end
+
     protected
 
     def lock(when_steps_empty = true, *klasses, &block)
