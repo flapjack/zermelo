@@ -78,7 +78,12 @@ module Zermelo
               elsif idx_class.nil?
                 ts = associated_class.send(:temp_key, :set)
                 temp_keys << ts
-                Zermelo.redis.sadd(backend.key_to_redis_key(ts), value)
+                r_ts = backend.key_to_redis_key(ts)
+                if value.is_a?(Zermelo::Filter)
+                  Zermelo.redis.sunionstore(r_ts, assoc_filter_to_redis_key(backend, value))
+                else
+                  Zermelo.redis.sadd(r_ts, value)
+                end
                 memo << ts
               else
                 memo << backend.index_lookup(att, associated_class,
