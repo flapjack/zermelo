@@ -75,16 +75,10 @@ module Zermelo
         resolve_steps(:exists?, id)
       end
 
-      # If called with a block --  takes a block and passes the name of a set to
-      # it; deletes all temporary sets once done
-
-      # If called with any arguments -- treats them as a hash of shortcuts
-
-      # If not called with any arguments -- returns two values, the first is
-      # the name of a set containing the filtered ids, the second is a boolean
-      # for whether or not to clear up that set once it's been used
-
-      def resolve_steps(shortcut, *args)
+      # If not called with a shortcut, return value is the name of a set
+      # containing the filtered ids; if allocated internally it'll be cleaned
+      # up safely
+      def resolve_steps(shortcut = nil, *args)
         if @steps.empty?
           unless @callback_target_class.nil? || @callbacks.nil?
             br = @callbacks[:before_read]
@@ -95,7 +89,7 @@ module Zermelo
 
           sc = Zermelo::Filters::Redis::SHORTCUTS[@initial_key.type][shortcut]
           ret = if sc.nil?
-            yield(@initial_key)
+            @initial_key
           else
             r_key = backend.key_to_redis_key(@initial_key)
             shortcut_params = if @initial_key.type == :sorted_set

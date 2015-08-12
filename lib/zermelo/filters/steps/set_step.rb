@@ -13,14 +13,6 @@ module Zermelo
           nil # same as the source type
         end
 
-        def assoc_filter_to_redis_key(backend, f)
-          k = f.instance_variable_get('@initial_key') # FIXME, add accessor
-          unless :association.eql?(k.object)
-            raise "Only association keys can be used as set filter values"
-          end
-          backend.key_to_redis_key(k)
-        end
-
         def resolve(backend, associated_class, opts = {})
 
           case backend
@@ -52,7 +44,7 @@ module Zermelo
 
                     unless cond_filters.empty?
                       cond_filt_keys = cond_filters.collect do |cf|
-                        assoc_filter_to_redis_key(backend, cf)
+                        backend.key_to_redis_key(cf.send(:resolve_steps))
                       end
                       Zermelo.redis.sunionstore(r_conditions_set, *cond_filt_keys)
                     end
@@ -76,15 +68,15 @@ module Zermelo
                 end
                 memo << conditions_set
               elsif idx_class.nil?
-                ts = associated_class.send(:temp_key, :set)
-                temp_keys << ts
-                r_ts = backend.key_to_redis_key(ts)
                 if value.is_a?(Zermelo::Filter)
-                  Zermelo.redis.sunionstore(r_ts, assoc_filter_to_redis_key(backend, value))
+                  memo << value.send(:resolve_steps)
                 else
+                  ts = associated_class.send(:temp_key, :set)
+                  temp_keys << ts
+                  r_ts = backend.key_to_redis_key(ts)
                   Zermelo.redis.sadd(r_ts, value)
+                  memo << ts
                 end
-                memo << ts
               else
                 memo << backend.index_lookup(att, associated_class,
                           idx_class, value, attr_types[att], temp_keys)
