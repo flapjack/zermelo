@@ -1,7 +1,8 @@
+# Store logger messages in specs for possible later output
 class MockLogger
   attr_accessor :messages, :errors
 
-  def self.configure_log(name, config = {})
+  def self.configure_log(name, _config = {})
     @name = name
   end
 
@@ -20,7 +21,8 @@ class MockLogger
       def #{level}(msg = nil, &block)
         msg = yield if msg.nil? && block_given?
         @messages << '[#{level.upcase}] :: ' +
-          (self.class.instance_variable_get('@name') || 'flapjack') + ' :: ' + msg
+          (self.class.instance_variable_get('@name') || 'flapjack') + ' :: ' +
+          msg
       end
     RUBY
   end
@@ -30,9 +32,11 @@ class MockLogger
       def #{level}(msg = nil, &block)
         msg = yield if msg.nil? && block_given?
         @messages << '[#{level.upcase}] :: ' +
-          (self.class.instance_variable_get('@name') || 'flapjack') + ' :: ' + msg
+          (self.class.instance_variable_get('@name') || 'flapjack') + ' :: ' +
+          msg
         @errors << '[#{level.upcase}] :: ' +
-          (self.class.instance_variable_get('@name') || 'flapjack') + ' :: ' + msg
+          (self.class.instance_variable_get('@name') || 'flapjack') + ' :: ' +
+          msg
       end
     ERRORS
   end
@@ -44,5 +48,4 @@ class MockLogger
       end
     LEVELS
   end
-
 end
