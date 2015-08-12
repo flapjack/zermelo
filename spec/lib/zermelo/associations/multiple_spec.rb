@@ -182,7 +182,7 @@ describe Zermelo::Associations::Multiple do
                                          '6' => '9')
         end
 
-        it 'returns associated filters for multiple parent ids' do
+        it 'returns associations for multiple parent ids' do
           create_parent(:id => '9')
           parent_9 = parent_class.find_by_id('9')
 
@@ -190,19 +190,18 @@ describe Zermelo::Associations::Multiple do
 
           create_parent(:id => '10')
 
-          assoc_id_refs = parent_class.intersect(:id => [ '8', '9', '10']).
-            associated_filters_for(:children)
-          expect(assoc_id_refs).to be_a(Hash)
-          expect(assoc_id_refs.values.all? {|r| r.is_a?(Zermelo::Filter)}).to be true
+          assocs = parent_class.intersect(:id => [ '8', '9', '10']).
+            associations_for(:children)
+          expect(assocs).to be_a(Hash)
+          expect(assocs.keys).to match_array(['8', '9', '10'])
+          expect(assocs.values.all? {|r| r.is_a?(Zermelo::Associations::Multiple)}).to be true
 
-          expect(assoc_id_refs['8'].count).to eq(3)
-          expect(assoc_id_refs['8'].ids).to eq(Set.new(['3', '4', '5']))
-
-          expect(assoc_id_refs['9'].count).to eq(1)
-          expect(assoc_id_refs['9'].ids).to eq(Set.new(['6']))
-
-          expect(assoc_id_refs['10'].count).to eq(0)
-          expect(assoc_id_refs['10'].ids).to eq(Set.new())
+          expect(assocs['8'].count).to eq(3)
+          expect(assocs['8'].ids).to eq(Set.new(['3', '4', '5']))
+          expect(assocs['9'].count).to eq(1)
+          expect(assocs['9'].ids).to eq(Set.new(['6']))
+          expect(assocs['10'].count).to eq(0)
+          expect(assocs['10'].ids).to eq(Set.new)
         end
       end
     end
@@ -332,25 +331,104 @@ describe Zermelo::Associations::Multiple do
                               "#{ck}:6:attrs"])
       end
 
-      it 'queries associated filters transparently' do
+      it 'queries using association objects' do
         create_parent(:id => '8')
         parent_8 = parent_class.find_by_id('8')
-        create_child(parent_8, :id => '5', :important => false)
-        create_child(parent_8, :id => '6', :important => false)
+        create_child(parent_8, :id => '5')
+        create_child(parent_8, :id => '6')
 
         create_parent(:id => '9')
         parent_9 = parent_class.find_by_id('9')
-
-        create_child(parent_9, :id => '7', :important => false)
+        create_child(parent_9, :id => '7')
 
         create_parent(:id => '10')
 
-        assoc_id_refs = parent_class.intersect(:id => [ '8', '9', '10']).
-          associated_filters_for(:children)
+        assocs = parent_class.intersect(:id => ['8', '10']).
+          associations_for(:children).values
 
-        children = child_class.intersect(:id => assoc_id_refs.values)
+        children = child_class.intersect(:id => assocs)
+        expect(children.count).to eq(2)
+        expect(children.ids).to eq(Set.new(['5', '6']))
+      end
+
+      it 'queries using multiple association objects' do
+        create_parent(:id => '8')
+        parent_8 = parent_class.find_by_id('8')
+        create_child(parent_8, :id => '5')
+        create_child(parent_8, :id => '6')
+
+        create_parent(:id => '9')
+        parent_9 = parent_class.find_by_id('9')
+        create_child(parent_9, :id => '7')
+
+        create_parent(:id => '10')
+        parent_10 = parent_class.find_by_id('10')
+        create_child(parent_10, :id => '4')
+
+        children = child_class.intersect(:id => [parent_8.children, parent_9.children])
         expect(children.count).to eq(3)
         expect(children.ids).to eq(Set.new(['5', '6', '7']))
+      end
+
+      it 'queries using a single filter object' do
+        create_parent(:id => '8')
+        parent_8 = parent_class.find_by_id('8')
+        create_child(parent_8, :id => '5')
+        create_child(parent_8, :id => '6')
+
+        create_parent(:id => '9')
+        parent_9 = parent_class.find_by_id('9')
+        create_child(parent_9, :id => '7')
+
+        create_parent(:id => '10')
+
+        par = parent_class.intersect(:id => ['8', '10'])
+
+        parent_ids = parent_class.intersect(:id => par).ids
+        expect(parent_ids).to eq(Set.new(['8', '10']))
+      end
+
+      it 'queries using multiple filter objects' do
+        create_parent(:id => '8')
+        parent_8 = parent_class.find_by_id('8')
+        create_child(parent_8, :id => '5')
+        create_child(parent_8, :id => '6')
+
+        create_parent(:id => '9')
+        parent_9 = parent_class.find_by_id('9')
+        create_child(parent_9, :id => '7')
+
+        create_parent(:id => '10')
+
+        par_1 = parent_class.intersect(:id => ['8'])
+        par_2 = parent_class.intersect(:id => ['10'])
+
+        parent_ids = parent_class.intersect(:id => [par_1, par_2]).ids
+        expect(parent_ids).to eq(Set.new(['8', '10']))
+      end
+
+      it 'queries using a combination of bare value, association and filter object' do
+        create_parent(:id => '8')
+        parent_8 = parent_class.find_by_id('8')
+        create_child(parent_8, :id => '5')
+        create_child(parent_8, :id => '6')
+
+        create_parent(:id => '9')
+        parent_9 = parent_class.find_by_id('9')
+        create_child(parent_9, :id => '7')
+
+        create_parent(:id => '10')
+        parent_10 = parent_class.find_by_id('10')
+        create_child(parent_10, :id => '4')
+
+        assocs = parent_class.intersect(:id => ['8']).
+          associations_for(:children).values
+
+        children = child_class.intersect(:id => assocs + [
+          parent_9.children.intersect(:id => '7'), '4'
+        ])
+        expect(children.count).to eq(4)
+        expect(children.ids).to eq(Set.new(['4', '5', '6', '7']))
       end
 
     end

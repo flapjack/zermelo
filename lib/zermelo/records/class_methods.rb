@@ -26,7 +26,7 @@ module Zermelo
         :all, :each, :collect, :map,
         :select, :find_all, :reject, :destroy_all,
         :ids, :count, :empty?, :exists?,
-        :associated_ids_for, :associated_filters_for
+        :associated_ids_for, :associations_for
 
       def generate_id
         return SecureRandom.uuid if SecureRandom.respond_to?(:uuid)

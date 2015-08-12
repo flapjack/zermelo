@@ -38,17 +38,25 @@ module Zermelo
 
                 backend.temp_key_wrap do |conditions_temp_keys|
                   if idx_class.nil?
-                    cond_filters, cond_ids = value.partition do |v|
-                      v.is_a?(Zermelo::Filter)
+                    cond_objects, cond_ids = value.partition do |v|
+                      [Zermelo::Filter, Zermelo::Associations::Multiple].any? {|c| v.is_a?(c)}
                     end
 
-                    unless cond_filters.empty?
-                      cond_filt_keys = cond_filters.collect do |cf|
-                        backend.key_to_redis_key(cf.send(:resolve_steps))
+                    unless cond_objects.empty?
+                      cond_keys = cond_objects.collect do |co|
+                        k = case co
+                        when Zermelo::Filter
+                          co.send(:resolve_steps)
+                        when Zermelo::Associations::Multiple
+                          co.instance_variable_get('@record_ids_key')
+                        end
+                        backend.key_to_redis_key(k)
                       end
-                      Zermelo.redis.sunionstore(r_conditions_set, *cond_filt_keys)
+
+                      Zermelo.redis.sunionstore(r_conditions_set, *cond_keys)
                     end
                     unless cond_ids.empty?
+                      cond_ids.map! {|ci| ci.is_a?(Zermelo::Associations::Singular) ? ci.id : ci }
                       Zermelo.redis.sadd(r_conditions_set, cond_ids)
                     end
                   else
@@ -68,13 +76,19 @@ module Zermelo
                 end
                 memo << conditions_set
               elsif idx_class.nil?
-                if value.is_a?(Zermelo::Filter)
-                  memo << value.send(:resolve_steps)
+                case value
+                when Zermelo::Filter
+                  ts = value.send(:resolve_steps)
+                  temp_keys << ts
+                  memo << ts
+                when Zermelo::Associations::Multiple
+                  memo << value.instance_variable_get('@record_ids_key')
                 else
                   ts = associated_class.send(:temp_key, :set)
                   temp_keys << ts
                   r_ts = backend.key_to_redis_key(ts)
-                  Zermelo.redis.sadd(r_ts, value)
+                  Zermelo.redis.sadd(r_ts,
+                    value.is_a?(Zermelo::Associations::Singular) ? value.id : value)
                   memo << ts
                 end
               else

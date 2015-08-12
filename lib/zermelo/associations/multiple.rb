@@ -12,7 +12,7 @@ module Zermelo
         :all, :each, :collect, :map,
         :select, :find_all, :reject, :destroy_all,
         :ids, :count, :empty?, :exists?,
-        :associated_ids_for, :associated_filters_for
+        :associated_ids_for, :associations_for
 
       def initialize(type, parent_klass, parent_id, name)
         @type         = type
@@ -240,26 +240,6 @@ module Zermelo
             :object => :association
           )
           memo[this_id] = backend.get(key)
-        end
-      end
-
-      def self.associated_filters_for(backend, type, klass, name, data_klass, *these_ids)
-        key_type = case type
-        when :has_many, :has_and_belongs_to_many
-          :set
-        when :has_sorted_set
-          :sorted_set
-        end
-
-        these_ids.each_with_object({}) do |this_id, memo|
-          key = Zermelo::Records::Key.new(
-            :klass  => klass,
-            :id     => this_id,
-            :name   => "#{name}_ids",
-            :type   => key_type,
-            :object => :association
-          )
-          memo[this_id] = backend.filter(key, data_klass)
         end
       end
 

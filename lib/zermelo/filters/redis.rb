@@ -76,10 +76,11 @@ module Zermelo
       end
 
       # If not called with a shortcut, return value is the name of a set
-      # containing the filtered ids; if allocated internally it'll be cleaned
-      # up safely
+      # containing the filtered ids
       def resolve_steps(shortcut = nil, *args)
         if @steps.empty?
+          raise "Shortcut must be provided if no steps" if shortcut.nil?
+
           unless @callback_target_class.nil? || @callbacks.nil?
             br = @callbacks[:before_read]
             if !br.nil? && @callback_target_class.respond_to?(br)
@@ -88,17 +89,13 @@ module Zermelo
           end
 
           sc = Zermelo::Filters::Redis::SHORTCUTS[@initial_key.type][shortcut]
-          ret = if sc.nil?
-            @initial_key
+          r_key = backend.key_to_redis_key(@initial_key)
+          shortcut_params = if @initial_key.type == :sorted_set
+            [r_key, @sort_order] + args
           else
-            r_key = backend.key_to_redis_key(@initial_key)
-            shortcut_params = if @initial_key.type == :sorted_set
-              [r_key, @sort_order] + args
-            else
-              [r_key] + args
-            end
-            sc.call(*shortcut_params)
+            [r_key] + args
           end
+          ret = sc.call(*shortcut_params)
 
           unless @callback_target_class.nil? || @callbacks.nil?
             ar = @callbacks[:after_read]
@@ -136,7 +133,7 @@ module Zermelo
               raise "'#{step.class.name}' does not accept input type #{step_opts[:source].type}"
             end
 
-            if step == last_step
+            if step == last_step && !shortcut.nil?
               step_opts.update(:shortcut => shortcut, :shortcut_args => args)
             end
 
@@ -156,7 +153,11 @@ module Zermelo
               end
             end
 
-            step_opts[:source] = result unless step == last_step
+            if step == last_step
+              temp_keys.delete(result) if shortcut.nil?
+            else
+              step_opts[:source] = result
+            end
           end
 
           result
