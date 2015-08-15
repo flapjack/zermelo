@@ -1,5 +1,10 @@
 ## Zermelo Changelog
 
+# 1.3.0 - 2015-08-15
+
+ * handle some Zermelo objects as query values, less data back-and-forth
+ * return Set/OrderedSet objects as appropriate (58318c25)
+
 # 1.2.1 - 2015-08-07
 
  * 'empty' filter method (637d0c9c)
