@@ -12,10 +12,10 @@ describe Zermelo::Associations::RangeIndex do
 
     module ZermeloExamples
       class RedisRangeIndex
-        include Zermelo::Records::Redis
+        include Zermelo::Records::RedisSet
         define_attributes :created_at => :timestamp
-        validates :created_at, :presence => true
         range_index_by :created_at
+        validates :created_at, :presence => true
       end
     end
 

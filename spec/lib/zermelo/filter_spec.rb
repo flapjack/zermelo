@@ -229,7 +229,7 @@ describe Zermelo::Filter do
 
     module ZermeloExamples
       class FilterRedis
-        include Zermelo::Records::Redis
+        include Zermelo::Records::RedisSet
         define_attributes :name       => :string,
                           :active     => :boolean,
                           :created_at => :timestamp

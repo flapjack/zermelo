@@ -8,12 +8,12 @@ describe Zermelo::Locks::RedisLock, :redis => true do
 
   module Zermelo
     class RedisLockExample
-      include Zermelo::Records::Redis
+      include Zermelo::Records::RedisSet
       define_attributes :name => :string
     end
 
     class AnotherExample
-      include Zermelo::Records::Redis
+      include Zermelo::Records::RedisSet
       define_attributes :age => :integer
     end
   end

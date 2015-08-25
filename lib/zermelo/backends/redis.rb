@@ -153,9 +153,9 @@ module Zermelo
         end
       end
 
-      # TODO converge usage of idx_class and _index lookup invocation
+      def index_lookup(att, associated_class, type, idx_class, value,
+        attr_type, temp_keys)
 
-      def index_lookup(att, associated_class, idx_class, value, attr_type, temp_keys)
         if (idx_class == Zermelo::Associations::RangeIndex) && !value.is_a?(Zermelo::Filters::IndexRange)
           raise "Range index must be passed a range"
         end
@@ -164,7 +164,7 @@ module Zermelo
         when Regexp
           raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
 
-          idx_key = associated_class.send(:temp_key, :set)
+          idx_key = associated_class.send(:temp_key, type)
           temp_keys << idx_key
           idx_result = key_to_redis_key(idx_key)
 
@@ -182,7 +182,15 @@ module Zermelo
               (starts_with_string_re === k) &&
                 (value === unescape_key_name(k.sub(starts_with_string_re, '')))
             })
-            Zermelo.redis.sadd(idx_result, matching_ids) unless matching_ids.empty?
+
+            unless matching_ids.empty?
+              case type
+              when :set
+                Zermelo.redis.sadd(idx_result, matching_ids)
+              when :sorted_set
+                Zermelo.redis.zadd(idx_result, matching_ids.map {|m| [1, m]})
+              end
+            end
           when 'Zermelo::Associations::Index'
             key_root = key_to_redis_key(Zermelo::Records::Key.new(
               :klass  => associated_class,
@@ -209,7 +217,14 @@ module Zermelo
               value === $1
             end
 
-            Zermelo.redis.sunionstore(idx_result, matching_sets) unless matching_sets.empty?
+            unless matching_sets.empty?
+              case type
+              when :set
+                Zermelo.redis.sunionstore(idx_result, matching_sets)
+              when :sorted_set
+                Zermelo.redis.zunionstore(idx_result, matching_sets)
+              end
+            end
           end
           idx_key
         else
@@ -217,35 +232,59 @@ module Zermelo
 
           case index
           when Zermelo::Associations::RangeIndex
-            r_index_key = key_to_redis_key(index.key)
-            range = if value.by_score
-              range_start  = value.start.nil?  ? '-inf' : safe_value(attr_type, value.start)
-              range_finish = value.finish.nil? ? '+inf' : safe_value(attr_type, value.finish)
-              Zermelo.redis.zrangebyscore(r_index_key, range_start, range_finish)
-            else
-              range_start  = value.start  ||  0
-              range_finish = value.finish || -1
-              Zermelo.redis.zrange(r_index_key, range_start, range_finish)
-            end
-
-            # TODO another way for index_lookup to indicate 'empty result', rather
-            # than creating & returning an empty key
-            idx_key = associated_class.send(:temp_key, :set)
-            temp_keys << idx_key
-            Zermelo.redis.sadd(key_to_redis_key(idx_key), range) unless range.empty?
-            idx_key
+            range_lookup(index.key, value, type, attr_type, associated_class, temp_keys)
           when Zermelo::Associations::UniqueIndex
-            idx_key = associated_class.send(:temp_key, :set)
+            idx_key = associated_class.send(:temp_key, type)
             temp_keys << idx_key
 
-            Zermelo.redis.sadd(key_to_redis_key(idx_key),
-              Zermelo.redis.hget(key_to_redis_key(index.key),
-                                 index_keys(attr_type, value).join(':')))
+            val = Zermelo.redis.hget(key_to_redis_key(index.key),
+                               index_keys(attr_type, value).join(':'))
+
+            case type
+            when :set
+              Zermelo.redis.sadd(key_to_redis_key(idx_key), val)
+            when :sorted_set
+              Zermelo.redis.zadd(key_to_redis_key(idx_key), [1, val])
+            end
             idx_key
           when Zermelo::Associations::Index
             index.key(value)
           end
         end
+      end
+
+      def range_lookup(key, range, type, attr_type, associated_class, temp_keys)
+        r_key = key_to_redis_key(key)
+        opts = case type
+        when :set
+          {}
+        when :sorted_set
+          {:with_scores => true}
+        end
+        result = if range.by_score
+          range_start  = range.start.nil?  ? '-inf' : safe_value(attr_type, range.start)
+          range_finish = range.finish.nil? ? '+inf' : safe_value(attr_type, range.finish)
+          Zermelo.redis.zrangebyscore(r_key, range_start, range_finish, opts)
+        else
+          range_start  = range.start  ||  0
+          range_finish = range.finish || -1
+          Zermelo.redis.zrange(r_key, range_start, range_finish, opts)
+        end
+
+        # TODO another way for index_lookup to indicate 'empty result', rather
+        # than creating & returning an empty key
+        ret_key = associated_class.send(:temp_key, key.type)
+        temp_keys << ret_key
+        unless result.empty?
+          r_key = key_to_redis_key(ret_key)
+          case type
+          when :set
+            Zermelo.redis.sadd(r_key, result)
+          when :sorted_set
+            Zermelo.redis.zadd(r_key, result.map {|r| [r.last, r.first]})
+          end
+        end
+        ret_key
       end
 
       private

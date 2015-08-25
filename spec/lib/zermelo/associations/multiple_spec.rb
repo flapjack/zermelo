@@ -212,13 +212,13 @@ describe Zermelo::Associations::Multiple do
 
       module ZermeloExamples
         class AssociationsHasManyParentRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSet
           has_many :children, :class_name => 'ZermeloExamples::AssociationsHasManyChildRedis',
             :inverse_of => :parent
         end
 
         class AssociationsHasManyChildRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSet
           define_attributes :important => :boolean
           index_by :important
           belongs_to :parent, :class_name => 'ZermeloExamples::AssociationsHasManyParentRedis',
@@ -671,7 +671,7 @@ describe Zermelo::Associations::Multiple do
 
       module ZermeloExamples
         class AssociationsHasAndBelongsToManyPrimaryRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSet
           define_attributes :active => :boolean
           index_by :active
           has_and_belongs_to_many :secondaries,
@@ -680,7 +680,7 @@ describe Zermelo::Associations::Multiple do
         end
 
         class AssociationsHasAndBelongsToManySecondaryRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSet
           # define_attributes :important => :boolean
           # index_by :important
           has_and_belongs_to_many :primaries,
@@ -773,7 +773,7 @@ describe Zermelo::Associations::Multiple do
 
       module ZermeloExamples
         class AssociationsHasSortedSetParentRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSet
           has_sorted_set :children, :class_name => 'ZermeloExamples::AssociationsHasSortedSetChildRedis',
             :inverse_of => :parent, :key => :timestamp
           has_sorted_set :reversed_children, :class_name => 'ZermeloExamples::AssociationsHasSortedSetChildRedis',
@@ -781,11 +781,11 @@ describe Zermelo::Associations::Multiple do
         end
 
         class AssociationsHasSortedSetChildRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSortedSet
           define_attributes :emotion => :string,
                             :timestamp => :timestamp
+          define_sort_attribute :timestamp
           index_by :emotion
-          range_index_by :timestamp
           belongs_to :parent, :class_name => 'ZermeloExamples::AssociationsHasSortedSetParentRedis',
             :inverse_of => :children
           belongs_to :reversed_parent, :class_name => 'ZermeloExamples::AssociationsHasSortedSetParentRedis',
@@ -811,10 +811,9 @@ describe Zermelo::Associations::Multiple do
           'timestamp' => attrs[:timestamp].to_f}.to_a.flatten)
 
         redis.sadd("#{ck}::indices:by_emotion:string:#{attrs[:emotion]}", attrs[:id])
-        redis.zadd("#{ck}::indices:by_timestamp", attrs[:timestamp].to_f, attrs[:id])
         redis.hmset("#{ck}:#{attrs[:id]}:assocs:belongs_to",
                     {'parent_id' => parent.id}.to_a.flatten) unless parent.nil?
-        redis.sadd("#{ck}::attrs:ids", attrs[:id])
+        redis.zadd("#{ck}::attrs:ids", attrs[:timestamp].to_f, attrs[:id])
       end
 
       def create_reversed_child(parent, attrs = {})
@@ -824,10 +823,9 @@ describe Zermelo::Associations::Multiple do
           'timestamp' => attrs[:timestamp].to_f}.to_a.flatten)
 
         redis.sadd("#{ck}::indices:by_emotion:string:#{attrs[:emotion]}", attrs[:id])
-        redis.zadd("#{ck}::indices:by_timestamp", attrs[:timestamp].to_f, attrs[:id])
         redis.hmset("#{ck}:#{attrs[:id]}:assocs:belongs_to",
                     {'reversed_parent_id' => parent.id}.to_a.flatten) unless parent.nil?
-        redis.sadd("#{ck}::attrs:ids", attrs[:id])
+        redis.zadd("#{ck}::attrs:ids", attrs[:timestamp].to_f, attrs[:id])
       end
 
       let(:parent) {
@@ -846,11 +844,10 @@ describe Zermelo::Associations::Multiple do
                                    "#{pk}:8:assocs:children_ids",
                                    "#{ck}::attrs:ids",
                                    "#{ck}::indices:by_emotion:string:indifferent",
-                                   "#{ck}::indices:by_timestamp",
                                    "#{ck}:4:attrs",
                                    "#{ck}:4:assocs:belongs_to"])
 
-        expect(redis.smembers("#{ck}::attrs:ids")).to eq(['4'])
+        expect(redis.zrange("#{ck}::attrs:ids", 0, -1)).to eq(['4'])
         expect(redis.hgetall("#{ck}:4:attrs")).to eq(
           {'emotion' => 'indifferent', 'timestamp' => time.to_f.to_s}
         )
@@ -882,12 +879,12 @@ describe Zermelo::Associations::Multiple do
         create_child(parent, :id => '4', :emotion => 'indifferent', :timestamp => time)
         child = child_class.find_by_id('4')
 
-        expect(redis.smembers("#{ck}::attrs:ids")).to eq(['4'])
+        expect(redis.zrange("#{ck}::attrs:ids", 0, -1)).to eq(['4'])
         expect(redis.zrange("#{pk}:8:assocs:children_ids", 0, -1)).to eq(['4'])
 
         parent.children.remove(child)
 
-        expect(redis.smembers("#{ck}::attrs:ids")).to eq(['4'])    # child not deleted
+        expect(redis.zrange("#{ck}::attrs:ids", 0, -1)).to eq(['4'])         # child not deleted
         expect(redis.zrange("#{pk}:8:assocs:children_ids", 0, -1)).to eq([]) # but association is
       end
 
@@ -898,7 +895,6 @@ describe Zermelo::Associations::Multiple do
         expect(redis.keys).to match_array(["#{pk}::attrs:ids",
                               "#{pk}:8:assocs:children_ids",
                               "#{ck}::attrs:ids",
-                              "#{ck}::indices:by_timestamp",
                               "#{ck}::indices:by_emotion:string:upset",
                               "#{ck}:6:attrs",
                               "#{ck}:6:assocs:belongs_to"])
@@ -906,7 +902,6 @@ describe Zermelo::Associations::Multiple do
         parent.destroy
 
         expect(redis.keys).to match_array(["#{ck}::attrs:ids",
-                              "#{ck}::indices:by_timestamp",
                               "#{ck}::indices:by_emotion:string:upset",
                               "#{ck}:6:attrs"])
       end

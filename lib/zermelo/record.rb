@@ -12,9 +12,7 @@ require 'zermelo/records/class_methods'
 require 'zermelo/records/type_validator'
 
 module Zermelo
-
   module Record
-
     extend ActiveSupport::Concern
 
     include Zermelo::Records::InstMethods
@@ -31,10 +29,10 @@ module Zermelo
 
       # include ActiveModel::MassAssignmentSecurity
 
-      @lock = Monitor.new
-
       extend Zermelo::Records::ClassMethods
       extend Zermelo::Associations::ClassMethods
+
+      @lock = Monitor.new
 
       attr_accessor :attributes
 
@@ -47,7 +45,5 @@ module Zermelo
 
       define_attributes :id => :string
     end
-
   end
-
 end

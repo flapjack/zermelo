@@ -83,6 +83,15 @@ module Zermelo
         creating = !self.persisted?
         saved = false
 
+        sort_val = nil
+        case self
+        when Zermelo::Records::Ordered
+          sort_attr = self.class.instance_variable_get('@sort_attribute')
+          raise 'Ordered record types must define_sort_attribute' if sort_attr.nil?
+          sort_val = @attributes[sort_attr.to_s]
+          raise "Value required for sort_attribute #{sort_attr}" if sort_val.nil?
+        end
+
         run_callbacks( (creating ? :create : :update) ) do
 
           idx_attrs = self.class.send(:with_index_data) do |d|
@@ -119,9 +128,16 @@ module Zermelo
               end
             end
 
-            # ids is a set, so update won't create duplicates
+            # ids is a set/sorted set, so update won't create duplicates
             # NB influxdb backend doesn't need this
-            self.class.add_id(@attributes['id'])
+
+            # FIXME distinguish between this in the class methods?
+            case self
+            when Zermelo::Records::Ordered
+              self.class.add_id(@attributes['id'], sort_val)
+            when Zermelo::Records::Unordered
+              self.class.add_id(@attributes['id'])
+            end
           end
 
           @is_new = false

@@ -89,7 +89,7 @@ describe Zermelo::Records::InstMethods do
 
     module ZermeloExamples
       class InstanceMethodsRedis
-        include Zermelo::Records::Redis
+        include Zermelo::Records::RedisSet
 
         define_attributes :name => :string
         validates :name, :presence => true

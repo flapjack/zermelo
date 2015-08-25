@@ -26,9 +26,14 @@ module Zermelo
 
             source_keys = @attributes.each_with_object([]) do |(att, value), memo|
               idx_class = nil
+              use_sort_attr = false
               unless :id.eql?(att)
                 idx_class = idx_attrs[att.to_s]
-                raise "'#{att}' property is not indexed" if idx_class.nil?
+                if idx_class.nil?
+                  use_sort_attr = :sorted_set.eql?(source.type) &&
+                    att.eql?(associated_class.instance_variable_get('@sort_attribute'))
+                  raise "'#{att}' property is not indexed" unless use_sort_attr
+                end
               end
 
               if [Set, Array].any? {|t| value.is_a?(t) }
@@ -37,7 +42,21 @@ module Zermelo
                 r_conditions_set = backend.key_to_redis_key(conditions_set)
 
                 backend.temp_key_wrap do |conditions_temp_keys|
-                  if idx_class.nil?
+                  if use_sort_attr
+                    range_keys = value.collect {|v|
+                      rl = backend.range_lookup(associated_class.ids_key, v,
+                        source_type, attr_types[att], associated_class, conditions_temp_keys)
+                      backend.key_to_redis_key(rl)
+                    }
+
+                    case source.type
+                    when :set
+                      Zermelo.redis.sunionstore(r_conditions_set, *range_keys)
+                    when :sorted_set
+                      Zermelo.redis.zunionstore(r_conditions_set, range_keys)
+                    end
+                  elsif idx_class.nil?
+                    # query against the :id field
                     cond_objects, cond_ids = value.partition do |v|
                       [Zermelo::Filter, Zermelo::Associations::Multiple].any? {|c| v.is_a?(c)}
                     end
@@ -53,15 +72,33 @@ module Zermelo
                         backend.key_to_redis_key(k)
                       end
 
-                      Zermelo.redis.sunionstore(r_conditions_set, *cond_keys)
+                      case source.type
+                      when :set
+                        Zermelo.redis.sunionstore(r_conditions_set, *cond_keys)
+                      when :sorted_set
+                        Zermelo.redis.zunionstore(r_conditions_set, cond_keys)
+                      end
                     end
                     unless cond_ids.empty?
-                      cond_ids.map! {|ci| ci.is_a?(Zermelo::Associations::Singular) ? ci.id : ci }
-                      Zermelo.redis.sadd(r_conditions_set, cond_ids)
+                      case source.type
+                      when :set
+                        s_ids = cond_ids.map {|ci| ci.is_a?(Zermelo::Associations::Singular) ? ci.id : ci }
+                        Zermelo.redis.sadd(r_conditions_set, s_ids)
+                      when :sorted_set
+                        z_ids = cond_ids.map do |ci|
+                          # is 1 a valid sort value? what's happening with it?
+                          if ci.is_a?(Zermelo::Associations::Singular)
+                            [1, ci.id]
+                          else
+                            [1, ci]
+                          end
+                        end
+                        Zermelo.redis.zadd(r_conditions_set, z_ids)
+                      end
                     end
                   else
-                    index_keys = value.to_a.collect {|v|
-                      il = backend.index_lookup(att, associated_class,
+                    index_keys = value.collect {|v|
+                      il = backend.index_lookup(att, associated_class, source.type,
                         idx_class, v, attr_types[att], conditions_temp_keys)
                       backend.key_to_redis_key(il)
                     }
@@ -75,6 +112,9 @@ module Zermelo
                   end
                 end
                 memo << conditions_set
+              elsif use_sort_attr
+                memo << backend.range_lookup(associated_class.ids_key, value,
+                  source.type, attr_types[att], associated_class, temp_keys)
               elsif idx_class.nil?
                 case value
                 when Zermelo::Filter
@@ -84,15 +124,22 @@ module Zermelo
                 when Zermelo::Associations::Multiple
                   memo << value.instance_variable_get('@record_ids_key')
                 else
-                  ts = associated_class.send(:temp_key, :set)
+                  ts = associated_class.send(:temp_key, source.type)
                   temp_keys << ts
                   r_ts = backend.key_to_redis_key(ts)
-                  Zermelo.redis.sadd(r_ts,
-                    value.is_a?(Zermelo::Associations::Singular) ? value.id : value)
+                  case source.type
+                  when :set
+                    s_id = value.is_a?(Zermelo::Associations::Singular) ? value.id : value
+                    Zermelo.redis.sadd(r_ts, s_id)
+                  when :sorted_set
+                    # is 1 a valid sort value? what's happening with it?
+                    z_id = [1, (value.is_a?(Zermelo::Associations::Singular) ? value.id : value)]
+                    Zermelo.redis.zadd(r_ts, z_id)
+                  end
                   memo << ts
                 end
               else
-                memo << backend.index_lookup(att, associated_class,
+                memo << backend.index_lookup(att, associated_class, source.type,
                           idx_class, value, attr_types[att], temp_keys)
               end
             end

@@ -10,7 +10,7 @@ describe Zermelo::Associations::UniqueIndex do
 
     module ZermeloExamples
       class RedisUniqueIndex
-        include Zermelo::Records::Redis
+        include Zermelo::Records::RedisSet
         define_attributes :name => :string
         validates :name, :presence => true
         unique_index_by :name

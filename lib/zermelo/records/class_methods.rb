@@ -11,11 +11,8 @@ require 'zermelo/records/attributes'
 require 'zermelo/records/key'
 
 module Zermelo
-
   module Records
-
     module ClassMethods
-
       include Zermelo::Records::Attributes
 
       extend Forwardable
@@ -35,14 +32,6 @@ module Zermelo
         ary[2] = (ary[2] & 0x0fff) | 0x4000
         ary[3] = (ary[3] & 0x3fff) | 0x8000
         "%08x-%04x-%04x-%04x-%04x%08x" % ary
-      end
-
-      def add_id(id)
-        backend.add(ids_key, id.to_s)
-      end
-
-      def delete_id(id)
-        backend.delete(ids_key, id.to_s)
       end
 
       def lock(*klasses, &block)
@@ -94,14 +83,6 @@ module Zermelo
         self.name.demodulize.underscore
       end
 
-      def ids_key
-        @ids_key ||= Zermelo::Records::Key.new(
-                       :klass => self, :name => 'ids',
-                       :type => :set,
-                       :object => :attribute
-                     )
-      end
-
       def temp_key(type)
         Zermelo::Records::Key.new(
           :klass  => self,
@@ -119,9 +100,60 @@ module Zermelo
       def filter
         backend.filter(ids_key, self)
       end
-
     end
 
-  end
+    module Unordered
+      extend ActiveSupport::Concern
 
+      module ClassMethods
+        def ids_key
+          @ids_key ||= Zermelo::Records::Key.new(
+                         :klass => self, :name => 'ids',
+                         :type => :set,
+                         :object => :attribute
+                       )
+        end
+
+        def add_id(id)
+          backend.add(ids_key, id)
+        end
+
+        def delete_id(id)
+          backend.delete(ids_key, id)
+        end
+      end
+    end
+
+    module Ordered
+      extend ActiveSupport::Concern
+
+      module ClassMethods
+        extend Forwardable
+
+        def_delegators :filter,
+          :first, :last
+
+        def ids_key
+          @ids_key ||= Zermelo::Records::Key.new(
+                         :klass => self, :name => 'ids',
+                         :type => :sorted_set,
+                         :object => :attribute
+                       )
+        end
+
+        def define_sort_attribute(k)
+          @sort_attribute = k
+          @sort_attribute_type = attribute_types[k.to_sym]
+        end
+
+        def add_id(id, val)
+          backend.add(ids_key, [backend.safe_value(@sort_attribute_type, val), id])
+        end
+
+        def delete_id(id)
+          backend.delete(ids_key, id)
+        end
+      end
+    end
+  end
 end

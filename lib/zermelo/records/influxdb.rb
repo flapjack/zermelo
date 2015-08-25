@@ -25,6 +25,7 @@ module Zermelo
       extend ActiveSupport::Concern
 
       include Zermelo::Record
+      include Zermelo::Records::Unordered
 
       included do
         set_backend :influxdb

@@ -42,13 +42,13 @@ describe Zermelo::Associations::Singular do
 
       module ZermeloExamples
         class AssociationsHasOneParentRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSet
           has_one :child, :class_name => 'ZermeloExamples::AssociationsHasOneChildRedis',
             :inverse_of => :parent
         end
 
         class AssociationsHasOneChildRedis
-          include Zermelo::Records::Redis
+          include Zermelo::Records::RedisSet
           belongs_to :parent, :class_name => 'ZermeloExamples::AssociationsHasOneParentRedis',
             :inverse_of => :child
         end

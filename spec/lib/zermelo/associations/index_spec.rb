@@ -12,7 +12,7 @@ describe Zermelo::Associations::Index do
 
     module ZermeloExamples
       class RedisIndex
-        include Zermelo::Records::Redis
+        include Zermelo::Records::RedisSet
         define_attributes :emotion => :string
         validates :emotion, :presence => true, :inclusion => {:in => %w(happy sad indifferent)}
         index_by :emotion
