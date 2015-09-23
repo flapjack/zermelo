@@ -82,7 +82,7 @@ module Zermelo
       def add_ids(*record_ids)
         raise 'No record ids to add' if record_ids.empty?
         @parent_klass.lock(*@lock_klasses) do
-          records = @associated_class.find_by_ids!(*record_ids)
+          @associated_class.find_by_ids!(*record_ids) # ensure they exist
           _add_ids({:callbacks => true}, *record_ids)
         end
       end
@@ -155,20 +155,23 @@ module Zermelo
           when :has_many
             # inverse is belongs_to
             record_ids.each do |record_id|
-              _inverse.id = record_id
-              @backend.add(_inverse, "#{@inverse}_id" => @parent_id)
+              _inverse_copy = _inverse.clone
+              _inverse_copy.id = record_id
+              @backend.add(_inverse_copy, "#{@inverse}_id" => @parent_id)
             end
           when :has_sorted_set
             # inverse is belongs_to
-            record_ids.each do |(score, record_id)|
-              _inverse.id = record_id
-              @backend.add(_inverse, "#{@inverse}_id" => @parent_id)
+            record_ids.each do |score_and_record_id|
+              _inverse_copy = _inverse.clone
+              _inverse_copy.id = score_and_record_id.last
+              @backend.add(_inverse_copy, "#{@inverse}_id" => @parent_id)
             end
           when :has_and_belongs_to_many
             # inverse is has_and_belongs_to_many
             record_ids.each do |record_id|
-              _inverse.id = record_id
-              @backend.add(_inverse, @parent_id)
+              _inverse_copy = _inverse.clone
+              _inverse_copy.id = record_id
+              @backend.add(_inverse_copy, @parent_id)
             end
           end
 
@@ -194,14 +197,16 @@ module Zermelo
           when :has_many, :has_sorted_set
             # inverse is belongs_to
             record_ids.each do |record_id|
-              _inverse.id = record_id
-              @backend.delete(_inverse, "#{@inverse}_id")
+              _inverse_copy = _inverse.clone
+              _inverse_copy.id = record_id
+              @backend.delete(_inverse_copy, "#{@inverse}_id")
             end
           when :has_and_belongs_to_many
             # inverse is has_and_belongs_to_many
             record_ids.each do |record_id|
-              _inverse.id = record_id
-              @backend.delete(_inverse, @parent_id)
+              _inverse_copy = _inverse.clone
+              _inverse_copy.id = record_id
+              @backend.delete(_inverse_copy, @parent_id)
             end
           end
 

@@ -12,6 +12,11 @@ module Zermelo
 
       include Zermelo::Backend
 
+      def initialize
+        @transaction_redis = nil
+        @changes = nil
+      end
+
       # def default_sorted_set_key
       #   :timestamp
       # end
@@ -291,11 +296,11 @@ module Zermelo
 
       def change(op, key, value = nil, key_to = nil, value_to = nil)
         ch = [op, key, value, key_to, value_to]
-        if @in_transaction
-          @changes << ch
-        else
+        if @transaction_redis.nil?
           apply_changes([ch])
+          return
         end
+        @changes << ch
       end
 
       def apply_changes(changes)
