@@ -25,8 +25,8 @@ module Zermelo
           when Zermelo::Backends::Redis
 
             source = opts[:source]
-            idx_attrs = opts[:index_attrs]
-            attr_types = opts[:attr_types]
+            # idx_attrs = opts[:index_attrs]
+            # attr_types = opts[:attr_types]
             temp_keys = opts[:temp_keys]
 
             # TODO apply these transformations via a subset?
@@ -46,7 +46,7 @@ module Zermelo
                 r_source, o, (o + l), :with_scores => true
               )
 
-              Zermelo.redis.zadd(r_limited, lim.collect {|l| [l[1], l[0]]} )
+              Zermelo.redis.zadd(r_limited, lim.collect {|li| [li[1], li[0]]} )
 
               [limited, r_limited]
             when :list

@@ -114,7 +114,7 @@ module Zermelo
           idx_data = name.nil? ? @index_data : @index_data[name]
           yield idx_data unless idx_data.nil?
         end
-       end
+      end
       # end used internally within Zermelo
 
       def add_index_data(klass, name, args = {})

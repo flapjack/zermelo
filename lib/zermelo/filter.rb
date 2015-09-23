@@ -169,8 +169,8 @@ module Zermelo
     end
 
     def associations_for(name)
-      data_type, type_klass = @associated_class.send(:with_association_data, name.to_sym) do |data|
-        [data.data_type, data.type_klass]
+      data_type = @associated_class.send(:with_association_data, name.to_sym) do |data|
+        data.data_type
       end
 
       lock {

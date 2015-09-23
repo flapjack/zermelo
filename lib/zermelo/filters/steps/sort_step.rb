@@ -16,7 +16,7 @@ module Zermelo
           case backend
           when Zermelo::Backends::Redis
             source = opts[:source]
-            idx_attrs = opts[:index_attrs]
+            # idx_attrs = opts[:index_attrs]
             attr_types = opts[:attr_types]
             temp_keys = opts[:temp_keys]
 

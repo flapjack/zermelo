@@ -46,7 +46,7 @@ module Zermelo
 
         begin
           yield
-        rescue Exception => e
+        rescue Exception # => e
           backend.abort_transaction
           # p e.message
           # puts e.backtrace.join("\n")
