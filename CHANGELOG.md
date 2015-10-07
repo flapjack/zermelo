@@ -1,5 +1,11 @@
 ## Zermelo Changelog
 
+# 1.4.0 - 2015-10-07
+
+ * store sorted_set ids in zset, makes some queries combine properly that
+   previously resulted in errors
+ * bugfix transactions, weren't applied properly
+
 # 1.3.0 - 2015-08-15
 
  * handle some Zermelo objects as query values, less data back-and-forth
