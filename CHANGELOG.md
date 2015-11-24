@@ -1,5 +1,9 @@
 ## Zermelo Changelog
 
+# 1.4.1 - 2015-11-24
+
+ * bugfix require statements
+
 # 1.4.0 - 2015-10-07
 
  * store sorted_set ids in zset, makes some queries combine properly that
