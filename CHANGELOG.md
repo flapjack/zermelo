@@ -1,5 +1,9 @@
 ## Zermelo Changelog
 
+# 1.4.2 - 2015-12-01
+
+ * methods to dump generated keys and backend key names
+
 # 1.4.1 - 2015-11-24
 
  * bugfix require statements
