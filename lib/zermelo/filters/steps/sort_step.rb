@@ -22,7 +22,7 @@ module Zermelo
 
             dest_list = associated_class.send(:temp_key, :list)
             temp_keys << dest_list
-            r_dest_list = backend.key_to_redis_key(dest_list)
+            r_dest_list = backend.key_to_backend_key(dest_list)
 
             # TODO raise error in step construction if keys not
             # passed as expected below
@@ -40,7 +40,7 @@ module Zermelo
             # TODO check if complex attribute types or associations
             # can be used for sorting
 
-            r_source = backend.key_to_redis_key(source)
+            r_source = backend.key_to_backend_key(source)
 
             # this set will be overwritten by the result list
             case source.type

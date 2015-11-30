@@ -39,6 +39,9 @@ module Zermelo
         )
       end
 
+      def key_dump
+        [@backend.key_to_backend_key(key), key]
+      end
     end
   end
 end

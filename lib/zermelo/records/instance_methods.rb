@@ -95,7 +95,7 @@ module Zermelo
         run_callbacks( (creating ? :create : :update) ) do
 
           idx_attrs = self.class.send(:with_index_data) do |d|
-            idx_attrs = d.each_with_object({}) do |(name, data), memo|
+            d.each_with_object({}) do |(name, data), memo|
               memo[name.to_s] = data.index_klass
             end
           end
@@ -164,7 +164,7 @@ module Zermelo
       end
 
       def destroy
-        raise "Record was not persisted" if !persisted?
+        raise "Record was not persisted" unless persisted?
 
         run_callbacks :destroy do
 
@@ -195,6 +195,21 @@ module Zermelo
             end
           end
         end
+      end
+
+      def key_dump
+        inst_keys = []
+
+        attr_key = attribute_keys.values.first
+        unless attr_key.nil?
+          inst_keys += [backend.key_to_backend_key(attr_key), attr_key]
+        end
+
+        self.class.send(:with_associations, self) do |assoc|
+          inst_keys += assoc.key_dump
+        end
+
+        Hash[*inst_keys]
       end
 
       private

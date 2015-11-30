@@ -46,6 +46,16 @@ module Zermelo
         )
       end
 
+      def key_dump
+        k = Zermelo::Records::Key.new(
+          :klass  => @parent_klass,
+          :name   => "by_#{@attribute_name}:*",
+          :type   => :set,
+          :object => :index
+        )
+        [@backend.key_to_backend_key(k), k]
+      end
+
     end
   end
 end

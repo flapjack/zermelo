@@ -64,6 +64,16 @@ module Zermelo
         @backend
       end
 
+      def key_dump
+        klass_keys = [backend.key_to_backend_key(ids_key), ids_key]
+        self.send(:with_index_data) do |d|
+          d.keys.each do |k|
+            klass_keys += self.send("#{k}_index".to_sym).key_dump
+          end
+        end
+        Hash[ *klass_keys ]
+      end
+
       protected
 
       def set_backend(backend_type)

@@ -8,6 +8,10 @@ module Zermelo
 
       include Zermelo::Backend
 
+      def key_to_backend_key(key)
+        raise "Not supported"
+      end
+
       def filter(ids_key, associated_class, callback_target_class = nil,
         callback_target_id = nil, callbacks = nil, sort_order = nil)
 

@@ -62,6 +62,10 @@ module Zermelo
         v
       end
 
+      def key_dump
+        [@backend.key_to_backend_key(@record_id_key), @record_id_key]
+      end
+
       private
 
       # on_remove already runs inside a lock & transaction

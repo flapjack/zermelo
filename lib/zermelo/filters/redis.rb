@@ -89,7 +89,7 @@ module Zermelo
           end
 
           sc = Zermelo::Filters::Redis::SHORTCUTS[@initial_key.type][shortcut]
-          r_key = backend.key_to_redis_key(@initial_key)
+          r_key = backend.key_to_backend_key(@initial_key)
           shortcut_params = if @initial_key.type == :sorted_set
             [r_key, @sort_order] + args
           else

@@ -39,14 +39,14 @@ module Zermelo
               if [Set, Array].any? {|t| value.is_a?(t) }
                 conditions_set = associated_class.send(:temp_key, source.type)
                 temp_keys << conditions_set
-                r_conditions_set = backend.key_to_redis_key(conditions_set)
+                r_conditions_set = backend.key_to_backend_key(conditions_set)
 
                 backend.temp_key_wrap do |conditions_temp_keys|
                   if use_sort_attr
                     range_keys = value.collect {|v|
                       rl = backend.range_lookup(associated_class.ids_key, v,
                         source_type, attr_types[att], associated_class, conditions_temp_keys)
-                      backend.key_to_redis_key(rl)
+                      backend.key_to_backend_key(rl)
                     }
 
                     case source.type
@@ -69,7 +69,7 @@ module Zermelo
                         when Zermelo::Associations::Multiple
                           co.instance_variable_get('@record_ids_key')
                         end
-                        backend.key_to_redis_key(k)
+                        backend.key_to_backend_key(k)
                       end
 
                       case source.type
@@ -100,7 +100,7 @@ module Zermelo
                     index_keys = value.collect {|v|
                       il = backend.index_lookup(att, associated_class, source.type,
                         idx_class, v, attr_types[att], conditions_temp_keys)
-                      backend.key_to_redis_key(il)
+                      backend.key_to_backend_key(il)
                     }
 
                     case source.type
@@ -126,7 +126,7 @@ module Zermelo
                 else
                   ts = associated_class.send(:temp_key, source.type)
                   temp_keys << ts
-                  r_ts = backend.key_to_redis_key(ts)
+                  r_ts = backend.key_to_backend_key(ts)
                   case source.type
                   when :set
                     s_id = value.is_a?(Zermelo::Associations::Singular) ? value.id : value
@@ -144,8 +144,8 @@ module Zermelo
               end
             end
 
-            r_source_key  = backend.key_to_redis_key(source)
-            r_source_keys = source_keys.collect {|sk| backend.key_to_redis_key(sk) }
+            r_source_key  = backend.key_to_backend_key(source)
+            r_source_keys = source_keys.collect {|sk| backend.key_to_backend_key(sk) }
 
             op = @options[:op]
             shortcut = opts[:shortcut]
@@ -156,7 +156,7 @@ module Zermelo
                 backend.temp_key_wrap do |shortcut_temp_keys|
                   dest_set = associated_class.send(:temp_key, :set)
                   shortcut_temp_keys << dest_set
-                  r_dest_set = backend.key_to_redis_key(dest_set)
+                  r_dest_set = backend.key_to_backend_key(dest_set)
 
                   Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
                   Set.new(Zermelo.redis.sunion(r_source_key, r_dest_set))
@@ -167,7 +167,7 @@ module Zermelo
                 backend.temp_key_wrap do |shortcut_temp_keys|
                   dest_set = associated_class.send(:temp_key, :set)
                   shortcut_temp_keys << dest_set
-                  r_dest_set = backend.key_to_redis_key(dest_set)
+                  r_dest_set = backend.key_to_backend_key(dest_set)
 
                   Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
                   Set.new(Zermelo.redis.sdiff(r_source_key, r_dest_set))
@@ -175,12 +175,12 @@ module Zermelo
               end
             else
               dest_set = associated_class.send(:temp_key, source.type)
-              r_dest_set = backend.key_to_redis_key(dest_set)
+              r_dest_set = backend.key_to_backend_key(dest_set)
               temp_keys << dest_set
 
               case op
               when :union
-                r_initial_key = backend.key_to_redis_key(initial_key)
+                r_initial_key = backend.key_to_backend_key(initial_key)
 
                 if source.type == :sorted_set
                   Zermelo.redis.zinterstore(r_dest_set,

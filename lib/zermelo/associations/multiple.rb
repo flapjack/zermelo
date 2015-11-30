@@ -111,6 +111,10 @@ module Zermelo
         end
       end
 
+      def key_dump
+        [@backend.key_to_backend_key(@record_ids_key), @record_ids_key]
+      end
+
       private
 
       def _inverse

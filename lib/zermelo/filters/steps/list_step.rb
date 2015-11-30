@@ -33,13 +33,13 @@ module Zermelo
             # TODO need a guaranteed non-existing key for non-sorting 'sort'
 
             # TODO check if source is in temp_keys, use a generated temp_key instead if not
-            r_source = backend.key_to_redis_key(source)
+            r_source = backend.key_to_backend_key(source)
 
             result, r_result = case source.type
             when :sorted_set
               limited = associated_class.send(:temp_key, :sorted_set)
               temp_keys << limited
-              r_limited = backend.key_to_redis_key(limited)
+              r_limited = backend.key_to_backend_key(limited)
 
               lim = Zermelo.redis.send(
                 :desc.eql?(opts[:sort_order]) ? :zrevrange : :zrange,
@@ -68,7 +68,7 @@ module Zermelo
                 else
                   limited = associated_class.send(:temp_key, :list)
                   temp_keys << limited
-                  r_limited = backend.key_to_redis_key(limited)
+                  r_limited = backend.key_to_backend_key(limited)
 
                   Zermelo.redis.rpush(r_limited, data)
 

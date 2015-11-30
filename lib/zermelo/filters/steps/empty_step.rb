@@ -21,7 +21,7 @@ module Zermelo
             shortcut  = opts[:shortcut]
 
             dest_set = associated_class.send(:temp_key, source.type)
-            r_dest_set = backend.key_to_redis_key(dest_set)
+            r_dest_set = backend.key_to_backend_key(dest_set)
             temp_keys << dest_set
 
             return dest_set if shortcut.nil?
