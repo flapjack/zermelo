@@ -342,7 +342,7 @@ module Zermelo
                   Zermelo.redis.hmset(complex_attr_key, *kv)
                 end
               when :sorted_set
-                Zermelo.redis.zadd(complex_attr_key, *value)
+                Zermelo.redis.zadd(complex_attr_key, value)
               end
             when :move
               case key.type
@@ -356,7 +356,7 @@ module Zermelo
                 Zermelo.redis.hdel(complex_attr_key, *value.keys)
                 Zermelo.redis.hset(key_to_backend_key(key_to), *value_to.to_a.flatten)
               when :sorted_set
-                Zermelo.redis.zadd(complex_attr_key, *value_to)
+                Zermelo.redis.zadd(complex_attr_key, value_to)
               end
             when :delete
               case key.type
