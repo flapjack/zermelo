@@ -1,5 +1,9 @@
 ## Zermelo Changelog
 
+# 1.4.3 - 2015-12-10
+
+ * bugfix for multiple adds to redis sorted set
+
 # 1.4.2 - 2015-12-01
 
  * methods to dump generated keys and backend key names
