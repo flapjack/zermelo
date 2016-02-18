@@ -93,7 +93,7 @@ SADD post::attrs:ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
 which can then be verified by inspection of the object's attributes, e.g.:
 
 ```ruby
-post.attributes.inpsect # == {:id => '03c839ac-24af-432e-aa58-fd1d4bf73f24', :title => 'Introduction to Zermelo', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
+post.attributes.inspect # == {:id => '03c839ac-24af-432e-aa58-fd1d4bf73f24', :title => 'Introduction to Zermelo', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
 ```
 
 Zermelo supports the following simple attribute types, and automatically validates that the values are of the correct class, casting if possible:
