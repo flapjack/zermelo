@@ -1,8 +1,13 @@
+addons:
+  apt:
+    packages:
+    - libgmp-dev # https://github.com/travis-ci/travis-rubies/issues/15
 language: ruby
 rvm:
-- '2.0'
-- '2.1'
-- '2.2'
+- '2.0.0-p648' # remove in March 2016, end-of-life
+- '2.1.8'
+- '2.2.4'
+- '2.3.0'
 script: bundle exec rspec
 services:
 - redis-server
