@@ -1,6 +1,6 @@
 require 'active_support/concern'
 
-require 'zermelo/records/base'
+require 'zermelo/record'
 
 # a record is a row in a time series (named for the record class)
 
@@ -21,17 +21,17 @@ require 'zermelo/records/base'
 
 module Zermelo
   module Records
-    module InfluxDBRecord
+    module InfluxDB
       extend ActiveSupport::Concern
 
-      include Zermelo::Records::Base
+      include Zermelo::Record
+      include Zermelo::Records::Unordered
 
       included do
         set_backend :influxdb
 
         define_attributes :time => :timestamp
       end
-
     end
   end
 end

@@ -1,10 +1,10 @@
-require 'zermelo/filters/base'
+require 'zermelo/filter'
 
 module Zermelo
   module Filters
-    class InfluxDBFilter
+    class InfluxDB
 
-      include Zermelo::Filters::Base
+      include Zermelo::Filter
 
       private
 
@@ -35,6 +35,7 @@ module Zermelo
         end
       end
 
+      # TODO support the new before/after_read callbacks
       def resolve_steps(result_type)
         class_key = @associated_class.send(:class_key)
 
@@ -56,14 +57,22 @@ module Zermelo
           begin
             initial_id_data =
               Zermelo.influxdb.query(ii_query)["#{initial_class_key}/#{@initial_key.id}"]
-          rescue InfluxDB::Error => ide
+          rescue ::InfluxDB::Error => ide
             raise unless
               /^Field #{@initial_key.name} doesn't exist in series #{initial_class_key}\/#{@initial_key.id}$/ === ide.message
 
             initial_id_data = nil
           end
 
-          return [] if initial_id_data.nil?
+          if initial_id_data.nil?
+            ret = case result_type
+            when :ids
+              Set.new
+            when :count
+              0
+            end
+            return ret
+          end
 
           initial_ids = initial_id_data.first[@initial_key.name]
 
@@ -83,16 +92,19 @@ module Zermelo
 
           first_step = steps.first
 
+          attr_types = @associated_class.send(:attribute_types)
+
           query += @steps.collect {|step|
-            step.resolve(backend, @associated_class, :first => (step == first_step))
+            step.resolve(backend, @associated_class, :first => (step == first_step),
+              :attr_types  => attr_types)
           }.join("")
         end
 
-        query += " LIMIT 1"
+        query += " ORDER ASC LIMIT 1"
 
         begin
           result = Zermelo.influxdb.query(query)
-        rescue InfluxDB::Error => ide
+        rescue ::InfluxDB::Error => ide
           raise unless /^Couldn't look up columns$/ === ide.message
           result = {}
         end
@@ -101,12 +113,9 @@ module Zermelo
 
         case result_type
         when :ids
-          data_keys.empty? ? [] : data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 }
+          data_keys.empty? ? Set.new : Set.new(data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 })
         when :count
-          data_keys.empty? ?  0 : data_keys.inject(0) do |memo, k|
-            memo += result[k].first['count']
-            memo
-          end
+          data_keys.empty? ? 0 : data_keys.size
         end
       end
     end

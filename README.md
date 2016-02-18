@@ -38,11 +38,11 @@ You can optionally set `Zermelo.logger` to an instance of a Ruby `Logger` class,
 
 ### Class ids
 
-Include **zermelo**'s Record module in the class you want to persist data from:
+Include **zermelo**'s `Zermelo::Records::Redis` module in the class you want to persist data from:
 
 ```ruby
 class Post
-  include Zermelo::Record
+  include Zermelo::Records::Redis
 end
 ```
 
@@ -67,7 +67,7 @@ A data record without any actual data isn't very useful, so let's add a few simp
 
 ```ruby
 class Post
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -93,11 +93,10 @@ SADD post::attrs:ids 03c839ac-24af-432e-aa58-fd1d4bf73f24
 which can then be verified by inspection of the object's attributes, e.g.:
 
 ```ruby
-post.attributes.inpsect # == {:id => '03c839ac-24af-432e-aa58-fd1d4bf73f24', :title => 'Introduction to Zermelo', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
+post.attributes.inspect # == {:id => '03c839ac-24af-432e-aa58-fd1d4bf73f24', :title => 'Introduction to Zermelo', :score => 100, :timestamp => '2000-01-01 00:00:00 UTC', :published => false}
 ```
 
-Zermelo supports the following simple attribute types, and automatically
-validates that the values are of the correct class, casting if possible:
+Zermelo supports the following simple attribute types, and automatically validates that the values are of the correct class, casting if possible:
 
 | Type       |  Ruby class                        | Notes |
 |------------|-------------------------------|-------|
@@ -116,7 +115,7 @@ So if we add tags to the Post data definition:
 
 ```ruby
 class Post
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -125,7 +124,7 @@ class Post
 end
 ```
 
-and then create another
+and then create another `Post` instance:
 
 ```ruby
 post = Post.new(:id => 1, :tags => Set.new(['database', 'ORM']))
@@ -139,19 +138,18 @@ SADD post:1:attrs:tags 'database' 'ORM'
 SADD post::attrs:ids 1
 ```
 
-Zermelo supports the following complex attribute types, and automatically
-validates that the values are of the correct class, casting if possible:
+Zermelo supports the following complex attribute types, and automatically validates that the values are of the correct class, casting if possible:
 
-| Type       |  Ruby class   | Notes                                                   |
-|------------|---------------|---------------------------------------------------------|
-| :list      |  Enumerable   | Stored as a Redis [LIST](http://redis.io/commands#list) |
-| :set       |  Array or Set | Stored as a Redis [SET](http://redis.io/commands#set)   |
-| :hash      |  Hash         | Stored as a Redis [HASH](http://redis.io/commands#hash) |
+| Type        |  Ruby class   | Notes                                                   |
+|-------------|---------------|---------------------------------------------------------|
+| :list       |  Enumerable   | Stored as a Redis [LIST](http://redis.io/commands#list) |
+| :set        |  Array or Set | Stored as a Redis [SET](http://redis.io/commands#set)   |
+| :hash       |  Hash         | Stored as a Redis [HASH](http://redis.io/commands#hash) |
+| :sorted_set |  Enumerable   | Stored as a Redis [ZSET](http://redis.io/commands#zset) |
 
-Structure data members must be primitives that will cast OK to and from Redis via the
-driver, thus String, Integer and Float.
+Structure data members must be primitives that will cast OK to and from Redis via the driver, thus String, Integer and Float.
 
-Redis [sorted sets](http://redis.io/commands#sorted_set) are only supported through associations, for which see later on.
+Redis [sorted sets](http://redis.io/commands#sorted_set) are also supported through **zermelo**'s associations (recommended due to the fact that queries can be constructed against them).
 
 ### Validations
 
@@ -161,9 +159,9 @@ So an attribute which should be present:
 
 ```ruby
 class Post
-  include Zermelo::Record
-  define_attributes :title     => :string,
-                    :score     => :integer
+  include Zermelo::Records::Redis
+  define_attributes :title    => :string,
+                    :score    => :integer
   validates :title, :presence => true
 end
 ```
@@ -202,15 +200,15 @@ Another feature added by ActiveModel is the ability to detect changed data in re
 
 ```ruby
 class Author
-  include Zermelo::Record
+  include Zermelo::Records::Redis
 end
 
 class Post
-  include Zermelo::Record
+  include Zermelo::Records::Redis
 end
 
 class Comment
-  include Zermelo::Record
+  include Zermelo::Records::Redis
 end
 
 Author.lock(Post, Comment) do
@@ -224,7 +222,7 @@ Assuming a saved `Post` instance has been created:
 
 ```ruby
 class Post
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -258,21 +256,21 @@ Classes that include `Zermelo::Record` have the following class methods made ava
 
 |Name                     | Arguments     | Returns |
 |-------------------------|---------------|---------|
-|`all`                    |               | Returns an Array of all the records stored for this class |
-|`each`                   |               | Yields all records to the provided block, returns the same Array as .all(): [Array#each](http://ruby-doc.org/core-2.1.2/Array.html#method-i-each)   |
-|`collect` / `map`        |               | Yields all records to the provided block, returns an Array with the values returned from the block: [Array#collect](http://ruby-doc.org/core-2.1.2/Array.html#method-i-collect)  |
-|`select` / `find_all`    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Array#select](http://ruby-doc.org/core-2.1.2/Array.html#method-i-select)  |
-|`reject`                 |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Array#reject](http://ruby-doc.org/core-2.1.2/Array.html#method-i-reject) |
-|`ids`                    |               | Returns an Array with the ids of all stored records |
+|`all`                    |               | Returns a Set of all the records stored for this class |
+|`each`                   |               | Yields all records to the provided block, returns the same Set as .all(): [Enumerable#each](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-each)   |
+|`collect` / `map`        |               | Yields all records to the provided block, returns an Array with the values returned from the block: [Enumerable#collect](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-collect)  |
+|`select` / `find_all`    |               | Yields all records to the provided block, returns an Array with each record where the block returned true: [Enumerable#select](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-select)  |
+|`reject`                 |               | Yields all records to the provided block, returns an Array with each record where the block returned false: [Enumerable#reject](http://ruby-doc.org/core-2.2.2/Enumerable.html#method-i-reject) |
+|`ids`                    |               | Returns a Set with the ids of all stored records |
 |`count`                  |               | Returns an Integer count of the number of stored records |
 |`empty?`                 |               | Returns true if no records are stored, false otherwise |
 |`destroy_all`            |               | Removes all stored records |
 |`exists?`                | ID            | Returns true if the record with the id is present, false if not |
 |`find_by_id`             | ID            | Returns the instantiated record for the id, or nil if not present |
-|`find_by_ids`            | ID, ID, ...   | Returns an Array of instantiated records for the ids, with nils if the respective record is not present |
+|`find_by_ids`            | ID, ID, ...   | Returns a Set of instantiated records for the ids, with nils if the respective record is not present |
 |`find_by_id!`            | ID            | Returns the instantiated record for the id, or raises a Zermelo::Records::RecordNotFound exception if not present |
-|`find_by_ids!`           | ID, ID, ...   | Returns an Array of instantiated records for the ids, or raises a Zermelo::Records::RecordsNotFound exception if any are not present |
-|`associated_ids_for`     | association   | (Defined in the `Associations` section below) |
+|`find_by_ids!`           | ID, ID, ...   | Returns a Set of instantiated records for the ids, or raises a Zermelo::Records::RecordsNotFound exception if any are not present |
+|`associated_ids_for` &amp; `associations_for` | association   | (Defined in the `Associations` section below) |
 
 ### Instance methods
 
@@ -296,19 +294,19 @@ Instances also have attribute accessors and the various methods included from th
 |Name                       | Type                      | Redis data structure | Notes |
 |---------------------------|---------------------------|----------------------|-------|
 | `has_many`                | one-to-many               | [SET](http://redis.io/commands#set) | |
-| `has_sorted_set`          | one-to-many               | [ZSET](http://redis.io/commands#sorted_set) | |
+| `has_sorted_set`          | one-to-many               | [ZSET](http://redis.io/commands#sorted_set) | Arguments: `:key` (required), `:order` (optional, `:asc` or `:desc`) |
 | `has_one`                 | one-to-one                | [HASH](http://redis.io/commands#hash) | |
 | `belongs_to`              | many-to-one or one-to-one | [HASH](http://redis.io/commands#hash) or [STRING](http://redis.io/commands#string)  | Inverse of any of the above three |
 | `has_and_belongs_to_many` | many-to-many              | 2 [SET](http://redis.io/commands#set)s | Mirrored by an inverse HaBtM association on the other side. |
 
 ```ruby
 class Post
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   has_many :comments, :class_name => 'Comment', :inverse_of => :post
 end
 
 class Comment
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   belongs_to :post, :class_name => 'Post', :inverse_of => :comments
 end
 ```
@@ -319,24 +317,35 @@ Records are added and removed from their parent one-to-many or many-to-many asso
 
 ```ruby
 post.comments.add(comment) # or post.comments << comment
+post.comments.remove(comment)
 ```
 
-Associations' `.add` can also take more than one argument:
+Associations' `.add`/`.remove` can also take more than one argument:
 
 ```ruby
 post.comments.add(comment1, comment2, comment3)
+post.comments.remove(comment1, comment2, comment3)
+```
+
+If you only have ids available, you don't need to `.load` the respective objects, you can instead use `.add_ids`/`.remove_ids`:
+
+```ruby
+post.comments.add_ids("comment_id")
+post.comments.remove_ids("comment_id")
+post.comments.add_ids("comment1_id", "comment2_id", "comment3_id")
+post.comments.remove_ids("comment1_id", "comment2_id", "comment3_id")
 ```
 
 `has_one` associations are simply set with an `=` method on the association:
 
 ```ruby
 class User
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   has_one :preferences, :class_name => 'Preferences', :inverse_of => :user
 end
 
 class Preferences
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   belongs_to :user, :class_name => 'User', :inverse_of => :preferences
 end
 
@@ -348,47 +357,51 @@ prefs.save
 user.preferences = prefs
 ```
 
+and cleared by assigning the association to nil:
+
+```ruby
+user.preferences = nil
+```
+
 The class methods defined above can be applied to associations references as well, so the resulting data will be filtered by the data relationships applying in the association, e.g.
 
 ```ruby
-post     = Post.new(:id => 'a')
+post = Post.new(:id => 'a')
 post.save
 comment1 = Comment.new(:id => '1')
 comment1.save
 comment2 = Comment.new(:id => '2')
 comment2.save
 
-p post.comments.ids # == []
-p Comment.ids       # == [1, 2]
+p post.comments.ids # == #<Set: {}>
+p Comment.ids       # == #<Set: {'1', '2'}>
 post.comments << comment1
-p post.comments.ids # == [1]
+p post.comments.ids # == #<Set: {'1'}>
 ```
 
-`associated_ids_for` is somewhat of a special case; it uses the smallest/simplest queries possible to get the ids of the associated records of a set of records, e.g. for the data directly above:
+`.associated_ids_for` is somewhat of a special case; it uses the simplest queries possible to get the ids of the associated records of a set of records, e.g. for the data directly above:
 
 ```ruby
-Post.associated_ids_for(:comments)                       # => {'a' => ['1']}
+Post.associated_ids_for(:comments)                       # => {'a' => #<Set: {'1'}>}
 
-post_b     = Post.new(:id => 'b')
+post_b = Post.new(:id => 'b')
 post_b.save
 post_b.comments << comment2
 comment3 = Comment.new(:id => '3')
 comment3.save
 post.comments << comment3
 
-Post.associated_ids_for(:comments)                       # => {'a' => ['1', '3'], 'b' => ['2']}
-Post.intersect(:id => 'a').associated_ids_for(:comments) # => {'a' => ['1', '3']}
+Post.associated_ids_for(:comments)                       # => {'a' => #<Set: {'1', '3'}>, 'b' => #<Set: {'2'}>}
 ```
 
 For `belongs to` associations, you may pass an extra option to `associated_ids_for`, `:inversed => true`, and you'll get the data back as if it were applied from the inverse side; however the data will only cover that used as the query root. Again, assuming the data from the last two code blocks, e.g.
 
 ```ruby
 Comment.associated_ids_for(:post)                    # => {'1' => 'a', '2' => 'b', '3' => 'a'}
-Comment.associated_ids_for(:post, :inversed => true) # => {'a' => ['1', '3'], 'b' => ['2']}
-
-Comment.intersect(:id => ['1', '2']).associated_ids_for(:post) # => {'1' => 'a', '2' => 'b'}
-Comment.intersect(:id => ['1', '2']).associated_ids_for(:post, :inversed => true) # => {'a' => ['1'], 'b' => ['2']}
+Comment.associated_ids_for(:post, :inversed => true) # => {'a' => #<Set: {'1', '3'}>, 'b' => #<Set: {'2'}>}
 ```
+
+`.associations_for` returns chainable Zermelo association proxy objects, rather than sets of ids, as the Hash values. Please note, `.associations_for` only works with multiple associations (`has_many`, `has_and_belongs_to_many`, `has_sorted_set`).
 
 ### Class data indexing
 
@@ -398,7 +411,7 @@ Using the code from the instance attributes section, and adding indexing:
 
 ```ruby
 class Post
-  include Zermelo::Record
+  include Zermelo::Records::Redis
   define_attributes :title     => :string,
                     :score     => :integer,
                     :timestamp => :timestamp,
@@ -436,15 +449,12 @@ SADD post::indices:by_published:boolean:false 03c839ac-24af-432e-aa58-fd1d4bf73f
 
 | Name            | Input                 | Output       | Arguments                             | Options                                  |
 |-----------------|-----------------------|--------------|---------------------------------------|------------------------------------------|
-| intersect       | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
-| union           | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
-| diff            | `set` or `sorted_set` | `set`        | Query hash                            |                                          |
-| intersect_range | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
-| union_range     | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
-| diff_range      | `sorted_set`          | `sorted_set` | start (`Integer`), finish (`Integer`) | :desc (`Boolean`), :by_score (`Boolean`) |
+| intersect       | `set` / `sorted_set`  | (as input)   | Query hash                            |                                          |
+| union           | `set` / `sorted_set`  | (as input)   | Query hash                            |                                          |
+| diff            | `set` / `sorted_set`  | (as input)   | Query hash                            |                                          |
 | sort            | `set` or `sorted_set` | `list`       | keys (Symbol or Array of Symbols)     | :limit (`Integer`), :offset (`Integer`)  |
-| offset          | `list`                | `list`       | amount (`Integer`)                    |                                          |
-| limit           | `list`                | `list`       | amount (`Integer`)                    |                                          |
+| offset          | `list` / `sorted_set` | `list`       | amount (`Integer`)                    | :limit (`Integer`)                                        |
+| page            | `list` / `sorted_set` | `list`       | page_number (`Integer`)               | :per_page (`Integer`)                                    |
 
 These queries can be applied against all instances of a class, or against associations belonging to an instance, e.g.
 
@@ -458,7 +468,7 @@ are both valid, and the `Comment` instances returned by the first query would be
 The chained queries are only executed when the results are invoked (lazy evaluation) by the addition of one of the class methods listed above; e.g.
 
 ```ruby
-Comment.intersect(:title => 'Interesting').all    # -> [Comment, Comment, ...]
+Comment.intersect(:title => 'Interesting').all    # -> #<Set: {Comment, Comment, ...}>
 Comment.intersect(:title => 'Interesting', :promoted => true).count  # -> Integer
 ```
 
@@ -469,7 +479,7 @@ SINTER comment::attrs:ids comment::indices:by_title:string:Interesting
 HGET comment:ca9e427d-4d81-47f8-bcfe-bb614d40528c:attrs title
 ```
 
-with the result being an Array with one member, a Comment record with `{:id => 'ca9e427d-4d81-47f8-bcfe-bb614d40528c', :title => 'Interesting'}`
+with the result being a Set with one member, a Comment record with `{:id => 'ca9e427d-4d81-47f8-bcfe-bb614d40528c', :title => 'Interesting'}`
 
 and the second (`.count`) will execute these Redis commands.
 
@@ -481,21 +491,36 @@ DEL comment::tmp:fe8dd59e4a1197f62d19c8aa942c4ff9
 
 (where the name of the temporary Redis `SET` will of course change every time)
 
-The current implementation of the filtering is somewhat ad-hoc, and has these limitations:
+---
 
-* no conversion of `list`s back into `set`s is allowed
-* `sort`/`offset`/`limit` can only be used once in a filter chain
+`has_sorted_set` queries can take exact values, or a range bounded in no, one or both directions. (Regular Ruby `Range` objects can't be used as they don't easily support timestamps, so there's a `Zermelo::Filters::IndexRange` class which can be used as a query value instead.)
 
-I plan to fix these as soon as I possibly can.
+```ruby
+class Comment
+  include Zermelo::Records::Redis
+  define_attributes :created_at => :timestamp
+end
+
+t = Time.now
+
+comment1 = Comment.new(:id => '1', :created_at => t - 120)
+comment1.save
+comment2 = Comment.new(:id => '2', :created_at => t - 60)
+comment2.save
+
+range = Zermelo::Filters::IndexRange.new(t - 90, t, :by_score => true)
+Comment.ids # #<Set: {'1', '2'}>
+Comment.intersect(:created_at => range).ids # #<Set: {'2'}>
+```
 
 ### Future
 
 Some possible changes:
 
-* pluggable key naming strategies
 * pluggable id generation strategies
+* pluggable key naming strategies
 * instrumentation for benchmarking etc.
-* multiple data backends; there's currently an experimental InfluxDB backend, and more are planned.
+* multiple data backends
 
 ## License
 

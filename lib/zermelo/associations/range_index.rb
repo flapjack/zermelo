@@ -4,7 +4,7 @@ require 'zermelo/records/key'
 
 module Zermelo
   module Associations
-    class UniqueIndex
+    class RangeIndex
 
       def initialize(parent_klass, name)
         @parent_klass   = parent_klass
@@ -18,23 +18,23 @@ module Zermelo
       end
 
       def delete_id(id, value)
-        @backend.delete(key, @backend.index_keys(@attribute_type, value).join(':'))
+        @backend.delete(key, id)
       end
 
       def add_id(id, value)
-        @backend.add(key, @backend.index_keys(@attribute_type, value).join(':') => id)
+        @backend.add(key, [@backend.safe_value(@attribute_type, value), id])
       end
 
       def move_id(id, value_from, indexer_to, value_to)
-        @backend.move(key, {@backend.index_keys(@attribute_type, value_from).join(':') => id},
-          indexer_to.key, {@backend.index_keys(@attribute_type, value_to).join(':') => id})
+        @backend.move(key, [@backend.safe_value(@attribute_type, value_from), id],
+          indexer_to.key, [@backend.safe_value(@attribute_type, value_to), id])
       end
 
       def key
         @indexer ||= Zermelo::Records::Key.new(
           :klass  => @parent_klass,
           :name   => "by_#{@attribute_name}",
-          :type   => :hash,
+          :type   => :sorted_set,
           :object => :index
         )
       end

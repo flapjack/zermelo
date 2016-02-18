@@ -2,11 +2,12 @@ module Zermelo
   module Associations
     class AssociationData
       attr_writer   :data_klass_name, :related_klass_names
-      attr_accessor :name, :type_klass, :inverse, :sort_key, :callbacks
+      attr_accessor :name, :type_klass, :data_type, :inverse, :sort_key,
+        :sort_order, :callbacks
 
       def initialize(opts = {})
-        [:name, :type_klass, :inverse, :sort_key, :callbacks, :data_klass_name,
-         :related_klass_names].each do |a|
+        [:name, :type_klass, :data_type, :inverse, :sort_key, :sort_order,
+         :callbacks, :data_klass_name, :related_klass_names].each do |a|
 
           send("#{a}=".to_sym, opts[a])
         end

@@ -1,11 +1,13 @@
 require 'rspec/core/formatters/base_text_formatter'
 
+# Output text witout colourising it
 module NoColorizer
-  def self.wrap(text, color)
+  def self.wrap(text, _)
     text
   end
 end
 
+# Re-implements RSpec's doc formatter without ANSI text colours
 class UncoloredDocFormatter < RSpec::Core::Formatters::BaseTextFormatter
   RSpec::Core::Formatters.register(self, :example_group_started,
                                    :example_group_finished,
@@ -25,7 +27,7 @@ class UncoloredDocFormatter < RSpec::Core::Formatters::BaseTextFormatter
     @group_level += 1
   end
 
-  def example_group_finished(notification)
+  def example_group_finished(_)
     @group_level -= 1
   end
 
@@ -34,12 +36,12 @@ class UncoloredDocFormatter < RSpec::Core::Formatters::BaseTextFormatter
   end
 
   def example_pending(pending)
-    output.puts "#{current_indentation}#{pending.example.description.strip} " +
+    output.puts "#{current_indentation}#{pending.example.description.strip} " \
       "(PENDING: #{pending.example.execution_result.pending_message})"
   end
 
   def example_failed(failure)
-    output.puts "#{current_indentation}#{failure.example.description.strip} " +
+    output.puts "#{current_indentation}#{failure.example.description.strip} " \
       "(FAILED - #{next_failure_index})"
   end
 

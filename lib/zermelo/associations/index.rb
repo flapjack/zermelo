@@ -1,5 +1,7 @@
 # NB index instances are all internal to zermelo, not user-accessible
 
+require 'zermelo/records/key'
+
 module Zermelo
   module Associations
     class Index
@@ -29,7 +31,7 @@ module Zermelo
 
       def move_id(id, value_from, indexer_to, value_to)
         return unless indexer = key(value_from)
-        @backend.move(indexer, id, indexer_to.key(value_to))
+        @backend.move(indexer, id, indexer_to.key(value_to), id)
       end
 
       def key(value)
@@ -42,6 +44,16 @@ module Zermelo
           :type   => :set,
           :object => :index
         )
+      end
+
+      def key_dump
+        k = Zermelo::Records::Key.new(
+          :klass  => @parent_klass,
+          :name   => "by_#{@attribute_name}:*",
+          :type   => :set,
+          :object => :index
+        )
+        [@backend.key_to_backend_key(k), k]
       end
 
     end

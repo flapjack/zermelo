@@ -7,11 +7,11 @@ module Zermelo
     # module renamed to avoid ActiveSupport::Concern deprecation warning
     module InstMethods
 
-      def initialize(attributes = {})
+      def initialize(attrs = {})
         @is_new = true
-        @attributes = {}
-        attributes.each_pair do |k, v|
-          self.send("#{k}=".to_sym, v)
+        @attributes = self.class.attribute_types.keys.inject({}) do |memo, ak|
+          memo[ak.to_s] = attrs[ak]
+          memo
         end
       end
 
@@ -46,6 +46,7 @@ module Zermelo
           class_key = self.class.send(:class_key)
 
           # TODO: check for record existence in backend-agnostic fashion
+          # TODO fail if id not found
           @is_new = false
 
           attr_types = self.class.attribute_types.reject {|k, v| k == :id}
@@ -55,11 +56,11 @@ module Zermelo
               :id => self.id, :name => name, :type => type, :object => :attribute)
           end
 
-          attrs = backend.get_multiple(*attrs_to_load)[class_key][self.id]
+          result = backend.get_multiple(*attrs_to_load)
+          attrs = result[class_key][self.id] unless result.empty?
         end
 
-        return false unless attrs.present?
-        @attributes.update(attrs)
+        @attributes.update(attrs) unless attrs.nil? || attrs.empty?
         true
       end
 
@@ -82,10 +83,19 @@ module Zermelo
         creating = !self.persisted?
         saved = false
 
+        sort_val = nil
+        case self
+        when Zermelo::Records::Ordered
+          sort_attr = self.class.instance_variable_get('@sort_attribute')
+          raise 'Ordered record types must define_sort_attribute' if sort_attr.nil?
+          sort_val = @attributes[sort_attr.to_s]
+          raise "Value required for sort_attribute #{sort_attr}" if sort_val.nil?
+        end
+
         run_callbacks( (creating ? :create : :update) ) do
 
           idx_attrs = self.class.send(:with_index_data) do |d|
-            idx_attrs = d.each_with_object({}) do |(name, data), memo|
+            d.each_with_object({}) do |(name, data), memo|
               memo[name.to_s] = data.index_klass
             end
           end
@@ -109,7 +119,7 @@ module Zermelo
             attr_keys = attribute_keys
 
             if creating
-              attribute_keys.each_pair do |att, attr_key|
+              attr_keys.each_pair do |att, attr_key|
                 apply_attribute.call(att, attr_key, [nil, @attributes[att]])
               end
             else
@@ -118,9 +128,16 @@ module Zermelo
               end
             end
 
-            # ids is a set, so update won't create duplicates
+            # ids is a set/sorted set, so update won't create duplicates
             # NB influxdb backend doesn't need this
-            self.class.add_id(@attributes['id'])
+
+            # FIXME distinguish between this in the class methods?
+            case self
+            when Zermelo::Records::Ordered
+              self.class.add_id(@attributes['id'], sort_val)
+            when Zermelo::Records::Unordered
+              self.class.add_id(@attributes['id'])
+            end
           end
 
           @is_new = false
@@ -147,7 +164,7 @@ module Zermelo
       end
 
       def destroy
-        raise "Record was not persisted" if !persisted?
+        raise "Record was not persisted" unless persisted?
 
         run_callbacks :destroy do
 
@@ -178,6 +195,21 @@ module Zermelo
             end
           end
         end
+      end
+
+      def key_dump
+        inst_keys = []
+
+        attr_key = attribute_keys.values.first
+        unless attr_key.nil?
+          inst_keys += [backend.key_to_backend_key(attr_key), attr_key]
+        end
+
+        self.class.send(:with_associations, self) do |assoc|
+          inst_keys += assoc.key_dump
+        end
+
+        Hash[*inst_keys]
       end
 
       private

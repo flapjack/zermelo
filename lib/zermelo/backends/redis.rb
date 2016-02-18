@@ -1,31 +1,52 @@
-require 'zermelo/backends/base'
+require 'zermelo/backend'
 
-require 'zermelo/filters/redis_filter'
+require 'zermelo/filters/redis'
+require 'zermelo/ordered_set'
 require 'zermelo/locks/redis_lock'
 
 module Zermelo
 
   module Backends
 
-    class RedisBackend
+    class Redis
 
-      include Zermelo::Backends::Base
+      include Zermelo::Backend
 
-      def default_sorted_set_key
-        :timestamp
+      def initialize
+        @transaction_redis = nil
+        @changes = nil
       end
 
-      def generate_lock
-        Zermelo::Locks::RedisLock.new
+      def key_to_backend_key(key)
+        class_key = key.klass.send(:class_key)
+
+        obj = case key.object
+        when :attribute
+          'attrs'
+        when :association
+          'assocs'
+        when :index
+          'indices'
+        when :temporary
+          'tmp'
+        end
+
+        name = Zermelo::COLLECTION_TYPES.has_key?(key.type) ? ":#{key.name}" : ''
+
+        "#{class_key}:#{key.id.nil? ? '' : key.id}:#{obj}#{name}"
       end
 
-      def filter(ids_key, record)
-        Zermelo::Filters::RedisFilter.new(self, ids_key, record)
+      def filter(ids_key, associated_class, callback_target_class = nil,
+        callback_target_id = nil, callbacks = nil, sort_order = nil)
+
+        Zermelo::Filters::Redis.new(self, ids_key, associated_class,
+                                    callback_target_class, callback_target_id,
+                                    callbacks, sort_order)
       end
 
       def get_multiple(*attr_keys)
         attr_keys.inject({}) do |memo, attr_key|
-          redis_attr_key = key_to_redis_key(attr_key)
+          redis_attr_key = key_to_backend_key(attr_key)
 
           class_key = attr_key.klass.send(:class_key)
 
@@ -38,26 +59,25 @@ module Zermelo
               if attr_key.accessor.nil?
                 Zermelo.redis.lrange(redis_attr_key, 0, -1)
               else
-
+                # TODO
               end
             when :set
               if attr_key.accessor.nil?
                 Set.new( Zermelo.redis.smembers(redis_attr_key) )
               else
-
+                # TODO
               end
             when :hash
               if attr_key.accessor.nil?
                 Zermelo.redis.hgetall(redis_attr_key)
               else
-
+                # TODO
               end
             when :sorted_set
-              # TODO should this be something that preserves order?
               if attr_key.accessor.nil?
-                Set.new( Zermelo.redis.zrange(redis_attr_key, 0, -1) )
+                Zermelo::OrderedSet.new(Zermelo.redis.zrange(redis_attr_key, 0, -1))
               else
-
+                # TODO
               end
             end
 
@@ -94,19 +114,6 @@ module Zermelo
         end
       end
 
-      def exists?(key)
-        Zermelo.redis.exists(key_to_redis_key(key))
-      end
-
-      def include?(key, id)
-        case key.type
-        when :set
-          Zermelo.redis.sismember(key_to_redis_key(key), id)
-        else
-          raise "Not implemented"
-        end
-      end
-
       def begin_transaction
         return false unless @transaction_redis.nil?
         @transaction_redis = Zermelo.redis
@@ -132,25 +139,6 @@ module Zermelo
         true
       end
 
-      def key_to_redis_key(key)
-        class_key = key.klass.send(:class_key)
-
-        obj = case key.object
-        when :attribute
-          'attrs'
-        when :association
-          'assocs'
-        when :index
-          'indices'
-        when :temporary
-          'tmp'
-        end
-
-        name = Zermelo::COLLECTION_TYPES.has_key?(key.type) ? ":#{key.name}" : ''
-
-        "#{class_key}:#{key.id.nil? ? '' : key.id}:#{obj}#{name}"
-      end
-
       def temp_key_wrap
         return unless block_given?
         temp_keys = []
@@ -160,42 +148,31 @@ module Zermelo
           raise
         ensure
           unless temp_keys.empty?
-            Zermelo.redis.del(*temp_keys.collect {|tk| key_to_redis_key(tk)})
+            Zermelo.redis.del(*temp_keys.collect {|tk| key_to_backend_key(tk)})
             temp_keys.clear
           end
         end
       end
 
-      # TODO converge usage of idx_class and _index lookup invocation
+      def index_lookup(att, associated_class, type, idx_class, value,
+        attr_type, temp_keys)
 
-      def index_lookup(att, associated_class, idx_class, value, attr_type, temp_keys)
+        if (idx_class == Zermelo::Associations::RangeIndex) && !value.is_a?(Zermelo::Filters::IndexRange)
+          raise "Range index must be passed a range"
+        end
+
         case value
-        # when Zermelo::Filters::RedisFilter
-
-          # TODO (maybe) if a filter from different backend, resolve to ids and
-          # put that in a Redis temp set
-
-          # collection, should_be_deleted = value.resolve_steps
-
-          # if should_be_deleted
-          #   temp_sets << collection.name
-          # end
-
-          # unless :set.eql?(collection.type)
-          #   raise "Unsure as yet if non-sets are safe as Filter step values"
-          # end
-
         when Regexp
           raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
 
-          idx_key = associated_class.send(:temp_key, :set)
+          idx_key = associated_class.send(:temp_key, type)
           temp_keys << idx_key
-          idx_result = key_to_redis_key(idx_key)
+          idx_result = key_to_backend_key(idx_key)
 
           starts_with_string_re = /^string:/
           case idx_class.name
           when 'Zermelo::Associations::UniqueIndex'
-            index_key = key_to_redis_key(Zermelo::Records::Key.new(
+            index_key = key_to_backend_key(Zermelo::Records::Key.new(
               :klass  => associated_class,
               :name   => "by_#{att}",
               :type   => :hash,
@@ -206,35 +183,70 @@ module Zermelo
               (starts_with_string_re === k) &&
                 (value === unescape_key_name(k.sub(starts_with_string_re, '')))
             })
-            Zermelo.redis.sadd(idx_result, matching_ids) unless matching_ids.empty?
+
+            unless matching_ids.empty?
+              case type
+              when :set
+                Zermelo.redis.sadd(idx_result, matching_ids)
+              when :sorted_set
+                Zermelo.redis.zadd(idx_result, matching_ids.map {|m| [1, m]})
+              end
+            end
           when 'Zermelo::Associations::Index'
-            key_root = key_to_redis_key(Zermelo::Records::Key.new(
+            key_root = key_to_backend_key(Zermelo::Records::Key.new(
               :klass  => associated_class,
               :name   => "by_#{att}:string",
               :type   => :set,
               :object => :index
             ))
 
-            matching_sets = Zermelo.redis.keys(key_root + ":*").inject([]) do |memo, k|
-              k =~ /^#{key_root}:(.+)$/
-              memo << k if value === $1
-              memo
+            key_pat = "#{key_root}:?*"
+
+            matching_sets = if (Zermelo.redis_version.split('.') <=> ['2', '8', '0']) == 1
+              # lock will be subsumed by outer lock if present -- required to
+              # know that scan is getting consistent results
+              associated_class.lock do
+                Zermelo.redis.scan_each(:match => key_pat).to_a
+              end
+            else
+              # SCAN is only supported in Redis >= 2.8.0
+              Zermelo.redis.keys(key_pat)
             end
 
-            Zermelo.redis.sunionstore(idx_result, matching_sets) unless matching_sets.empty?
+            matching_sets.select! do |k|
+              k =~ /^#{key_root}:(.+)$/
+              value === $1
+            end
+
+            unless matching_sets.empty?
+              case type
+              when :set
+                Zermelo.redis.sunionstore(idx_result, matching_sets)
+              when :sorted_set
+                Zermelo.redis.zunionstore(idx_result, matching_sets)
+              end
+            end
           end
           idx_key
         else
           index = associated_class.send("#{att}_index")
 
           case index
+          when Zermelo::Associations::RangeIndex
+            range_lookup(index.key, value, type, attr_type, associated_class, temp_keys)
           when Zermelo::Associations::UniqueIndex
-            idx_key = associated_class.send(:temp_key, :set)
+            idx_key = associated_class.send(:temp_key, type)
             temp_keys << idx_key
 
-            Zermelo.redis.sadd(key_to_redis_key(idx_key),
-              Zermelo.redis.hget(key_to_redis_key(index.key),
-                                   index_keys(attr_type, value).join(':')))
+            val = Zermelo.redis.hget(key_to_backend_key(index.key),
+                               index_keys(attr_type, value).join(':'))
+
+            case type
+            when :set
+              Zermelo.redis.sadd(key_to_backend_key(idx_key), val)
+            when :sorted_set
+              Zermelo.redis.zadd(key_to_backend_key(idx_key), [1, val])
+            end
             idx_key
           when Zermelo::Associations::Index
             index.key(value)
@@ -242,15 +254,49 @@ module Zermelo
         end
       end
 
+      def range_lookup(key, range, type, attr_type, associated_class, temp_keys)
+        r_key = key_to_backend_key(key)
+        opts = case type
+        when :set
+          {}
+        when :sorted_set
+          {:with_scores => true}
+        end
+        result = if range.by_score
+          range_start  = range.start.nil?  ? '-inf' : safe_value(attr_type, range.start)
+          range_finish = range.finish.nil? ? '+inf' : safe_value(attr_type, range.finish)
+          Zermelo.redis.zrangebyscore(r_key, range_start, range_finish, opts)
+        else
+          range_start  = range.start  ||  0
+          range_finish = range.finish || -1
+          Zermelo.redis.zrange(r_key, range_start, range_finish, opts)
+        end
+
+        # TODO another way for index_lookup to indicate 'empty result', rather
+        # than creating & returning an empty key
+        ret_key = associated_class.send(:temp_key, key.type)
+        temp_keys << ret_key
+        unless result.empty?
+          r_key = key_to_backend_key(ret_key)
+          case type
+          when :set
+            Zermelo.redis.sadd(r_key, result)
+          when :sorted_set
+            Zermelo.redis.zadd(r_key, result.map {|r| [r.last, r.first]})
+          end
+        end
+        ret_key
+      end
+
       private
 
-      def change(op, key, value = nil, key_to = nil)
-        ch = [op, key, value, key_to]
-        if @in_transaction
-          @changes << ch
-        else
+      def change(op, key, value = nil, key_to = nil, value_to = nil)
+        ch = [op, key, value, key_to, value_to]
+        if @transaction_redis.nil?
           apply_changes([ch])
+          return
         end
+        @changes << ch
       end
 
       def apply_changes(changes)
@@ -259,15 +305,16 @@ module Zermelo
         purges = []
 
         changes.each do |ch|
-          op     = ch[0]
-          key    = ch[1]
-          value  = ch[2]
-          key_to = ch[3]
+          op       = ch[0]
+          key      = ch[1]
+          value    = ch[2]
+          key_to   = ch[3]
+          value_to = ch[4]
 
           # TODO check that collection types handle nil value for whole thing
           if Zermelo::COLLECTION_TYPES.has_key?(key.type)
 
-            complex_attr_key = key_to_redis_key(key)
+            complex_attr_key = key_to_backend_key(key)
 
             case op
             when :add, :set
@@ -295,23 +342,21 @@ module Zermelo
                   Zermelo.redis.hmset(complex_attr_key, *kv)
                 end
               when :sorted_set
-                Zermelo.redis.zadd(complex_attr_key, *value)
+                Zermelo.redis.zadd(complex_attr_key, value)
               end
             when :move
               case key.type
               when :set
-                Zermelo.redis.smove(complex_attr_key, key_to_redis_key(key_to), value)
+                Zermelo.redis.smove(complex_attr_key, key_to_backend_key(key_to), value)
               when :list
-                # TODO would do via sort 'nosort', except for
-                # https://github.com/antirez/redis/issues/2079 -- instead,
-                # copy the workaround from redis_filter.rb
+                # TODO via sort 'nosort', or the workaround required prior to
+                # https://github.com/antirez/redis/issues/2079
                 raise "Not yet implemented"
               when :hash
-                values = value.to_a.flatten
-                Zermelo.redis.hdel(complex_attr_key, values)
-                Zermelo.redis.hset(key_to_redis_key(key_to), *values)
+                Zermelo.redis.hdel(complex_attr_key, *value.keys)
+                Zermelo.redis.hset(key_to_backend_key(key_to), *value_to.to_a.flatten)
               when :sorted_set
-                raise "Not yet implemented"
+                Zermelo.redis.zadd(complex_attr_key, value_to)
               end
             when :delete
               case key.type
@@ -329,10 +374,9 @@ module Zermelo
             end
 
           elsif :purge.eql?(op)
-            # TODO get keys for all assocs & indices, purge them too
             purges << ["#{key.klass.send(:class_key)}:#{key.id}:attrs"]
           else
-            simple_attr_key = key_to_redis_key(key)
+            simple_attr_key = key_to_backend_key(key)
             simple_attrs[simple_attr_key] ||= {}
 
             case op
