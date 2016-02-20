@@ -19,6 +19,7 @@ Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
 require 'i18n'
 I18n.enforce_available_locales = true
 
+require 'mysql2'
 require 'redis'
 require 'influxdb'
 
@@ -68,6 +69,28 @@ RSpec.configure do |config|
     Zermelo.influxdb.query('list series')['list_series_result'].each do |ser|
       Zermelo.influxdb.query("DELETE FROM \"#{ser['name']}\"")
     end
+  end
+
+  config.before(:all, :mysql => true) do
+    user     = ENV['ZERMELO_TEST_USER']     || 'zermelo'
+    password = ENV['ZERMELO_TEST_PASSWORD'] || 'zermelo'
+
+    args = {}
+    args.merge(:user => user) unless user.nil?
+    args.merge(:password => password) unless password.nil?
+
+    Zermelo.mysql = Mysql2::Client.new({:database => 'zermelo_test'}.merge(args))
+  end
+
+  config.before(:each, :mysql => true) do
+    results = Zermelo.mysql.query('SELECT table_name FROM information_schema.tables where table_schema=\'zermelo_test\'')
+    results.each do |row|
+      Zermelo.mysql.query("DROP TABLE #{row['table_name']}")
+    end
+  end
+
+  config.after(:all, :mysql => true) do
+    Zermelo.mysql.close
   end
 
   config.after(:each, :time => true) do

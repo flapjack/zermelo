@@ -4,6 +4,7 @@ require 'securerandom'
 require 'zermelo'
 
 require 'zermelo/backends/influxdb'
+require 'zermelo/backends/mysql'
 require 'zermelo/backends/redis'
 require 'zermelo/backends/stub'
 
@@ -80,6 +81,8 @@ module Zermelo
         @backend ||= case backend_type.to_sym
         when :influxdb
           Zermelo::Backends::InfluxDB.new
+        when :mysql
+          Zermelo::Backends::MySQL.new
         when :redis
           Zermelo::Backends::Redis.new
         when :stub

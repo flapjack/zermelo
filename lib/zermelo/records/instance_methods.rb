@@ -183,11 +183,9 @@ module Zermelo
                 idx.delete_id( @attributes['id'], @attributes[att.to_s])
               end
 
-              self.class.attribute_types.each_pair {|name, type|
-                key = Zermelo::Records::Key.new(:klass => self.class,
-                  :id => self.id, :name => name.to_s, :type => type, :object => :attribute)
-                backend.clear(key)
-              }
+              if backend.respond_to?(:clear_attributes)
+                backend.clear_attributes(self.class, self.id)
+              end
 
               record_key = Zermelo::Records::Key.new(:klass => self.class,
                   :id => self.id)

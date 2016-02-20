@@ -43,7 +43,7 @@ module Zermelo
     end
 
     # Thread and fiber-local
-    [:redis, :influxdb].each do |backend|
+    [:redis, :influxdb, :mysql].each do |backend|
       define_method(backend) do
         Thread.current["zermelo_#{backend.to_s}".to_sym]
       end
@@ -57,6 +57,10 @@ module Zermelo
 
     def influxdb=(connection)
       Thread.current[:zermelo_influxdb] = Zermelo::ConnectionProxy.new(connection)
+    end
+
+    def mysql=(connection)
+      Thread.current[:zermelo_mysql] = Zermelo::ConnectionProxy.new(connection)
     end
 
     def redis_version

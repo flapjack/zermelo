@@ -1,6 +1,7 @@
 require 'spec_helper'
-require 'zermelo/records/redis'
 require 'zermelo/records/influxdb'
+require 'zermelo/records/mysql'
+require 'zermelo/records/redis'
 
 describe Zermelo::Records::InstMethods do
 
@@ -202,5 +203,53 @@ describe Zermelo::Records::InstMethods do
       expect(record).to be_a(Hash)
       expect(record).to include("name"=>"John Smith", "id"=>"1")
     end
+  end
+
+  context 'mysql', :mysql => true, :instance_methods => true do
+
+    module ZermeloExamples
+      class InstanceMethodsMySQL
+        include Zermelo::Records::MySQLSet
+
+        define_attributes :name => :string
+        validates :name, :presence => true
+
+        before_create :fail_if_not_saving
+        def fail_if_not_saving; !('not_saving'.eql?(self.name)); end
+      end
+    end
+
+    let(:mysql) { Zermelo.mysql }
+
+    let(:example_class) { ZermeloExamples::InstanceMethodsMySQL }
+
+    let(:ek) { 'instance_methods_my_sql' }
+
+    # FIXME dynamically adjust SQL table state to match defined object?
+    # would need to get list of columns and add/remove as necessary
+
+    before do
+      table_create = %Q[
+CREATE TABLE #{ek} (
+  `_id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` varchar(36) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `id` (`id`)
+)
+]
+      Zermelo.mysql.query(table_create)
+    end
+
+    def create_example(attrs = {})
+      table_insert = %Q[
+INSERT INTO #{ek} (id, name)
+VALUES (?, ?)
+]
+      create = Zermelo.mysql.prepare(table_insert)
+      create.execute(attrs[:id], attrs[:name])
+      create.close
+    end
+
   end
 end

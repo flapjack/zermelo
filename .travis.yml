@@ -11,6 +11,7 @@ rvm:
 script: bundle exec rspec
 services:
 - redis-server
+- mysql
 before_install:
 - gem --version
 - wget https://s3.amazonaws.com/influxdb/influxdb_0.8.8_amd64.deb
@@ -20,6 +21,8 @@ before_install:
 - 'curl -X POST ''http://localhost:8086/db?u=root&p=root'' -d ''{"name": "zermelo_test"}'''
 - 'curl -X POST ''http://localhost:8086/db/zermelo_test/users?u=root&p=root'' -d ''{"name": "zermelo", "password": "zermelo"}'''
 - 'curl -X POST ''http://localhost:8086/db/zermelo_test/users/zermelo?u=root&p=root'' -d ''{"admin": true}'''
+before_script:
+- mysql -e 'create database zermelo_test;'
 notifications:
   slack:
     secure: tyeph4wfH7W3WXahFJem5cGZ+JY7Dlj738ISMmoSMA1eV9ovT/GVUqZgTuGSIK4YG7bagHaU/fuH+HiZqZI/lJbh4JHy3/Dfsz3K3w/eNLOCDGFng1GFMf2Y39gDLCOfIwU0kNY57c7/Xq5dWlkcgtusGiySAMKnqUc5BEZExYM=

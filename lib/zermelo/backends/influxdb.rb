@@ -17,6 +17,14 @@ module Zermelo
 
       include Zermelo::Backend
 
+      def clear_attributes(klass, id)
+        klass.attribute_types.each_pair {|name, type|
+          key = Zermelo::Records::Key.new(:klass => klass,
+          :id => id, :name => name.to_s, :type => type, :object => :attribute)
+          clear(key)
+        }
+      end
+
       def key_to_backend_key(key)
         "TODO"
       end
