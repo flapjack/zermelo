@@ -1,10 +1,33 @@
 require 'spec_helper'
 require 'zermelo/filter'
-require 'zermelo/records/redis'
+
 require 'zermelo/records/influxdb'
+require 'zermelo/records/mysql'
+require 'zermelo/records/redis'
+
 require 'zermelo/associations/range_index'
 
 describe Zermelo::Filter do
+
+  shared_examples 'creates mysql table', :mysql_table => true do
+    # hack for ordering, can be removed when mysql backend adapts
+    # structure dynamically
+
+    before do
+      table_create = %Q[
+CREATE TABLE #{ek} (
+  `_id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` varchar(36) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `id` (`id`)
+)
+]
+      Zermelo.mysql.query(table_create)
+    end
+  end
 
   shared_examples 'filter functions work', :filter => true do
 
@@ -359,5 +382,42 @@ describe Zermelo::Filter do
       }.to raise_error("Field email doesn't exist in series filter_influx_db/10")
     end
 
+  end
+
+  context 'mysql', :mysql => true, :mysql_table => true, :filter => true do
+
+    let(:mysql) { Zermelo.mysql }
+
+    module ZermeloExamples
+      class FilterMySQL
+        include Zermelo::Records::MySQLSet
+        define_attributes :name       => :string,
+                          :active     => :boolean,
+                          :created_at => :timestamp
+        validates :name, :presence => true
+        validates :active, :inclusion => {:in => [true, false]}
+        index_by :active
+        range_index_by :created_at
+        unique_index_by :name
+      end
+    end
+
+    let(:example_class) { ZermeloExamples::FilterMySQL }
+
+    let(:ek) { 'filter_my_sql' }
+
+    def create_example(attrs = {})
+      table_insert = %Q[
+INSERT INTO #{ek} (id, name, active, created_at)
+VALUES (?, ?, ?, ?)
+]
+      create = Zermelo.mysql.prepare(table_insert)
+      create.execute(attrs[:id], attrs[:name], attrs[:active], attrs[:created_at])
+      create.close
+    end
+
+    before do
+      skip "not yet implemented"
+    end
   end
 end

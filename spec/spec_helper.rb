@@ -72,25 +72,28 @@ RSpec.configure do |config|
   end
 
   config.before(:all, :mysql => true) do
-    user     = ENV['ZERMELO_TEST_USER']     || 'zermelo'
+    username = ENV['ZERMELO_TEST_USER']     || 'zermelo'
     password = ENV['ZERMELO_TEST_PASSWORD'] || 'zermelo'
 
     args = {}
-    args.merge(:user => user) unless user.nil?
-    args.merge(:password => password) unless password.nil?
+
+    args.update(:username => username) unless username.nil?
+    args.update(:password => password) unless password.nil?
 
     Zermelo.mysql = Mysql2::Client.new({:database => 'zermelo_test'}.merge(args))
   end
 
   config.before(:each, :mysql => true) do
-    results = Zermelo.mysql.query('SELECT table_name FROM information_schema.tables where table_schema=\'zermelo_test\'')
-    results.each do |row|
-      Zermelo.mysql.query("DROP TABLE #{row['table_name']}")
+    unless Zermelo.mysql.nil?
+      results = Zermelo.mysql.query('SELECT table_name FROM information_schema.tables where table_schema=\'zermelo_test\'')
+      results.each do |row|
+        Zermelo.mysql.query("DROP TABLE #{row['table_name']}")
+      end
     end
   end
 
   config.after(:all, :mysql => true) do
-    Zermelo.mysql.close
+    Zermelo.mysql.close unless Zermelo.mysql.nil?
   end
 
   config.after(:each, :time => true) do
