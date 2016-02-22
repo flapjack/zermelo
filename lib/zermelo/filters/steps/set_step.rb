@@ -308,6 +308,142 @@ module Zermelo
             query += ")"
 
             query
+
+          when Zermelo::Backends::MySQL
+            query = ''
+
+            attr_types = opts[:attr_types]
+
+            unless opts[:first].is_a?(TrueClass)
+              case @options[:op]
+              when :intersect, :diff
+                query += ' AND '
+              when :union
+                query += ' OR '
+              end
+            end
+
+            case @options[:op]
+            when :intersect, :union
+              query += @attributes.collect {|k, v|
+
+                attr_type = attr_types[k]
+
+                if v.is_a?(Enumerable)
+
+                  if v.any? {|vv| vv.is_a?(Regexp) }
+
+                    clauses = v.collect do |vv|
+                      case vv
+                      when Regexp
+                        "#{k} REGEXP '#{vv.source.gsub(/\\\\/, "\\")}'"
+                      when nil
+                        "#{k} IS NULL"
+                      else
+                        case attr_type
+                        when :boolean
+                          "#{k} = #{!!vv ? 1 : 0}"
+                        else
+                          "#{k} = '#{Zermelo.mysql.escape(vv)}'"
+                        end
+                      end
+                    end
+
+                    "(" + clauses.join(") OR (") + ")"
+                  else
+                    v = case attr_type
+                    when :boolean
+                      v.map {|vv| !!vv ? 1 : 0}
+                    else
+                      "'" + (v.map {|vv| Zermelo.mysql.escape(vv) }.join("', '")) + "'"
+                    end
+
+                    "#{k} IN (#{v})"
+                  end
+                else
+                  op_value = case v
+                  when Regexp
+                    raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                    "REGEXP '#{v.source.gsub(/\\\\/, "\\")}'"
+                  when nil
+                    "IS NULL"
+                  else
+                    case attr_type
+                    when :boolean
+                      "= #{!!v ? 1 : 0}"
+                    else
+                      "= '#{v}'"
+                    end
+                  end
+
+                  "(#{k} #{op_value})"
+                end
+              }.join(' AND ')
+
+            when :diff
+
+              query += 'NOT (' + @attributes.collect {|k, v|
+
+                attr_type = attr_types[k]
+
+                if v.is_a?(Enumerable)
+
+                  if v.any? {|vv| vv.is_a?(Regexp) }
+
+                    clauses = v.collect do |vv|
+                      case vv
+                      when Regexp
+                        "#{k} REGEXP '#{vv.source.gsub(/\\\\/, "\\")}'"
+                      when nil
+                        "#{k} IS NULL"
+                      else
+                        case attr_type
+                        when :boolean
+                          "#{k} = #{!!vv ? 1 : 0}"
+                        else
+                          "#{k} = '#{Zermelo.mysql.escape(vv)}'"
+                        end
+                      end
+                    end
+
+                    "(" + clauses.join(") AND (") + ")"
+                  else
+                    v = case attr_type
+                    when :boolean
+                      v.map {|vv| !!vv ? 1 : 0}
+                    else
+                      "'" + (v.map {|vv| Zermelo.mysql.escape(vv) }.join("', '")) + "'"
+                    end
+
+                    "#{k} IN (#{v})"
+                  end
+                else
+                  op_value = case v
+                  when Regexp
+                    raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                    "REGEXP '#{v.source.gsub(/\\\\/, "\\")}'"
+                  when nil
+                    "IS NULL"
+                  else
+                    case attr_type
+                    when :boolean
+                      "= #{!!v ? 1 : 0}"
+                    else
+                      "= '#{v}'"
+                    end
+                  end
+
+                  "(#{k} #{op_value})"
+                end
+              }.join(' AND ') + ')'
+
+            else
+              raise "Unhandled filter operation '#{@options[:op]}'"
+            end
+
+            query += ")"
+
+            query
           end
         end
 

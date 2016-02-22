@@ -20,7 +20,7 @@ CREATE TABLE #{ek} (
   `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `active` tinyint(1) NOT NULL DEFAULT '0',
-  `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `created_at` timestamp NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `id` (`id`)
 )
@@ -411,13 +411,15 @@ CREATE TABLE #{ek} (
 INSERT INTO #{ek} (id, name, active, created_at)
 VALUES (?, ?, ?, ?)
 ]
+
       create = Zermelo.mysql.prepare(table_insert)
-      create.execute(attrs[:id], attrs[:name], attrs[:active], attrs[:created_at])
+      create.execute(attrs[:id], attrs[:name], (attrs[:active] ? 1 : 0),
+        (attrs[:created_at].nil? ? Time.now : Time.at(attrs[:created_at])).strftime('%F %T'))
       create.close
     end
 
     before do
-      skip "not yet implemented"
+      # skip "not yet implemented"
     end
   end
 end

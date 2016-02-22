@@ -22,7 +22,8 @@ module Zermelo
         # },
         :set => {
           :ids     => proc {|key|
-            Zermelo.mysql.query("SELECT id FROM `#{key}`").map(&:id)
+            ids = Zermelo.mysql.query("SELECT id FROM `#{key}`")
+            (ids.count == 0) ? Set.new : Set.new( ids.map {|r| r['id'] } )
           },
           :count   => proc {|key|
             Zermelo.mysql.query("SELECT COUNT(*) FROM `#{key}`").first['COUNT(*)']
@@ -120,6 +121,110 @@ WHERE `#{key}`.`id` = ?
           return(ret)
         end
 
+
+        class_key = @associated_class.send(:class_key)
+
+        # FIXME escape class key
+
+        query = case shortcut
+        when :ids
+          "SELECT id FROM `#{class_key}`"
+        when :count
+          "SELECT COUNT(id) FROM `#{class_key}`"
+        end
+
+      #   unless @initial_key.id.nil?
+      #     query += ' WHERE '
+
+      #     initial_class_key = @initial_key.klass.send(:class_key)
+
+      #     ii_query = "SELECT #{@initial_key.name} FROM \"#{initial_class_key}/#{@initial_key.id}\" " +
+      #       "LIMIT 1"
+
+      #     begin
+      #       initial_id_data =
+      #         Zermelo.influxdb.query(ii_query)["#{initial_class_key}/#{@initial_key.id}"]
+      #     rescue ::InfluxDB::Error => ide
+      #       raise unless
+      #         /^Field #{@initial_key.name} doesn't exist in series #{initial_class_key}\/#{@initial_key.id}$/ === ide.message
+
+      #       initial_id_data = nil
+      #     end
+
+      #     if initial_id_data.nil?
+      #       ret = case shortcut
+      #       when :ids
+      #         Set.new
+      #       when :count
+      #         0
+      #       end
+      #       return ret
+      #     end
+
+      #     initial_ids = initial_id_data.first[@initial_key.name]
+
+      #     if initial_ids.nil? || initial_ids.empty?
+      #       # make it impossible for the query to return anything
+      #       query += '(1 = 0)'
+      #     else
+      #       query += '((' + initial_ids.collect {|id|
+      #         "id = #{escaped_id(id)}"
+      #       }.join(') OR (') + '))'
+      #     end
+      #   end
+
+        unless @steps.empty?
+          query += (@initial_key.id.nil? ? ' WHERE ' : ' AND ') +
+                   ('(' * @steps.size)
+
+          first_step = steps.first
+
+          attr_types = @associated_class.send(:attribute_types)
+
+          query += @steps.collect {|step|
+            step.resolve(backend, @associated_class, :first => (step == first_step),
+              :attr_types  => attr_types)
+          }.join("")
+        end
+
+      #   query += " ORDER ASC LIMIT 1"
+
+      # FIXME prepare instead -- pass around string & array for statement and args
+
+      # p query
+
+      result = Zermelo.mysql.query(query)
+
+      case shortcut
+      when :count
+        result.first["COUNT(id)"]
+      when :ids
+        if result.count == 0
+          Set.new
+        else
+          Set.new( result.map {|r| r['id']} )
+        end
+      end
+
+      #   begin
+      #     result = Zermelo.influxdb.query(query)
+      #   rescue ::InfluxDB::Error => ide
+      #     raise unless /^Couldn't look up columns$/ === ide.message
+      #     result = {}
+      #   end
+
+      #   data_keys = result.keys.select {|k| k =~ /^#{class_key}\// }
+
+      #   case shortcut
+      #   when :ids
+      #     data_keys.empty? ? Set.new : Set.new(data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 })
+      #   when :count
+      #     data_keys.empty? ? 0 : data_keys.size
+      #   end
+      # end
+
+
+
       #   idx_attrs = @associated_class.send(:with_index_data) do |d|
       #     d.each_with_object({}) do |(name, data), memo|
       #       memo[name.to_s] = data.index_klass
@@ -175,8 +280,6 @@ WHERE `#{key}`.`id` = ?
 
       #     result
       #   end
-
-        nil
       end
 
     end
