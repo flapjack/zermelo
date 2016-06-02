@@ -89,8 +89,10 @@ module Zermelo
 
       private
 
+      @@class_keys_cache ||= {}
+
       def class_key
-        self.name.demodulize.underscore
+        @@class_keys_cache[self.name] ||= self.name.demodulize.underscore
       end
 
       def temp_key(type)
