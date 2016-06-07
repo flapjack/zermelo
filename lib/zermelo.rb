@@ -50,8 +50,11 @@ module Zermelo
     end
 
     def redis=(connection)
-      Thread.current[:zermelo_redis] = connection.nil? ? nil :
+      Thread.current[:zermelo_redis] = if logger.nil? || connection.nil?
+        connection
+      else
         Zermelo::ConnectionProxy.new(connection)
+      end
       Thread.current[:zermelo_redis_version] = nil
     end
 
