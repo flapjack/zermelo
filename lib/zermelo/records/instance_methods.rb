@@ -228,32 +228,6 @@ module Zermelo
         }
       end
 
-      # http://stackoverflow.com/questions/7613574/activemodel-fields-not-mapped-to-accessors
-      #
-      # Simulate attribute writers from method_missing
-      def attribute=(att, value)
-        return if value == @attributes[att.to_s]
-        if att.to_s == 'id'
-          raise "Cannot reassign id" unless @attributes['id'].nil?
-          send("id_will_change!")
-          @attributes['id'] = value.to_s
-        else
-          send("#{att}_will_change!")
-          if (self.class.attribute_types[att.to_sym] == :set) && !value.is_a?(Set)
-            @attributes[att.to_s] = Set.new(value)
-          else
-            @attributes[att.to_s] = value
-          end
-        end
-      end
-
-      # Simulate attribute readers from method_missing
-      def attribute(att)
-        value = @attributes[att.to_s]
-        return value unless (self.class.attribute_types[att.to_sym] == :timestamp)
-        value.is_a?(Integer) ? Time.at(value) : value
-      end
-
       # Used by ActiveModel to lookup attributes during validations.
       def read_attribute_for_validation(att)
         @attributes[att.to_s]
