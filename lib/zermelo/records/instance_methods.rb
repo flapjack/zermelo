@@ -1,17 +1,13 @@
 require 'zermelo/records/key'
 
 module Zermelo
-
   module Records
-
     # module renamed to avoid ActiveSupport::Concern deprecation warning
-    module InstMethods
-
+    module InstMethods # rubocop:disable Metrics/ModuleLength
       def initialize(attrs = {})
         @is_new = true
-        @attributes = self.class.attribute_types.keys.inject({}) do |memo, ak|
+        @attributes = self.class.attribute_types.keys.each_with_object({}) do |ak, memo|
           memo[ak.to_s] = attrs[ak]
-          memo
         end
       end
 
@@ -24,12 +20,12 @@ module Zermelo
         refresh
       end
 
-      def refresh
+      def refresh # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
         # AM::Dirty -- private method 'clear_changes_information' in 4.2.0+,
         # private method 'reset_changes' in 4.1.0+, internal state before that
-        if self.respond_to?(:clear_changes_information, true)
+        if respond_to?(:clear_changes_information, true)
           clear_changes_information
-        elsif self.respond_to?(:reset_changes, true)
+        elsif respond_to?(:reset_changes, true)
           reset_changes
         else
           @previously_changed.clear unless @previously_changed.nil?
@@ -38,7 +34,7 @@ module Zermelo
 
         attr_types = self.class.attribute_types
 
-        @attributes = {'id' => self.id}
+        @attributes = { 'id' => id }
 
         attrs = nil
 
@@ -49,22 +45,27 @@ module Zermelo
           # TODO fail if id not found
           @is_new = false
 
-          attr_types = self.class.attribute_types.reject {|k, v| k == :id}
+          attr_types = self.class.attribute_types.reject { |k, _v| k.eql?(:id) }
 
-          attrs_to_load = attr_types.collect do |name, type|
-            Zermelo::Records::Key.new(klass: self.class,
-              id: self.id, name: name, type: type, object: :attribute)
+          attrs_to_load = attr_types.collect do |attr_name, type|
+            Zermelo::Records::Key.new(
+              klass: self.class,
+              id: id,
+              name: attr_name,
+              type: type,
+              object: :attribute
+            )
           end
 
           result = backend.get_multiple(*attrs_to_load)
-          attrs = result[class_key][self.id] unless result.empty?
+          attrs = result[class_key][id] unless result.empty?
         end
 
         @attributes.update(attrs) unless attrs.nil? || attrs.empty?
         true
       end
 
-      # TODO limit to only those attribute names defined in define_attributes
+      # TODO: limit to only those attribute names defined in define_attributes
       def update_attributes(attributes = {})
         attributes.each_pair do |att, v|
           unless value == @attributes[att.to_s]
@@ -75,12 +76,12 @@ module Zermelo
         save
       end
 
-      def save!
-        return unless @is_new || self.changed?
+      def save! # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+        return unless @is_new || changed?
         self.id ||= self.class.generate_id
-        raise Zermelo::Records::Errors::RecordInvalid.new(self) unless valid?
+        raise(Zermelo::Records::Errors::RecordInvalid.new(self), 'Invalid record') unless valid?
 
-        creating = !self.persisted?
+        creating = !persisted?
         saved = false
 
         sort_val = nil
@@ -92,29 +93,28 @@ module Zermelo
           raise "Value required for sort_attribute #{sort_attr}" if sort_val.nil?
         end
 
-        run_callbacks( (creating ? :create : :update) ) do
-
+        run_callbacks(creating ? :create : :update) do # rubocop:disable Metrics/BlockLength
           idx_attrs = self.class.send(:with_index_data) do |d|
             d.each_with_object({}) do |(name, data), memo|
               memo[name.to_s] = data.index_klass
             end
           end
 
-          self.class.transaction do
-
-            apply_attribute = proc {|att, attr_key, old_new|
+          self.class.transaction do # rubocop:disable Metrics/BlockLength
+            apply_attribute = proc do |att, attr_key, old_new|
               backend.set(attr_key, old_new.last) unless att.eql?('id')
 
-              if idx_attrs.has_key?(att)
+              if idx_attrs.key?(att)
                 # update indices
                 if creating
-                  self.class.send("#{att}_index").add_id( @attributes['id'], old_new.last)
+                  self.class.send("#{att}_index").
+                    add_id(@attributes['id'], old_new.last)
                 else
-                  self.class.send("#{att}_index").move_id( @attributes['id'], old_new.first,
-                                  self.class.send("#{att}_index"), old_new.last)
+                  self.class.send("#{att}_index").
+                    move_id(@attributes['id'], old_new.first, self.class.send("#{att}_index"), old_new.last)
                 end
               end
-            }
+            end
 
             attr_keys = attribute_keys
 
@@ -123,7 +123,7 @@ module Zermelo
                 apply_attribute.call(att, attr_key, [nil, @attributes[att]])
               end
             else
-              self.changes.each_pair do |att, old_new|
+              changes.each_pair do |att, old_new|
                 apply_attribute.call(att, attr_keys[att], old_new)
               end
             end
@@ -131,7 +131,7 @@ module Zermelo
             # ids is a set/sorted set, so update won't create duplicates
             # NB influxdb backend doesn't need this
 
-            # FIXME distinguish between this in the class methods?
+            # FIXME: distinguish between this in the class methods?
             case self
             when Zermelo::Records::Ordered
               self.class.add_id(@attributes['id'], sort_val)
@@ -144,10 +144,12 @@ module Zermelo
           saved = true
         end
 
-        raise Zermelo::Records::Errors::RecordNotSaved.new(self) unless saved
+        unless saved
+          raise(Zermelo::Records::Errors::RecordNotSaved.new(self), 'Record not saved')
+        end
 
         # AM::Dirty -- private method in 4.1.0+, internal state before that
-        if self.respond_to?(:changes_applied, true)
+        if respond_to?(:changes_applied, true)
           changes_applied
         else
           @previously_changed = changes
@@ -163,13 +165,12 @@ module Zermelo
         false
       end
 
-      def destroy
+      def destroy # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
         raise 'Record was not persisted' unless persisted?
 
-        run_callbacks :destroy do
-
+        run_callbacks :destroy do # rubocop:disable Metrics/BlockLength
           assoc_classes = self.class.send(:associated_classes)
-          index_attrs   = self.class.send(:with_index_data) {|d| d.keys }
+          index_attrs   = self.class.send(:with_index_data, &:keys)
 
           self.class.lock(*assoc_classes) do
             self.class.send(:with_associations, self) do |assoc|
@@ -180,17 +181,24 @@ module Zermelo
               self.class.delete_id(@attributes['id'])
               index_attrs.each do |att|
                 idx = self.class.send("#{att}_index")
-                idx.delete_id( @attributes['id'], @attributes[att.to_s])
+                idx.delete_id(@attributes['id'], @attributes[att.to_s])
               end
 
-              self.class.attribute_types.each_pair {|name, type|
-                key = Zermelo::Records::Key.new(klass: self.class,
-                  id: self.id, name: name.to_s, type: type, object: :attribute)
+              self.class.attribute_types.each_pair do |attr_name, type|
+                key = Zermelo::Records::Key.new(
+                  klass: self.class,
+                  id: self.id,
+                  name: attr_name.to_s,
+                  type: type,
+                  object: :attribute
+                )
                 backend.clear(key)
-              }
+              end
 
-              record_key = Zermelo::Records::Key.new(klass: self.class,
-                  id: self.id)
+              record_key = Zermelo::Records::Key.new(
+                klass: self.class,
+                id: self.id
+              )
               backend.purge(record_key)
             end
           end
@@ -214,53 +222,58 @@ module Zermelo
 
       private
 
-      def backend
-        self.class.send(:backend)
-      end
+        def backend
+          self.class.send(:backend)
+        end
 
-      def attribute_keys
-        @attribute_keys ||= self.class.attribute_types.reject {|k, v|
-          k == :id
-        }.inject({}) {|memo, (name, type)|
-          memo[name.to_s] = Zermelo::Records::Key.new(klass: self.class,
-            id: self.id, name: name.to_s, type: type, object: :attribute)
-          memo
-        }
-      end
-
-      # http://stackoverflow.com/questions/7613574/activemodel-fields-not-mapped-to-accessors
-      #
-      # Simulate attribute writers from method_missing
-      def attribute=(att, value)
-        return if value == @attributes[att.to_s]
-        if att.to_s == 'id'
-          raise 'Cannot reassign id' unless @attributes['id'].nil?
-          send('id_will_change!')
-          @attributes['id'] = value.to_s
-        else
-          send("#{att}_will_change!")
-          if (self.class.attribute_types[att.to_sym] == :set) && !value.is_a?(Set)
-            @attributes[att.to_s] = Set.new(value)
-          else
-            @attributes[att.to_s] = value
+        def attribute_keys # rubocop:disable Metrics/MethodLength
+          @attribute_keys ||= self.class.attribute_types.each_with_object({}) do |(attr_name, type), memo|
+            next if attr_name.eql?(:id)
+            attr_name_str = attr_name.to_s
+            memo[attr_name_str] =
+              Zermelo::Records::Key.new(
+                klass: self.class,
+                id: self.id,
+                name: attr_name_str,
+                type: type,
+                object: :attribute
+              )
           end
         end
-      end
 
-      # Simulate attribute readers from method_missing
-      def attribute(att)
-        value = @attributes[att.to_s]
-        return value unless (self.class.attribute_types[att.to_sym] == :timestamp)
-        value.is_a?(Integer) ? Time.at(value) : value
-      end
+        # http://stackoverflow.com/questions/7613574/activemodel-fields-not-mapped-to-accessors
+        #
+        # Simulate attribute writers from method_missing
+        # FIXME: replace with methods from 'activemodel_experiments' branch
+        def attribute=(att, value) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+          return if value == @attributes[att.to_s]
+          if att.to_s == 'id'
+            raise 'Cannot reassign id' unless @attributes['id'].nil?
+            send('id_will_change!')
+            @attributes['id'] = value.to_s
+            return
+          end
 
-      # Used by ActiveModel to lookup attributes during validations.
-      def read_attribute_for_validation(att)
-        @attributes[att.to_s]
-      end
+          send("#{att}_will_change!")
+          if self.class.attribute_types[att.to_sym].eql?(:set) && !value.is_a?(Set)
+            @attributes[att.to_s] = Set.new(value)
+            return
+          end
 
+          @attributes[att.to_s] = value
+        end
+
+        # Simulate attribute readers from method_missing
+        def attribute(att)
+          value = @attributes[att.to_s]
+          return value unless self.class.attribute_types[att.to_sym].eql?(:timestamp)
+          value.is_a?(Integer) ? Time.at(value) : value
+        end
+
+        # Used by ActiveModel to lookup attributes during validations.
+        def read_attribute_for_validation(att)
+          @attributes[att.to_s]
+        end
     end
-
   end
-
 end

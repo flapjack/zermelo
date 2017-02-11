@@ -11,7 +11,7 @@ module Zermelo
       include Zermelo::Records::Unordered
 
       included do
-        set_backend :redis
+        init_backend(:redis)
       end
     end
 
@@ -22,7 +22,7 @@ module Zermelo
       include Zermelo::Records::Ordered
 
       included do
-        set_backend :redis
+        init_backend(:redis)
       end
     end
   end

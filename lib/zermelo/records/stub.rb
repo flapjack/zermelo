@@ -10,7 +10,7 @@ module Zermelo
       include Zermelo::Record
 
       included do
-        set_backend :stub
+        init_backend(:stub)
       end
     end
   end

@@ -28,7 +28,7 @@ module Zermelo
       include Zermelo::Records::Unordered
 
       included do
-        set_backend :influxdb
+        init_backend(:influxdb)
 
         define_attributes time: :timestamp
       end

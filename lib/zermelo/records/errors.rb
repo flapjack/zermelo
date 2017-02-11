@@ -1,5 +1,4 @@
 module Zermelo
-
   class ZermeloError < RuntimeError
   end
 
@@ -9,6 +8,7 @@ module Zermelo
         attr_reader :klass, :id
 
         def initialize(k, i)
+          super
           @klass = k
           @id = i
         end
@@ -18,6 +18,7 @@ module Zermelo
         attr_reader :klass, :ids
 
         def initialize(k, i)
+          super
           @klass = k
           @ids = i
         end
@@ -27,6 +28,7 @@ module Zermelo
         attr_reader :record
 
         def initialize(r)
+          super
           @record = r
         end
       end
@@ -35,6 +37,7 @@ module Zermelo
         attr_reader :record
 
         def initialize(r)
+          super
           @record = r
         end
       end

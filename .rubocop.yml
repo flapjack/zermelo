@@ -14,5 +14,9 @@ Style/Documentation:
 Metrics/LineLength:
   Enabled: true
   Max: 120
-  Exclude:
-    - "spec/**/*"
+  IgnoreCopDirectives: true
+  # Exclude:
+  #   - "spec/**/*"
+
+Style/DotPosition:
+  EnforcedStyle: trailing

@@ -18,12 +18,12 @@ module Zermelo
       extend Forwardable
 
       def_delegators :filter,
-        :intersect, :union, :diff, :sort, :offset, :page, :empty,
-        :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
-        :all, :each, :collect, :map,
-        :select, :find_all, :reject, :destroy_all,
-        :ids, :count, :empty?, :exists?,
-        :associated_ids_for, :associations_for
+                     :intersect, :union, :diff, :sort, :offset, :page, :empty,
+                     :find_by_id, :find_by_ids, :find_by_id!, :find_by_ids!,
+                     :all, :each, :collect, :map,
+                     :select, :find_all, :reject, :destroy_all,
+                     :ids, :count, :empty?, :exists?,
+                     :associated_ids_for, :associations_for
 
       def generate_id
         return SecureRandom.uuid if SecureRandom.respond_to?(:uuid)
@@ -31,7 +31,7 @@ module Zermelo
         ary = SecureRandom.random_bytes(16).unpack('NnnnnN')
         ary[2] = (ary[2] & 0x0fff) | 0x4000
         ary[3] = (ary[3] & 0x3fff) | 0x8000
-        '%08x-%04x-%04x-%04x-%04x%08x' % ary
+        format('%08x-%04x-%04x-%04x-%04x%08x', *ary)
       end
 
       def lock(*klasses, &block)
@@ -39,81 +39,79 @@ module Zermelo
         backend.lock(*klasses, &block)
       end
 
-      def transaction(&block)
+      def transaction
         failed = false
 
         backend.begin_transaction
 
         begin
           yield
-        rescue Exception # => e
+        rescue StandardError # => e
           backend.abort_transaction
           # p e.message
           # puts e.backtrace.join("\n")
           failed = true
         ensure
-          backend.commit_transaction unless failed
+          # TODO: include exception info
+          failed ? raise('Transaction failed') : backend.commit_transaction
         end
-
-        # TODO include exception info
-        raise 'Transaction failed' if failed
       end
 
       def backend
-        raise "No data storage backend set for #{self.name}" if @backend.nil?
+        raise "No data storage backend set for #{name}" if @backend.nil?
         @backend
       end
 
       def key_dump
         klass_keys = [backend.key_to_backend_key(ids_key), ids_key]
-        self.send(:with_index_data) do |d|
+        send(:with_index_data) do |d|
           d.keys.each do |k|
-            klass_keys += self.send("#{k}_index".to_sym).key_dump
+            klass_keys += send("#{k}_index".to_sym).key_dump
           end
         end
-        Hash[ *klass_keys ]
+        Hash[*klass_keys]
       end
 
       protected
 
-      def set_backend(backend_type)
-        @backend ||= case backend_type.to_sym
-        when :influxdb
-          Zermelo::Backends::InfluxDB.new
-        when :redis
-          Zermelo::Backends::Redis.new
-        when :stub
-          Zermelo::Backends::Stub.new
+        def init_backend(backend_type)
+          @backend ||= case backend_type.to_sym
+                       when :influxdb
+                         Zermelo::Backends::InfluxDB.new
+                       when :redis
+                         Zermelo::Backends::Redis.new
+                       when :stub
+                         Zermelo::Backends::Stub.new
+                       end
         end
-      end
 
       private
 
-      def class_key
-        class_key_cache[self.name] ||= self.name.demodulize.underscore
-      end
-      
-      def class_key_cache
-        Thread.current[:class_keys_cache] ||= {}
-      end
+        def class_key
+          class_key_cache[name] ||= name.demodulize.underscore
+        end
 
-      def temp_key(type)
-        Zermelo::Records::Key.new(
-          klass: self,
-          name: SecureRandom.hex(16),
-          type: type,
-          object: :temporary
-        )
-      end
+        def class_key_cache
+          Thread.current[:class_keys_cache] ||= {}
+        end
 
-      def load(id)
-        object = self.new
-        object.load(id) ? object : nil
-      end
+        def temp_key(type)
+          Zermelo::Records::Key.new(
+            klass: self,
+            name: SecureRandom.hex(16),
+            type: type,
+            object: :temporary
+          )
+        end
 
-      def filter
-        backend.filter(ids_key, self)
-      end
+        def load(id)
+          object = new
+          object.load(id) ? object : nil
+        end
+
+        def filter
+          backend.filter(ids_key, self)
+        end
     end
 
     module Unordered
@@ -122,10 +120,11 @@ module Zermelo
       module ClassMethods
         def ids_key
           @ids_key ||= Zermelo::Records::Key.new(
-                         klass: self, name: 'ids',
-                         type: :set,
-                         object: :attribute
-                       )
+            klass: self,
+            name: 'ids',
+            type: :set,
+            object: :attribute
+          )
         end
 
         def add_id(id)
@@ -144,15 +143,15 @@ module Zermelo
       module ClassMethods
         extend Forwardable
 
-        def_delegators :filter,
-          :first, :last
+        def_delegators :filter, :first, :last
 
         def ids_key
           @ids_key ||= Zermelo::Records::Key.new(
-                         klass: self, name: 'ids',
-                         type: :sorted_set,
-                         object: :attribute
-                       )
+            klass: self,
+            name: 'ids',
+            type: :sorted_set,
+            object: :attribute
+          )
         end
 
         def define_sort_attribute(k)
