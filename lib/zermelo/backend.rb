@@ -98,8 +98,8 @@ module Zermelo
           end
         end
 
-        lock_klass = if backend.const_defined?(:LOCK_CLASS)
-                       backend.const_get?(LOCK_CLASS)
+        lock_klass = if self.class.const_defined?(:LOCK_CLASS, false)
+                       self.class.const_get(:LOCK_CLASS, false)
                      else
                        Zermelo::Locks::NoLock
                      end
