@@ -27,7 +27,7 @@ GEM
     json (1.8.6)
     minitest (5.8.3)
     rake (10.4.2)
-    redis (3.2.1)
+    redis (3.3.3)
     rspec (3.3.0)
       rspec-core (~> 3.3.0)
       rspec-expectations (~> 3.3.0)
