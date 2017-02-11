@@ -59,7 +59,7 @@ module Zermelo
               sort_opts = {}
 
               unless 'id'.eql?(sort_attr.to_s)
-                sort_opts.update(:by => "#{class_key}:*:attrs->#{sort_attr}")
+                sort_opts.update(by: "#{class_key}:*:attrs->#{sort_attr}")
               end
 
               if (idx + 1) == sort_attrs_and_orders.size
@@ -70,7 +70,7 @@ module Zermelo
                 if !(l.nil? && o.nil?)
                   o = o.nil? ? 0 : o.to_i
                   l = (l.nil? || (l.to_i < 1)) ? (Zermelo.redis.llen(dest_list) - o) : l
-                  sort_opts.update(:limit => [o, l])
+                  sort_opts.update(limit: [o, l])
                 end
               end
 
@@ -82,10 +82,10 @@ module Zermelo
               order_parts << 'desc' if 'desc'.eql?(order.to_s)
 
               unless order_parts.empty?
-                sort_opts.update(:order => order_parts.join(' '))
+                sort_opts.update(order: order_parts.join(' '))
               end
 
-              sort_opts.update(:store => r_dest_list)
+              sort_opts.update(store: r_dest_list)
               Zermelo.redis.sort(r_dest_list, sort_opts)
             end
 

@@ -30,11 +30,11 @@ module Zermelo
         end
 
         @record_ids_key = Zermelo::Records::Key.new(
-          :klass  => parent_klass,
-          :id     => parent_id,
-          :name   => "#{name}_ids",
-          :type   => @key_type,
-          :object => :association
+          klass: parent_klass,
+          id: parent_id,
+          name: "#{name}_ids",
+          type: @key_type,
+          object: :association
         )
 
         parent_klass.send(:with_association_data, name.to_sym) do |data|
@@ -75,7 +75,7 @@ module Zermelo
           when :has_sorted_set
             records.map {|r| [r.send(@sort_key.to_sym).to_f, r.id]}
           end
-          _add_ids({:callbacks => true}, *record_ids)
+          _add_ids({callbacks: true}, *record_ids)
         end
       end
 
@@ -83,7 +83,7 @@ module Zermelo
         raise 'No record ids to add' if record_ids.empty?
         @parent_klass.lock(*@lock_klasses) do
           @associated_class.find_by_ids!(*record_ids) # ensure they exist
-          _add_ids({:callbacks => true}, *record_ids)
+          _add_ids({callbacks: true}, *record_ids)
         end
       end
 
@@ -93,7 +93,7 @@ module Zermelo
         raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
         raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
         @parent_klass.lock(*@lock_klasses) do
-          _remove_ids({:callbacks => true},
+          _remove_ids({callbacks: true},
             *(records.is_a?(Zermelo::Filter) ? records.ids : records.map(&:id)))
         end
       end
@@ -101,13 +101,13 @@ module Zermelo
       def remove_ids(*record_ids)
         raise 'No record ids to remove' if record_ids.empty?
         @parent_klass.lock(*@lock_klasses) do
-          _remove_ids({:callbacks => true}, *record_ids)
+          _remove_ids({callbacks: true}, *record_ids)
         end
       end
 
       def clear
         @parent_klass.lock(*@lock_klasses) do
-          _remove_ids({:callbacks => true}, *filter.ids) unless filter.empty?
+          _remove_ids({callbacks: true}, *filter.ids) unless filter.empty?
         end
       end
 
@@ -125,17 +125,17 @@ module Zermelo
             # inverse is belongs_to
             # FIXME neater to do multiple hash keys at once, if backends support it
             Zermelo::Records::Key.new(
-              :klass  => @associated_class,
-              :name   => 'belongs_to',
-              :type   => :hash,
-              :object => :association
+              klass: @associated_class,
+              name: 'belongs_to',
+              type: :hash,
+              object: :association
             )
           when :has_and_belongs_to_many
             Zermelo::Records::Key.new(
-              :klass  => @associated_class,
-              :name   => "#{@inverse}_ids",
-              :type   => :set,
-              :object => :association
+              klass: @associated_class,
+              name: "#{@inverse}_ids",
+              type: :set,
+              object: :association
             )
           end
         end
@@ -144,7 +144,7 @@ module Zermelo
 
       # associated will be a belongs_to; on remove already runs inside a lock and transaction
       def on_remove
-        _remove_ids({:callbacks => false}, *filter.ids) unless filter.empty?
+        _remove_ids({callbacks: false}, *filter.ids) unless filter.empty?
       end
 
       def _add_ids(opts = {}, *record_ids)
@@ -242,11 +242,11 @@ module Zermelo
 
         these_ids.each_with_object({}) do |this_id, memo|
           key = Zermelo::Records::Key.new(
-            :klass  => klass,
-            :id     => this_id,
-            :name   => "#{name}_ids",
-            :type   => key_type,
-            :object => :association
+            klass: klass,
+            id: this_id,
+            name: "#{name}_ids",
+            type: key_type,
+            object: :association
           )
           memo[this_id] = backend.get(key)
         end

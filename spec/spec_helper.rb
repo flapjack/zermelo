@@ -38,7 +38,7 @@ RSpec.configure do |config|
   #     --seed 1234
   # config.order = 'random'
 
-  config.around(:each, :logger => true) do |example|
+  config.around(:each, logger: true) do |example|
     MockLogger.configure_log('zermelo')
     Zermelo.logger = MockLogger.new
     example.run
@@ -46,31 +46,31 @@ RSpec.configure do |config|
     Zermelo.logger.clear
   end
 
-  config.before(:all, :redis => true) do
-    Zermelo.redis = ::Redis.new(:db => 14)
+  config.before(:all, redis: true) do
+    Zermelo.redis = ::Redis.new(db: 14)
   end
 
-  config.before(:each, :redis => true) do
+  config.before(:each, redis: true) do
     Zermelo.redis.select(14)
     Zermelo.redis.flushdb
   end
 
-  config.after(:all, :redis => true) do
+  config.after(:all, redis: true) do
     Zermelo.redis.quit
   end
 
-  config.before(:all, :influxdb => true) do
+  config.before(:all, influxdb: true) do
     Zermelo.influxdb = InfluxDB::Client.new('zermelo_test',
-      :username => 'zermelo', :password => 'zermelo', :retry => false)
+      username: 'zermelo', password: 'zermelo', retry: false)
   end
 
-  config.before(:each, :influxdb => true) do
+  config.before(:each, influxdb: true) do
     Zermelo.influxdb.query('list series')['list_series_result'].each do |ser|
       Zermelo.influxdb.query("DELETE FROM \"#{ser['name']}\"")
     end
   end
 
-  config.after(:each, :time => true) do
+  config.after(:each, time: true) do
     Timecop.return
   end
 

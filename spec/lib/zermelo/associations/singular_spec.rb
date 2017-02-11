@@ -6,19 +6,19 @@ describe Zermelo::Associations::Singular do
 
   context 'has_one' do
 
-    shared_examples "has_one functions work", :has_one => true do
+    shared_examples "has_one functions work", has_one: true do
 
       it 'returns associated ids for multiple parent ids' do
-        create_parent(:id => '8')
-        create_parent(:id => '9')
-        create_parent(:id => '10')
+        create_parent(id: '8')
+        create_parent(id: '9')
+        create_parent(id: '10')
 
         time = Time.now.to_i
 
-        create_child(parent_class.find_by_id('9'),  :id => '3')
-        create_child(parent_class.find_by_id('10'), :id => '4')
+        create_child(parent_class.find_by_id('9'),  id: '3')
+        create_child(parent_class.find_by_id('10'), id: '4')
 
-        assoc_ids = parent_class.intersect(:id => ['8', '9', '10']).
+        assoc_ids = parent_class.intersect(id: ['8', '9', '10']).
           associated_ids_for(:child)
         expect(assoc_ids).to eq('8'  => nil,
                                 '9'  => '3',
@@ -36,21 +36,21 @@ describe Zermelo::Associations::Singular do
 
     end
 
-    context 'redis', :redis => true, :has_one => true do
+    context 'redis', redis: true, has_one: true do
 
       let(:redis) { Zermelo.redis }
 
       module ZermeloExamples
         class AssociationsHasOneParentRedis
           include Zermelo::Records::RedisSet
-          has_one :child, :class_name => 'ZermeloExamples::AssociationsHasOneChildRedis',
-            :inverse_of => :parent
+          has_one :child, class_name: 'ZermeloExamples::AssociationsHasOneChildRedis',
+            inverse_of: :parent
         end
 
         class AssociationsHasOneChildRedis
           include Zermelo::Records::RedisSet
-          belongs_to :parent, :class_name => 'ZermeloExamples::AssociationsHasOneParentRedis',
-            :inverse_of => :child
+          belongs_to :parent, class_name: 'ZermeloExamples::AssociationsHasOneParentRedis',
+            inverse_of: :child
         end
       end
 
@@ -72,9 +72,9 @@ describe Zermelo::Associations::Singular do
       end
 
       it "sets and retrieves a record via a has_one association" do
-        create_parent(:id => '8')
+        create_parent(id: '8')
 
-        child = child_class.new(:id => '22')
+        child = child_class.new(id: '22')
         expect(child.save).to be true
 
         parent = parent_class.find_by_id('8')
@@ -104,9 +104,9 @@ describe Zermelo::Associations::Singular do
       end
 
       it 'clears the belongs_to association when the child record is deleted' do
-        create_parent(:id => '8')
+        create_parent(id: '8')
         parent = parent_class.find_by_id('8')
-        create_child(parent, :id => '3')
+        create_child(parent, id: '3')
         child = child_class.find_by_id('3')
 
         expect(redis.keys).to match_array([
@@ -124,9 +124,9 @@ describe Zermelo::Associations::Singular do
       end
 
       it "clears the belongs_to association when the parent record is deleted" do
-        create_parent(:id => '8')
+        create_parent(id: '8')
         parent = parent_class.find_by_id('8')
-        create_child(parent, :id => '3')
+        create_child(parent, id: '3')
 
         expect(redis.keys).to match_array([
           "#{pk}::attrs:ids",

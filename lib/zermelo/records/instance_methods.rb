@@ -52,8 +52,8 @@ module Zermelo
           attr_types = self.class.attribute_types.reject {|k, v| k == :id}
 
           attrs_to_load = attr_types.collect do |name, type|
-            Zermelo::Records::Key.new(:klass => self.class,
-              :id => self.id, :name => name, :type => type, :object => :attribute)
+            Zermelo::Records::Key.new(klass: self.class,
+              id: self.id, name: name, type: type, object: :attribute)
           end
 
           result = backend.get_multiple(*attrs_to_load)
@@ -184,13 +184,13 @@ module Zermelo
               end
 
               self.class.attribute_types.each_pair {|name, type|
-                key = Zermelo::Records::Key.new(:klass => self.class,
-                  :id => self.id, :name => name.to_s, :type => type, :object => :attribute)
+                key = Zermelo::Records::Key.new(klass: self.class,
+                  id: self.id, name: name.to_s, type: type, object: :attribute)
                 backend.clear(key)
               }
 
-              record_key = Zermelo::Records::Key.new(:klass => self.class,
-                  :id => self.id)
+              record_key = Zermelo::Records::Key.new(klass: self.class,
+                  id: self.id)
               backend.purge(record_key)
             end
           end
@@ -222,8 +222,8 @@ module Zermelo
         @attribute_keys ||= self.class.attribute_types.reject {|k, v|
           k == :id
         }.inject({}) {|memo, (name, type)|
-          memo[name.to_s] = Zermelo::Records::Key.new(:klass => self.class,
-            :id => self.id, :name => name.to_s, :type => type, :object => :attribute)
+          memo[name.to_s] = Zermelo::Records::Key.new(klass: self.class,
+            id: self.id, name: name.to_s, type: type, object: :attribute)
           memo
         }
       end

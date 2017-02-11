@@ -23,7 +23,7 @@ module Zermelo
       def index_by(*args)
         att_types = attribute_types
         args.each do |arg|
-          index(::Zermelo::Associations::Index, arg, :type => att_types[arg])
+          index(::Zermelo::Associations::Index, arg, type: att_types[arg])
         end
         nil
       end
@@ -31,7 +31,7 @@ module Zermelo
       def range_index_by(*args)
         att_types = attribute_types
         args.each do |arg|
-          index(::Zermelo::Associations::RangeIndex, arg, :type => att_types[arg])
+          index(::Zermelo::Associations::RangeIndex, arg, type: att_types[arg])
         end
         nil
       end
@@ -39,7 +39,7 @@ module Zermelo
       def unique_index_by(*args)
         att_types = attribute_types
         args.each do |arg|
-          index(::Zermelo::Associations::UniqueIndex, arg, :type => att_types[arg])
+          index(::Zermelo::Associations::UniqueIndex, arg, type: att_types[arg])
         end
         nil
       end
@@ -121,9 +121,9 @@ module Zermelo
         return if name.nil?
 
         data = Zermelo::Associations::IndexData.new(
-          :name            => name,
-          :type            => args[:type],
-          :index_klass     => klass
+          name: name,
+          type: args[:type],
+          index_klass: klass
         )
 
         @lock.synchronize do
@@ -165,13 +165,13 @@ module Zermelo
         end
 
         data = Zermelo::Associations::AssociationData.new(
-          :name                => name,
-          :data_klass_name     => args[:class_name],
-          :data_type           => type,
-          :type_klass          => klass,
-          :inverse             => inverse,
-          :related_klass_names => args[:related_class_names],
-          :callbacks           => callbacks.each_with_object({}) {|c, memo|
+          name: name,
+          data_klass_name: args[:class_name],
+          data_type: type,
+          type_klass: klass,
+          inverse: inverse,
+          related_klass_names: args[:related_class_names],
+          callbacks: callbacks.each_with_object({}) {|c, memo|
                                     memo[c] = args[c]
                                   }
         )

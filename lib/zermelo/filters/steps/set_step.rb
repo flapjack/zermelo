@@ -185,23 +185,23 @@ module Zermelo
                 if source.type == :sorted_set
                   Zermelo.redis.zinterstore(r_dest_set,
                     [r_initial_key] + r_source_keys,
-                    :weights => [1.0] + ([0.0] * source_keys.length), :aggregate => 'max')
+                    weights: [1.0] + ([0.0] * source_keys.length), aggregate: 'max')
 
-                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], :aggregate => 'max')
+                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], aggregate: 'max')
                 else
                   Zermelo.redis.sinterstore(r_dest_set, r_initial_key, *r_source_keys)
                   Zermelo.redis.sunionstore(r_dest_set, r_dest_set, r_source_key)
                 end
               when :intersect
                 if source.type == :sorted_set
-                  Zermelo.redis.zinterstore(r_dest_set, [r_source_key] + r_source_keys, :aggregate => 'max')
+                  Zermelo.redis.zinterstore(r_dest_set, [r_source_key] + r_source_keys, aggregate: 'max')
                 else
                   Zermelo.redis.sinterstore(r_dest_set, r_source_key, *r_source_keys)
                 end
               when :diff
                 if source.type == :sorted_set
-                  Zermelo.redis.zinterstore(r_dest_set, r_source_keys, :aggregate => 'max')
-                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], :weights => [1.0, 0.0], :aggregate => 'min')
+                  Zermelo.redis.zinterstore(r_dest_set, r_source_keys, aggregate: 'max')
+                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], weights: [1.0, 0.0], aggregate: 'min')
                   Zermelo.redis.zremrangebyscore(r_dest_set, "0", "0")
                 else
                   Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)

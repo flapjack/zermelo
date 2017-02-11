@@ -39,19 +39,19 @@ module Zermelo
         raise "Can't index '#{@value}' (#{@attribute_type}" if index_keys.nil?
 
         @indexers[index_keys.join(":")] ||= Zermelo::Records::Key.new(
-          :klass  => @parent_klass,
-          :name   => "by_#{@attribute_name}:#{index_keys.join(':')}",
-          :type   => :set,
-          :object => :index
+          klass: @parent_klass,
+          name: "by_#{@attribute_name}:#{index_keys.join(':')}",
+          type: :set,
+          object: :index
         )
       end
 
       def key_dump
         k = Zermelo::Records::Key.new(
-          :klass  => @parent_klass,
-          :name   => "by_#{@attribute_name}:*",
-          :type   => :set,
-          :object => :index
+          klass: @parent_klass,
+          name: "by_#{@attribute_name}:*",
+          type: :set,
+          object: :index
         )
         [@backend.key_to_backend_key(k), k]
       end

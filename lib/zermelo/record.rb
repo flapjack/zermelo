@@ -43,7 +43,7 @@ module Zermelo
 
       validates_with Zermelo::Records::TypeValidator
 
-      define_attributes :id => :string
+      define_attributes id: :string
     end
   end
 end

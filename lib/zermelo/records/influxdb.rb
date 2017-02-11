@@ -30,7 +30,7 @@ module Zermelo
       included do
         set_backend :influxdb
 
-        define_attributes :time => :timestamp
+        define_attributes time: :timestamp
       end
     end
   end

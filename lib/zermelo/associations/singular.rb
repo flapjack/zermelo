@@ -11,11 +11,11 @@ module Zermelo
         @backend = parent_klass.send(:backend)
 
         @record_id_key = Zermelo::Records::Key.new(
-          :klass  => parent_klass,
-          :id     => parent_id,
-          :name   => type.to_s,
-          :type   => :hash,
-          :object => :association
+          klass: parent_klass,
+          id: parent_id,
+          name: type.to_s,
+          type: :hash,
+          object: :association
         )
 
         parent_klass.send(:with_association_data, name.to_sym) do |data|
@@ -32,13 +32,13 @@ module Zermelo
       def value=(record)
         if record.nil?
           @parent_klass.lock(*@lock_klasses) do
-            _clear(:callbacks => true)
+            _clear(callbacks: true)
           end
         else
           raise 'Invalid record class' unless record.is_a?(@associated_class)
           raise 'Record must have been saved' unless record.persisted?
           @parent_klass.lock(*@lock_klasses) do
-            opts = {:callbacks => true}
+            opts = {callbacks: true}
             if :sorted_set.eql?(_inverse.type)
               opts[:score] = @parent_klass.find_by_id!(@parent_id).send(@inverse_sort_key.to_sym).to_f
             end
@@ -70,7 +70,7 @@ module Zermelo
 
       # on_remove already runs inside a lock & transaction
       def on_remove
-        _clear(:callbacks => false)
+        _clear(callbacks: false)
       end
 
       def _inverse
@@ -90,18 +90,18 @@ module Zermelo
             @inverse_sort_key = data.sort_key
 
             Zermelo::Records::Key.new(
-              :klass  => @associated_class,
-              :name   => key_name,
-              :type   => key_type,
-              :object => :association
+              klass: @associated_class,
+              name: key_name,
+              type: key_type,
+              object: :association
             )
           when :has_one
             # inverse is belongs_to
             Zermelo::Records::Key.new(
-              :klass  => @associated_class,
-              :name   => 'belongs_to',
-              :type   => :hash,
-              :object => :association
+              klass: @associated_class,
+              name: 'belongs_to',
+              type: :hash,
+              object: :association
             )
           end
         end
@@ -173,11 +173,11 @@ module Zermelo
       def self.associated_ids_for(backend, type, klass, name, inversed, *these_ids)
         these_ids.each_with_object({}) do |this_id, memo|
           key = Zermelo::Records::Key.new(
-            :klass  => klass,
-            :id     => this_id,
-            :name   => type.to_s,
-            :type   => :hash,
-            :object => :association
+            klass: klass,
+            id: this_id,
+            name: type.to_s,
+            type: :hash,
+            object: :association
           )
 
           assoc_id = backend.get(key)["#{name}_id"]

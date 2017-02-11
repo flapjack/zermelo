@@ -4,10 +4,10 @@ require 'zermelo/records/influxdb'
 
 describe Zermelo::Records::InstMethods do
 
-  shared_examples "it supports ActiveModel instance methods", :instance_methods => true do
+  shared_examples "it supports ActiveModel instance methods", instance_methods: true do
 
     it "is invalid without a name" do
-      example = example_class.new(:id => '1')
+      example = example_class.new(id: '1')
       expect(example).not_to be_valid
 
       errs = example.errors
@@ -16,7 +16,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it 'saves a record' do
-      example = example_class.new(:id => '1', :name => 'John Smith')
+      example = example_class.new(id: '1', name: 'John Smith')
       expect(example).to be_valid
       expect(example_class.count).to eq(0)
       expect(example.save).to be true
@@ -24,7 +24,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it "updates a value" do
-      create_example(:id => '1', :name => 'Jane Doe')
+      create_example(id: '1', name: 'Jane Doe')
 
       example = example_class.find_by_id('1')
       expect(example).not_to be_nil
@@ -38,7 +38,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it 'raises an RecordInvalid exception if validation fails while saving' do
-      example = example_class.new(:id => '1')
+      example = example_class.new(id: '1')
 
       expect {
         example.save!
@@ -46,7 +46,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it 'raises a RecordNotSaved exception if a callback blocks saving' do
-      example = example_class.new(:id => '1', :name => 'not_saving')
+      example = example_class.new(id: '1', name: 'not_saving')
 
       expect {
         example.save!
@@ -54,7 +54,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it "resets changed state on refresh" do
-      create_example(:id => '8', :name => 'John Jones')
+      create_example(id: '8', name: 'John Jones')
       example = example_class.find_by_id('8')
 
       example.name = "King Henry VIII"
@@ -76,7 +76,7 @@ describe Zermelo::Records::InstMethods do
     it "stores a hash as an attribute value"
 
     it 'destroys a record' do
-      create_example(:id => '1', :name => 'Jane Doe')
+      create_example(id: '1', name: 'Jane Doe')
 
       example = example_class.find_by_id('1')
       example.destroy
@@ -85,14 +85,14 @@ describe Zermelo::Records::InstMethods do
     end
   end
 
-  context 'redis', :redis => true, :instance_methods => true do
+  context 'redis', redis: true, instance_methods: true do
 
     module ZermeloExamples
       class InstanceMethodsRedis
         include Zermelo::Records::RedisSet
 
-        define_attributes :name => :string
-        validates :name, :presence => true
+        define_attributes name: :string
+        validates :name, presence: true
 
         before_create :fail_if_not_saving
         def fail_if_not_saving; !('not_saving'.eql?(self.name)); end
@@ -111,7 +111,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it 'creates data on record save' do
-      example = example_class.new(:id => '1', :name => 'John Smith')
+      example = example_class.new(id: '1', name: 'John Smith')
       expect(example).to be_valid
       expect(example.save).to be true
 
@@ -126,7 +126,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it "updates a record's attributes" do
-      create_example(:id => '8', :name => 'John Jones')
+      create_example(id: '8', name: 'John Jones')
 
       example = example_class.find_by_id('8')
       example.name = 'Jane Janes'
@@ -143,7 +143,7 @@ describe Zermelo::Records::InstMethods do
     end
 
     it "deletes a record's attributes" do
-      create_example(:id => '8', :name => 'John Jones')
+      create_example(id: '8', name: 'John Jones')
 
       expect(redis.keys('*')).to match_array([
         "#{ek}::attrs:ids",
@@ -158,14 +158,14 @@ describe Zermelo::Records::InstMethods do
 
   end
 
-  context 'influxdb', :influxdb => true, :instance_methods => true do
+  context 'influxdb', influxdb: true, instance_methods: true do
 
     module ZermeloExamples
       class InstanceMethodsInfluxDB
         include Zermelo::Records::InfluxDB
 
-        define_attributes :name   => :string
-        validates :name, :presence => true
+        define_attributes name: :string
+        validates :name, presence: true
 
         before_create :fail_if_not_saving
         def fail_if_not_saving; !('not_saving'.eql?(self.name)); end
@@ -191,7 +191,7 @@ describe Zermelo::Records::InstMethods do
         raise unless /^Couldn't look up columns$/ === ide.message
       end
 
-      example = example_class.new(:id => '1', :name => 'John Smith')
+      example = example_class.new(id: '1', name: 'John Smith')
       expect(example).to be_valid
       expect(example.save).to be true
 

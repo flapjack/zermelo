@@ -32,10 +32,10 @@ module Zermelo
 
       def key
         @indexer ||= Zermelo::Records::Key.new(
-          :klass  => @parent_klass,
-          :name   => "by_#{@attribute_name}",
-          :type   => :hash,
-          :object => :index
+          klass: @parent_klass,
+          name: "by_#{@attribute_name}",
+          type: :hash,
+          object: :index
         )
       end
 

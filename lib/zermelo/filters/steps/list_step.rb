@@ -43,7 +43,7 @@ module Zermelo
 
               lim = Zermelo.redis.send(
                 :desc.eql?(opts[:sort_order]) ? :zrevrange : :zrange,
-                r_source, o, (o + l), :with_scores => true
+                r_source, o, (o + l), with_scores: true
               )
 
               Zermelo.redis.zadd(r_limited, lim.collect {|li| [li[1], li[0]]} )
@@ -53,11 +53,11 @@ module Zermelo
 
               l = (Zermelo.redis.llen(r_source) - o) if (l < 1)
 
-              sort_opts = {:by => 'no_sort', :limit => [o, l]}
+              sort_opts = {by: 'no_sort', limit: [o, l]}
 
               # https://github.com/antirez/redis/issues/2079, fixed in redis 2.8.19
               result, r_result = if (Zermelo.redis_version.split('.') <=> ['2', '8', '18']) == 1
-                sort_opts.update(:store => r_source)
+                sort_opts.update(store: r_source)
                 Zermelo.redis.sort(r_source, sort_opts)
                 [source, r_source]
               else

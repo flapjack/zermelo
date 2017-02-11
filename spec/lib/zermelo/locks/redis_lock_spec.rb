@@ -2,19 +2,19 @@ require 'spec_helper'
 require 'zermelo/locks/redis_lock'
 require 'zermelo/records/redis'
 
-describe Zermelo::Locks::RedisLock, :redis => true do
+describe Zermelo::Locks::RedisLock, redis: true do
 
   let(:redis) { Zermelo.redis }
 
   module Zermelo
     class RedisLockExample
       include Zermelo::Records::RedisSet
-      define_attributes :name => :string
+      define_attributes name: :string
     end
 
     class AnotherExample
       include Zermelo::Records::RedisSet
-      define_attributes :age => :integer
+      define_attributes age: :integer
     end
   end
 
@@ -28,7 +28,7 @@ describe Zermelo::Locks::RedisLock, :redis => true do
     lock_keys = ["redis_lock_example::lock:owner", "redis_lock_example::lock:expiry"]
     expect(redis.keys('*')).to match_array(lock_keys)
 
-    example = Zermelo::RedisLockExample.new(:name => 'temporary')
+    example = Zermelo::RedisLockExample.new(name: 'temporary')
     example.save
 
     example_keys = ["redis_lock_example::attrs:ids", "redis_lock_example:#{example.id}:attrs"]
@@ -50,10 +50,10 @@ describe Zermelo::Locks::RedisLock, :redis => true do
       "redis_lock_example::lock:owner", "redis_lock_example::lock:expiry"]
     expect(redis.keys('*')).to match_array(lock_keys)
 
-    redis_lock_example = Zermelo::RedisLockExample.new(:name => 'temporary')
+    redis_lock_example = Zermelo::RedisLockExample.new(name: 'temporary')
     redis_lock_example.save
 
-    another_example = Zermelo::AnotherExample.new(:age => 36)
+    another_example = Zermelo::AnotherExample.new(age: 36)
     another_example.save
 
     example_keys = ["redis_lock_example::attrs:ids", "redis_lock_example:#{redis_lock_example.id}:attrs",
@@ -65,7 +65,7 @@ describe Zermelo::Locks::RedisLock, :redis => true do
     expect(redis.keys('*')).to match_array(example_keys)
   end
 
-  it "extends an existing lock", :time => true do
+  it "extends an existing lock", time: true do
     slock = Zermelo::Locks::RedisLock.new
     slock.life = 60
 

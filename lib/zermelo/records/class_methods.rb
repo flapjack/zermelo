@@ -99,10 +99,10 @@ module Zermelo
 
       def temp_key(type)
         Zermelo::Records::Key.new(
-          :klass  => self,
-          :name   => SecureRandom.hex(16),
-          :type   => type,
-          :object => :temporary
+          klass: self,
+          name: SecureRandom.hex(16),
+          type: type,
+          object: :temporary
         )
       end
 
@@ -122,9 +122,9 @@ module Zermelo
       module ClassMethods
         def ids_key
           @ids_key ||= Zermelo::Records::Key.new(
-                         :klass => self, :name => 'ids',
-                         :type => :set,
-                         :object => :attribute
+                         klass: self, name: 'ids',
+                         type: :set,
+                         object: :attribute
                        )
         end
 
@@ -149,9 +149,9 @@ module Zermelo
 
         def ids_key
           @ids_key ||= Zermelo::Records::Key.new(
-                         :klass => self, :name => 'ids',
-                         :type => :sorted_set,
-                         :object => :attribute
+                         klass: self, name: 'ids',
+                         type: :sorted_set,
+                         object: :attribute
                        )
         end
 

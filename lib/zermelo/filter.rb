@@ -36,35 +36,35 @@ module Zermelo
     def intersect(attrs = {})
       self.class.new(@backend, @initial_key, @associated_class,
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
-        self, ::Zermelo::Filters::Steps::SetStep.new({:op => :intersect}, attrs))
+        self, ::Zermelo::Filters::Steps::SetStep.new({op: :intersect}, attrs))
     end
 
     def union(attrs = {})
       self.class.new(@backend, @initial_key, @associated_class,
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
-        self, ::Zermelo::Filters::Steps::SetStep.new({:op => :union}, attrs))
+        self, ::Zermelo::Filters::Steps::SetStep.new({op: :union}, attrs))
     end
 
     def diff(attrs = {})
       self.class.new(@backend, @initial_key, @associated_class,
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
-        self, ::Zermelo::Filters::Steps::SetStep.new({:op => :diff}, attrs))
+        self, ::Zermelo::Filters::Steps::SetStep.new({op: :diff}, attrs))
     end
 
     def sort(keys, opts = {})
       self.class.new(@backend, @initial_key, @associated_class,
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
-        self, ::Zermelo::Filters::Steps::SortStep.new({:keys => keys,
-          :desc => opts[:desc], :limit => opts[:limit],
-          :offset => opts[:offset]}, {})
+        self, ::Zermelo::Filters::Steps::SortStep.new({keys: keys,
+          desc: opts[:desc], limit: opts[:limit],
+          offset: opts[:offset]}, {})
         )
     end
 
     def offset(amount, opts = {})
       self.class.new(@backend, @initial_key, @associated_class,
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
-        self, ::Zermelo::Filters::Steps::ListStep.new({:offset => amount,
-          :limit => opts[:limit]}, {}))
+        self, ::Zermelo::Filters::Steps::ListStep.new({offset: amount,
+          limit: opts[:limit]}, {}))
     end
 
     # (a different syntax to the above)
@@ -73,8 +73,8 @@ module Zermelo
       start  = per_page * (num - 1)
       self.class.new(@backend, @initial_key, @associated_class,
         @callback_target_class, @callback_target_id, @callbacks, @sort_order,
-        self, ::Zermelo::Filters::Steps::ListStep.new({:offset => start,
-          :limit => per_page}, {}))
+        self, ::Zermelo::Filters::Steps::ListStep.new({offset: start,
+          limit: per_page}, {}))
     end
 
     def empty

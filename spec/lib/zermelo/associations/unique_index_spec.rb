@@ -4,22 +4,22 @@ require 'zermelo/associations/unique_index'
 
 describe Zermelo::Associations::UniqueIndex do
 
-  context 'redis', :redis => true do
+  context 'redis', redis: true do
 
     let(:redis) { Zermelo.redis }
 
     module ZermeloExamples
       class RedisUniqueIndex
         include Zermelo::Records::RedisSet
-        define_attributes :name => :string
-        validates :name, :presence => true
+        define_attributes name: :string
+        validates :name, presence: true
         unique_index_by :name
       end
     end
 
     it 'adds an entry to a hash indexing an attribute' do
-      example = ZermeloExamples::RedisUniqueIndex.new(:id => '1',
-        :name => 'John Smith')
+      example = ZermeloExamples::RedisUniqueIndex.new(id: '1',
+        name: 'John Smith')
       expect(example).to be_valid
       expect(example.save).to be true
 
@@ -28,12 +28,12 @@ describe Zermelo::Associations::UniqueIndex do
     end
 
     it 'removes an entry from a hash indexing an attribute' do
-      example = ZermeloExamples::RedisUniqueIndex.new(:id => '1',
-        :name => 'John Smith')
+      example = ZermeloExamples::RedisUniqueIndex.new(id: '1',
+        name: 'John Smith')
       example.save
 
-      example_2 = ZermeloExamples::RedisUniqueIndex.new(:id => '2',
-        :name => 'Roger Wilco')
+      example_2 = ZermeloExamples::RedisUniqueIndex.new(id: '2',
+        name: 'Roger Wilco')
       example_2.save
 
       expect(redis.hgetall('redis_unique_index::indices:by_name')).to eq('string:John%20Smith' => '1',
@@ -45,8 +45,8 @@ describe Zermelo::Associations::UniqueIndex do
     end
 
     it 'changes an entry in a hash indexing an attribute' do
-      example = ZermeloExamples::RedisUniqueIndex.new(:id => '1',
-        :name => 'John Smith')
+      example = ZermeloExamples::RedisUniqueIndex.new(id: '1',
+        name: 'John Smith')
       example.save
 
       expect(redis.hgetall('redis_unique_index::indices:by_name')).to eq('string:John%20Smith' => '1')

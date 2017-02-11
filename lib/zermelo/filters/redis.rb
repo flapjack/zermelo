@@ -15,28 +15,28 @@ module Zermelo
       include Zermelo::Filter
 
       SHORTCUTS = {
-        :list => {
-          :ids     => proc {|key|     Zermelo::OrderedSet.new(Zermelo.redis.lrange(key, 0, -1)) },
-          :count   => proc {|key|     Zermelo.redis.llen(key) },
-          :exists? => proc {|key, id| Zermelo.redis.lrange(key, 0, -1).include?(id) },
-          :first   => proc {|key|     Zermelo.redis.lrange(key, 0, 0).first },
-          :last    => proc {|key|     Zermelo.redis.lrevrange(key, 0, 0).first }
+        list: {
+          ids: proc {|key|     Zermelo::OrderedSet.new(Zermelo.redis.lrange(key, 0, -1)) },
+          count: proc {|key|     Zermelo.redis.llen(key) },
+          exists?: proc {|key, id| Zermelo.redis.lrange(key, 0, -1).include?(id) },
+          first: proc {|key|     Zermelo.redis.lrange(key, 0, 0).first },
+          last: proc {|key|     Zermelo.redis.lrevrange(key, 0, 0).first }
         },
-        :set => {
-          :ids     => proc {|key|     Set.new(Zermelo.redis.smembers(key)) },
-          :count   => proc {|key|     Zermelo.redis.scard(key) },
-          :exists? => proc {|key, id| Zermelo.redis.sismember(key, id) }
+        set: {
+          ids: proc {|key|     Set.new(Zermelo.redis.smembers(key)) },
+          count: proc {|key|     Zermelo.redis.scard(key) },
+          exists?: proc {|key, id| Zermelo.redis.sismember(key, id) }
         },
-        :sorted_set => {
-          :ids     => proc {|key, order|
+        sorted_set: {
+          ids: proc {|key, order|
             Zermelo::OrderedSet.new(Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, -1))
           },
-          :count   => proc {|key, order|     Zermelo.redis.zcard(key) },
-          :exists? => proc {|key, order, id| !Zermelo.redis.zscore(key, id).nil? },
-          :first   => proc {|key, order|
+          count: proc {|key, order|     Zermelo.redis.zcard(key) },
+          exists?: proc {|key, order, id| !Zermelo.redis.zscore(key, id).nil? },
+          first: proc {|key, order|
             Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, 0).first
           },
-          :last    => proc {|key, order|
+          last: proc {|key, order|
             Zermelo.redis.send((:desc.eql?(order) ? :zrange : :zrevrange), key, 0, 0).first
           }
         }
@@ -120,12 +120,12 @@ module Zermelo
           last_step  = @steps.last
 
           step_opts = {
-            :index_attrs => idx_attrs,
-            :attr_types  => attr_types,
-            :temp_keys   => temp_keys,
-            :source      => @initial_key,
-            :initial_key => @initial_key,
-            :sort_order  => @sort_order
+            index_attrs: idx_attrs,
+            attr_types: attr_types,
+            temp_keys: temp_keys,
+            source: @initial_key,
+            initial_key: @initial_key,
+            sort_order: @sort_order
           }
 
           @steps.each do |step|
@@ -134,7 +134,7 @@ module Zermelo
             end
 
             if step == last_step && !shortcut.nil?
-              step_opts.update(:shortcut => shortcut, :shortcut_args => args)
+              step_opts.update(shortcut: shortcut, shortcut_args: args)
             end
 
             unless @callback_target_class.nil? || @callbacks.nil?

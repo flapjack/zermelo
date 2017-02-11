@@ -10,7 +10,7 @@ module Zermelo
 
       def _exists?(id)
         return if id.nil?
-        @steps << Zermelo::Filters::Steps::SetStep.new({:op => :intersect}, {:id => id})
+        @steps << Zermelo::Filters::Steps::SetStep.new({op: :intersect}, {id: id})
         resolve_steps(:count) > 0
       end
 
@@ -95,8 +95,8 @@ module Zermelo
           attr_types = @associated_class.send(:attribute_types)
 
           query += @steps.collect {|step|
-            step.resolve(backend, @associated_class, :first => (step == first_step),
-              :attr_types  => attr_types)
+            step.resolve(backend, @associated_class, first: (step == first_step),
+              attr_types: attr_types)
           }.join("")
         end
 

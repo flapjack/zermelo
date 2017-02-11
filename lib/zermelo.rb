@@ -20,18 +20,18 @@ module Zermelo
   end
 
   # acceptable class types, which will be normalized on a per-backend basis
-  ATTRIBUTE_TYPES  = {:string     => [String],
-                      :integer    => [Integer],
-                      :float      => [Float],
-                      :id         => [String],
-                      :timestamp  => [Integer, Time, DateTime],
-                      :boolean    => [TrueClass, FalseClass],
+  ATTRIBUTE_TYPES  = {string: [String],
+                      integer: [Integer],
+                      float: [Float],
+                      id: [String],
+                      timestamp: [Integer, Time, DateTime],
+                      boolean: [TrueClass, FalseClass],
                      }
 
-  COLLECTION_TYPES = {:list       => [Enumerable],
-                      :set        => [Set],
-                      :hash       => [Hash],
-                      :sorted_set => [Enumerable]
+  COLLECTION_TYPES = {list: [Enumerable],
+                      set: [Set],
+                      hash: [Hash],
+                      sorted_set: [Enumerable]
                      }
 
   ALL_TYPES = ATTRIBUTE_TYPES.merge(COLLECTION_TYPES)

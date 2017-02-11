@@ -173,10 +173,10 @@ module Zermelo
           case idx_class.name
           when 'Zermelo::Associations::UniqueIndex'
             index_key = key_to_backend_key(Zermelo::Records::Key.new(
-              :klass  => associated_class,
-              :name   => "by_#{att}",
-              :type   => :hash,
-              :object => :index
+              klass: associated_class,
+              name: "by_#{att}",
+              type: :hash,
+              object: :index
             ))
             candidates = Zermelo.redis.hgetall(index_key)
             matching_ids = candidates.values_at(*candidates.keys.select {|k|
@@ -194,10 +194,10 @@ module Zermelo
             end
           when 'Zermelo::Associations::Index'
             key_root = key_to_backend_key(Zermelo::Records::Key.new(
-              :klass  => associated_class,
-              :name   => "by_#{att}:string",
-              :type   => :set,
-              :object => :index
+              klass: associated_class,
+              name: "by_#{att}:string",
+              type: :set,
+              object: :index
             ))
 
             key_pat = "#{key_root}:?*"
@@ -206,7 +206,7 @@ module Zermelo
               # lock will be subsumed by outer lock if present -- required to
               # know that scan is getting consistent results
               associated_class.lock do
-                Zermelo.redis.scan_each(:match => key_pat).to_a
+                Zermelo.redis.scan_each(match: key_pat).to_a
               end
             else
               # SCAN is only supported in Redis >= 2.8.0
@@ -260,7 +260,7 @@ module Zermelo
         when :set
           {}
         when :sorted_set
-          {:with_scores => true}
+          {with_scores: true}
         end
         result = if range.by_score
           range_start  = range.start.nil?  ? '-inf' : safe_value(attr_type, range.start)
