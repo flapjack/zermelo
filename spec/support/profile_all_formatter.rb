@@ -17,11 +17,11 @@ class ProfileAllFormatter < RSpec::Core::Formatters::BaseFormatter
   end
 
   def example_started(_notification)
-    @time = (Time.respond_to?(:zone) && Time.zone) ? Time.zone.now : Time.now
+    @time = time_now
   end
 
   def example_passed(notification)
-    now = (Time.respond_to?(:zone) && Time.zone) ? Time.zone.now : Time.now
+    now = time_now
     @example_times << [
       notification.example.example_group.description,
       notification.example.description,
@@ -42,4 +42,10 @@ class ProfileAllFormatter < RSpec::Core::Formatters::BaseFormatter
     end
     @output.flush
   end
+
+  private
+
+    def time_now
+      Time.respond_to?(:zone) && Time.zone ? Time.zone.now : Time.now
+    end
 end

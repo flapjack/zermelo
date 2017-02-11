@@ -61,16 +61,16 @@ class UncoloredDocFormatter < RSpec::Core::Formatters::BaseTextFormatter
 
   private
 
-  def next_failure_index
-    @next_failure_index ||= 0
-    @next_failure_index += 1
-  end
+    def next_failure_index
+      @next_failure_index ||= 0
+      @next_failure_index += 1
+    end
 
-  def current_indentation
-    '  ' * @group_level
-  end
+    def current_indentation
+      '  ' * @group_level
+    end
 
-  def example_group_chain
-    example_group.parent_groups.reverse
-  end
+    def example_group_chain
+      example_group.parent_groups.reverse
+    end
 end

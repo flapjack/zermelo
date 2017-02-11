@@ -21,7 +21,7 @@ module Zermelo
       when :float, :timestamp
         value.to_f
       when :boolean
-        !value.nil?.to_s
+        value.is_a?(TrueClass)
       end
     end
 
