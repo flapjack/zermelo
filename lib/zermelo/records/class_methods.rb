@@ -28,10 +28,10 @@ module Zermelo
       def generate_id
         return SecureRandom.uuid if SecureRandom.respond_to?(:uuid)
         # from 1.9 stdlib
-        ary = SecureRandom.random_bytes(16).unpack("NnnnnN")
+        ary = SecureRandom.random_bytes(16).unpack('NnnnnN')
         ary[2] = (ary[2] & 0x0fff) | 0x4000
         ary[3] = (ary[3] & 0x3fff) | 0x8000
-        "%08x-%04x-%04x-%04x-%04x%08x" % ary
+        '%08x-%04x-%04x-%04x-%04x%08x' % ary
       end
 
       def lock(*klasses, &block)
@@ -56,7 +56,7 @@ module Zermelo
         end
 
         # TODO include exception info
-        raise "Transaction failed" if failed
+        raise 'Transaction failed' if failed
       end
 
       def backend

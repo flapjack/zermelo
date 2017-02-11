@@ -4,9 +4,9 @@ require 'zermelo/records/influxdb'
 
 describe Zermelo::Records::InstMethods do
 
-  shared_examples "it supports ActiveModel instance methods", instance_methods: true do
+  shared_examples 'it supports ActiveModel instance methods', instance_methods: true do
 
-    it "is invalid without a name" do
+    it 'is invalid without a name' do
       example = example_class.new(id: '1')
       expect(example).not_to be_valid
 
@@ -23,7 +23,7 @@ describe Zermelo::Records::InstMethods do
       expect(example_class.count).to eq(1)
     end
 
-    it "updates a value" do
+    it 'updates a value' do
       create_example(id: '1', name: 'Jane Doe')
 
       example = example_class.find_by_id('1')
@@ -53,11 +53,11 @@ describe Zermelo::Records::InstMethods do
       }.to raise_error(Zermelo::Records::Errors::RecordNotSaved)
     end
 
-    it "resets changed state on refresh" do
+    it 'resets changed state on refresh' do
       create_example(id: '8', name: 'John Jones')
       example = example_class.find_by_id('8')
 
-      example.name = "King Henry VIII"
+      example.name = 'King Henry VIII'
       expect(example.changed).to include('name')
       expect(example.changes).to eq({'name' => ['John Jones', 'King Henry VIII']})
 
@@ -66,14 +66,14 @@ describe Zermelo::Records::InstMethods do
       expect(example.changes).to be_empty
     end
 
-    it "stores a string as an attribute value"
-    it "stores an integer as an attribute value"
-    it "stores a timestamp as an attribute value"
-    it "stores a boolean as an attribute value"
+    it 'stores a string as an attribute value'
+    it 'stores an integer as an attribute value'
+    it 'stores a timestamp as an attribute value'
+    it 'stores a boolean as an attribute value'
 
-    it "stores a list as an attribute value"
-    it "stores a set as an attribute value"
-    it "stores a hash as an attribute value"
+    it 'stores a list as an attribute value'
+    it 'stores a set as an attribute value'
+    it 'stores a hash as an attribute value'
 
     it 'destroys a record' do
       create_example(id: '1', name: 'Jane Doe')
@@ -200,7 +200,7 @@ describe Zermelo::Records::InstMethods do
       expect(data.size).to eql(1)
       record = data.first
       expect(record).to be_a(Hash)
-      expect(record).to include("name"=>"John Smith", "id"=>"1")
+      expect(record).to include('name'=>'John Smith', 'id'=>'1')
     end
   end
 end

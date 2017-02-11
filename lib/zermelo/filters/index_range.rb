@@ -10,7 +10,7 @@ module Zermelo
           raise "Values must be #{value_types.join('/')}" unless v.nil? || value_types.any? {|vt| v.is_a?(vt)}
         end
         if !start.nil? && !finish.nil? && (start > finish)
-          raise "Start of range must be <= finish"
+          raise 'Start of range must be <= finish'
         end
         @start    = start
         @finish   = finish

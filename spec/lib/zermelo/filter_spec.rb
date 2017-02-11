@@ -24,7 +24,7 @@ describe Zermelo::Filter do
       active; inactive
     end
 
-    it "returns all record ids" do
+    it 'returns all record ids' do
       examples = example_class.ids
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
@@ -32,14 +32,14 @@ describe Zermelo::Filter do
       expect(examples).to contain_exactly('8', '9')
     end
 
-    it "returns a count of records" do
+    it 'returns a count of records' do
       example_count = example_class.count
       expect(example_count).not_to be_nil
       expect(example_count).to be_an(Integer)
       expect(example_count).to eq(2)
     end
 
-    it "returns all records" do
+    it 'returns all records' do
       examples = example_class.all
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
@@ -47,14 +47,14 @@ describe Zermelo::Filter do
       expect(examples.map(&:id)).to contain_exactly('9', '8')
     end
 
-    it "finds a record by id" do
+    it 'finds a record by id' do
       example = example_class.find_by_id('8')
       expect(example).not_to be_nil
       expect(example.id).to eq('8')
       expect(example.name).to eq('John Jones')
     end
 
-    it "finds records by a uniquely indexed value" do
+    it 'finds records by a uniquely indexed value' do
       examples = example_class.intersect(name: 'John Jones').all
       expect(examples).not_to be_nil
       expect(examples).to be_an(Set)
@@ -64,7 +64,7 @@ describe Zermelo::Filter do
       expect(example.name).to eq('John Jones')
     end
 
-    it "filters all class records by indexed attribute values" do
+    it 'filters all class records by indexed attribute values' do
       example = example_class.intersect(active: true).all
       expect(example).not_to be_nil
       expect(example).to be_a(Set)
@@ -100,7 +100,7 @@ describe Zermelo::Filter do
       expect(examples.map(&:id)).to match_array(['8', '9'])
     end
 
-    it "chains two intersect filters together" do
+    it 'chains two intersect filters together' do
       example = example_class.intersect(active: true).
         intersect(name: 'John Jones').all
       expect(example).not_to be_nil
@@ -109,7 +109,7 @@ describe Zermelo::Filter do
       expect(example.map(&:id)).to eq(['8'])
     end
 
-    it "allows multiple attributes in an intersect filter" do
+    it 'allows multiple attributes in an intersect filter' do
       example = example_class.intersect(active: true,
         name: 'John Jones').all
       expect(example).not_to be_nil
@@ -118,7 +118,7 @@ describe Zermelo::Filter do
       expect(example.map(&:id)).to eq(['8'])
     end
 
-    it "chains an intersect and a diff filter together" do
+    it 'chains an intersect and a diff filter together' do
       create_example(id: '3', name: 'Fred Bloggs',
         active: 'true')
 
@@ -162,7 +162,7 @@ describe Zermelo::Filter do
       expect(diff.ids).to eq(Set.new)
     end
 
-    it "ANDs multiple union arguments, not ORs them" do
+    it 'ANDs multiple union arguments, not ORs them' do
       create_example(id: '10', name: 'Jay Johns', active: true)
       examples = example_class.intersect(id: ['8']).
                    union(id: ['9', '10'], active: true).all
@@ -172,7 +172,7 @@ describe Zermelo::Filter do
       expect(examples.map(&:id)).to match_array(['8', '10'])
     end
 
-    it "ANDs multiple diff arguments, not ORs them" do
+    it 'ANDs multiple diff arguments, not ORs them' do
       create_example(id: '10', name: 'Jay Johns', active: true)
       examples = example_class.intersect(id: ['8', '9', '10']).
                    diff(id: ['9', '10'], active: false).all
@@ -278,7 +278,7 @@ describe Zermelo::Filter do
     end
 
     # NB sort is case-sensitive, may want a non-case sensitive version
-    it "returns paginated query responses" do
+    it 'returns paginated query responses' do
       data = {active: true, created_at: Time.now}
       create_example(data.merge(id: '1', name: 'mno'))
       create_example(data.merge(id: '2', name: 'abc'))
@@ -349,7 +349,7 @@ describe Zermelo::Filter do
     # need to fix the influxdb driver to work with these (see Redis examples above)
     it 'sorts records by an attribute'
     it 'sorts by multiple fields'
-    it "returns paginated query responses"
+    it 'returns paginated query responses'
     it 'filters by records created before a certain time'
     it 'filters by records created after a certain time'
 

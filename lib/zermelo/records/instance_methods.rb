@@ -164,7 +164,7 @@ module Zermelo
       end
 
       def destroy
-        raise "Record was not persisted" unless persisted?
+        raise 'Record was not persisted' unless persisted?
 
         run_callbacks :destroy do
 
@@ -234,8 +234,8 @@ module Zermelo
       def attribute=(att, value)
         return if value == @attributes[att.to_s]
         if att.to_s == 'id'
-          raise "Cannot reassign id" unless @attributes['id'].nil?
-          send("id_will_change!")
+          raise 'Cannot reassign id' unless @attributes['id'].nil?
+          send('id_will_change!')
           @attributes['id'] = value.to_s
         else
           send("#{att}_will_change!")

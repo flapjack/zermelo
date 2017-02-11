@@ -3,11 +3,11 @@ module Zermelo
     class Steps
       class BaseStep
         def self.accepted_types
-          raise "Must be implemented in subclass"
+          raise 'Must be implemented in subclass'
         end
 
         def self.returns_type
-          raise "Must be implemented in subclass"
+          raise 'Must be implemented in subclass'
         end
 
         attr_reader :options, :attributes

@@ -28,28 +28,28 @@ module Zermelo
     end
 
     def index_keys(type, value)
-      return ["null", "null"] if value.nil?
+      return ['null', 'null'] if value.nil?
 
       case type
       when :string
-        ["string", escape_key_name(value)]
+        ['string', escape_key_name(value)]
       when :integer
-        ["integer", escape_key_name(value.to_s)]
+        ['integer', escape_key_name(value.to_s)]
       when :float
-        ["float", escape_key_name(value.to_s)]
+        ['float', escape_key_name(value.to_s)]
       when :timestamp
         case value
         when Integer
-          ["timestamp", escape_key_name(value.to_s)]
+          ['timestamp', escape_key_name(value.to_s)]
         when Time, DateTime
-          ["timestamp", escape_key_name(value.to_f.to_s)]
+          ['timestamp', escape_key_name(value.to_f.to_s)]
         end
       when :boolean
         case value
         when TrueClass
-          ["boolean", "true"]
+          ['boolean', 'true']
         when FalseClass
-          ["boolean", "false"]
+          ['boolean', 'false']
         end
       end
     end

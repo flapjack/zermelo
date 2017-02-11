@@ -202,7 +202,7 @@ module Zermelo
                 if source.type == :sorted_set
                   Zermelo.redis.zinterstore(r_dest_set, r_source_keys, aggregate: 'max')
                   Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], weights: [1.0, 0.0], aggregate: 'min')
-                  Zermelo.redis.zremrangebyscore(r_dest_set, "0", "0")
+                  Zermelo.redis.zremrangebyscore(r_dest_set, '0', '0')
                 else
                   Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
                   Zermelo.redis.sdiffstore(r_dest_set, r_dest_set, r_source_key)
@@ -305,7 +305,7 @@ module Zermelo
               raise "Unhandled filter operation '#{@options[:op]}'"
             end
 
-            query += ")"
+            query += ')'
 
             query
           end

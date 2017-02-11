@@ -79,7 +79,7 @@ module Zermelo
       # containing the filtered ids
       def resolve_steps(shortcut = nil, *args)
         if @steps.empty?
-          raise "Shortcut must be provided if no steps" if shortcut.nil?
+          raise 'Shortcut must be provided if no steps' if shortcut.nil?
 
           unless @callback_target_class.nil? || @callbacks.nil?
             br = @callbacks[:before_read]

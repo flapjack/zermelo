@@ -38,7 +38,7 @@ module Zermelo
 
       define_model_callbacks :create, :update, :destroy
 
-      attribute_method_suffix  "="  # attr_writers
+      attribute_method_suffix  '='  # attr_writers
       # attribute_method_suffix  ""   # attr_readers # DEPRECATED
 
       validates_with Zermelo::Records::TypeValidator

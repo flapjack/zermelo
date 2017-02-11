@@ -84,7 +84,7 @@ module Zermelo
             when :has_sorted_set
               ["#{@inverse}_ids", :sorted_set]
             when :has_one
-              ["has_one", :hash]
+              ['has_one', :hash]
             end
 
             @inverse_sort_key = data.sort_key

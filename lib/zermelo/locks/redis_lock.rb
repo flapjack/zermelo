@@ -21,7 +21,7 @@ module Zermelo
 
       def lock(*record_klasses, &block)
         @keys = record_klasses.map{|k| k.send(:class_key) }.sort.map{|k| "#{k}::lock" }
-        do_lock_with_timeout(@timeout) or raise Zermelo::LockNotAcquired.new(@keys.join(", "))
+        do_lock_with_timeout(@timeout) or raise Zermelo::LockNotAcquired.new(@keys.join(', '))
         result = true
         if block
           begin
@@ -38,7 +38,7 @@ module Zermelo
       end
 
       def extend_life( new_life )
-        do_extend( new_life ) or raise Zermelo::LockNotAcquired.new(@keys.join(", "))
+        do_extend( new_life ) or raise Zermelo::LockNotAcquired.new(@keys.join(', '))
       end
 
       def unlock

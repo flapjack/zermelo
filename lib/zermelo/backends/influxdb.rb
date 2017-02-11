@@ -18,7 +18,7 @@ module Zermelo
       include Zermelo::Backend
 
       def key_to_backend_key(key)
-        "TODO"
+        'TODO'
       end
 
       def filter(ids_key, associated_class, callback_target_class = nil,
@@ -150,7 +150,7 @@ module Zermelo
                 records[class_key][key.id] = {}
               else
                 records[class_key][key.id] = result.first
-                records[class_key][key.id].delete_if {|k,v| ["time", "sequence_number"].include?(k) }
+                records[class_key][key.id].delete_if {|k,v| ['time', 'sequence_number'].include?(k) }
               end
             rescue ::InfluxDB::Error => ide
               raise unless

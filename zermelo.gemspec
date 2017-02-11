@@ -26,5 +26,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler', '~> 1.3'
   spec.add_development_dependency 'rake'
 
-  spec.requirements << "Redis and/or InfluxDB, and the related gems"
+  spec.requirements << 'Redis and/or InfluxDB, and the related gems'
 end

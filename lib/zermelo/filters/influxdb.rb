@@ -52,7 +52,7 @@ module Zermelo
           initial_class_key = @initial_key.klass.send(:class_key)
 
           ii_query = "SELECT #{@initial_key.name} FROM \"#{initial_class_key}/#{@initial_key.id}\" " +
-            "LIMIT 1"
+            'LIMIT 1'
 
           begin
             initial_id_data =
@@ -97,10 +97,10 @@ module Zermelo
           query += @steps.collect {|step|
             step.resolve(backend, @associated_class, first: (step == first_step),
               attr_types: attr_types)
-          }.join("")
+          }.join('')
         end
 
-        query += " ORDER ASC LIMIT 1"
+        query += ' ORDER ASC LIMIT 1'
 
         begin
           result = Zermelo.influxdb.query(query)

@@ -7,14 +7,14 @@ describe Zermelo::Associations::Multiple do
 
   context 'has_many' do
 
-    shared_examples "has_many functions work", has_many: true do
+    shared_examples 'has_many functions work', has_many: true do
 
       let(:parent) {
         create_parent(id: '8')
         parent_class.find_by_id('8')
       }
 
-      it "sets a parent/child has_many relationship between two records" do
+      it 'sets a parent/child has_many relationship between two records' do
         child = child_class.new(id: '3', important: true)
         expect(child.save).to be_truthy
 
@@ -53,7 +53,7 @@ describe Zermelo::Associations::Multiple do
         expect(other_parent.id).to eq('8')
       end
 
-      it "deletes a record from the set" do
+      it 'deletes a record from the set' do
         create_child(parent, id: '3')
         create_child(parent, id: '4')
 
@@ -64,7 +64,7 @@ describe Zermelo::Associations::Multiple do
         expect(parent.children.ids).to eq(Set.new(['4']))
       end
 
-      it "deletes a record from the set by id" do
+      it 'deletes a record from the set by id' do
         create_child(parent, id: '3')
         create_child(parent, id: '4')
 
@@ -74,7 +74,7 @@ describe Zermelo::Associations::Multiple do
         expect(parent.children.ids).to eq(Set.new(['4']))
       end
 
-      it "clears all records from the set" do
+      it 'clears all records from the set' do
         create_child(parent, id: '3')
         create_child(parent, id: '4')
 
@@ -85,7 +85,7 @@ describe Zermelo::Associations::Multiple do
         expect(parent.children.ids).to eq(Set.new)
       end
 
-      it "does not add a child if the before_add callback raises an exception" # do
+      it 'does not add a child if the before_add callback raises an exception' # do
       #   create_child(nil, :id => '6', :important => true)
       #   child = child_class.find_by_id('6')
 
@@ -105,13 +105,13 @@ describe Zermelo::Associations::Multiple do
       it 'raises an error when calling add on has_many without an argument' do
         expect {
           parent.children.add
-        }.to raise_error("No records to add")
+        }.to raise_error('No records to add')
       end
 
       it 'raises an error when calling delete on has_many without an argument' do
         expect {
           parent.children.remove
-        }.to raise_error("No records to remove")
+        }.to raise_error('No records to remove')
       end
 
       context 'filters' do
@@ -122,7 +122,7 @@ describe Zermelo::Associations::Multiple do
           create_child(parent, id: '5', important: false)
         end
 
-        it "by indexed attribute values" do
+        it 'by indexed attribute values' do
           important_kids = parent.children.intersect(important: true).all
           expect(important_kids).not_to be_nil
           expect(important_kids).to be_a(Set)
@@ -130,7 +130,7 @@ describe Zermelo::Associations::Multiple do
           expect(important_kids.map(&:id)).to eq(['3', '4'])
         end
 
-        it "by intersecting ids" do
+        it 'by intersecting ids' do
           important_kids = parent.children.intersect(important: true, id: ['4', '5']).all
           expect(important_kids).not_to be_nil
           expect(important_kids).to be_a(Set)
@@ -138,7 +138,7 @@ describe Zermelo::Associations::Multiple do
           expect(important_kids.map(&:id)).to match_array(['4'])
         end
 
-        it "applies chained intersect and union filters to a has_many association" do
+        it 'applies chained intersect and union filters to a has_many association' do
           create_child(parent, id: '3', important: true)
           create_child(parent, id: '4', important: false)
 
@@ -148,12 +148,12 @@ describe Zermelo::Associations::Multiple do
           expect(result.map(&:id)).to eq(['3', '4'])
         end
 
-        it "checks whether a record id exists through a has_many filter" do
+        it 'checks whether a record id exists through a has_many filter' do
           expect(parent.children.intersect(important: true).exists?('3')).to be true
           expect(parent.children.intersect(important: true).exists?('5')).to be false
         end
 
-        it "finds a record through a has_many filter" do
+        it 'finds a record through a has_many filter' do
           child = parent.children.intersect(important: true).find_by_id('3')
           expect(child).not_to be_nil
           expect(child).to be_a(child_class)
@@ -249,7 +249,7 @@ describe Zermelo::Associations::Multiple do
         redis.sadd("#{ck}::attrs:ids", attrs[:id])
       end
 
-      it "sets a parent/child has_many relationship between two records" do
+      it 'sets a parent/child has_many relationship between two records' do
         create_parent(id: '8')
 
         child = child_class.new(id: '3')
@@ -270,7 +270,7 @@ describe Zermelo::Associations::Multiple do
         expect(redis.smembers("#{ck}::attrs:ids")).to eq(['3'])
       end
 
-      it "removes a parent/child has_many relationship between two records" do
+      it 'removes a parent/child has_many relationship between two records' do
         create_parent(id: '8')
         parent = parent_class.find_by_id('8')
 
@@ -307,7 +307,7 @@ describe Zermelo::Associations::Multiple do
         expect(redis.keys).to match_array(["#{pk}::attrs:ids"])
       end
 
-      it "clears the belongs_to association when the parent record is deleted" do
+      it 'clears the belongs_to association when the parent record is deleted' do
         create_parent(id: '8', name: 'John Jones',
                        email: 'jjones@parent.com', active: 'true')
         parent = parent_class.find_by_id('8')
@@ -481,14 +481,14 @@ describe Zermelo::Associations::Multiple do
 
   context 'has_and_belongs_to_many' do
 
-    shared_examples "has_and_belongs_to_many functions work", has_and_belongs_to_many: true do
+    shared_examples 'has_and_belongs_to_many functions work', has_and_belongs_to_many: true do
 
       before do
         create_primary(id: '8', active: true)
         create_secondary(id: '2')
       end
 
-      it "loads a record from a has_and_belongs_to_many relationship" do
+      it 'loads a record from a has_and_belongs_to_many relationship' do
         primary = primary_class.find_by_id('8')
         secondary = secondary_class.find_by_id('2')
 
@@ -508,7 +508,7 @@ describe Zermelo::Associations::Multiple do
 
         expect {
           primary.secondaries.add
-        }.to raise_error("No records to add")
+        }.to raise_error('No records to add')
       end
 
       it 'raises an error when calling delete on has_and_belongs_to_many without an argument' do
@@ -516,10 +516,10 @@ describe Zermelo::Associations::Multiple do
 
         expect {
           primary.secondaries.remove
-        }.to raise_error("No records to remove")
+        }.to raise_error('No records to remove')
       end
 
-      it "deletes a record from the set" do
+      it 'deletes a record from the set' do
         create_primary(id: '9', active: false)
         primary = primary_class.find_by_id('8')
         primary_2 = primary_class.find_by_id('9')
@@ -541,7 +541,7 @@ describe Zermelo::Associations::Multiple do
         expect(primary_2.secondaries.ids).to eq(Set.new(['2']))
       end
 
-      it "deletes a record from the set by id" do
+      it 'deletes a record from the set by id' do
         create_primary(id: '9', active: false)
         primary = primary_class.find_by_id('8')
         primary_2 = primary_class.find_by_id('9')
@@ -563,7 +563,7 @@ describe Zermelo::Associations::Multiple do
         expect(primary_2.secondaries.ids).to eq(Set.new(['2']))
       end
 
-      it "clears all records from the set" do
+      it 'clears all records from the set' do
         create_primary(id: '9', active: false)
         primary = primary_class.find_by_id('8')
         primary_2 = primary_class.find_by_id('9')
@@ -587,7 +587,7 @@ describe Zermelo::Associations::Multiple do
 
       context 'filters' do
 
-        it "filters has_and_belongs_to_many records by indexed attribute values" do
+        it 'filters has_and_belongs_to_many records by indexed attribute values' do
           create_primary(id: '9', active: false)
           create_primary(id: '10', active: true)
 
@@ -607,7 +607,7 @@ describe Zermelo::Associations::Multiple do
           expect(primaries.map(&:id)).to match_array(['8', '10'])
         end
 
-        it "checks whether a record id exists through a has_and_belongs_to_many filter"  do
+        it 'checks whether a record id exists through a has_and_belongs_to_many filter'  do
           create_primary(id: '9', active: false)
 
           primary = primary_class.find_by_id('8')
@@ -621,7 +621,7 @@ describe Zermelo::Associations::Multiple do
           expect(secondary.primaries.intersect(active: false).exists?('8')).to be false
         end
 
-        it "finds a record through a has_and_belongs_to_many filter" do
+        it 'finds a record through a has_and_belongs_to_many filter' do
           create_primary(id: '9', active: false)
 
           primary = primary_class.find_by_id('8')
@@ -707,7 +707,7 @@ describe Zermelo::Associations::Multiple do
         redis.sadd("#{sk}::attrs:ids", attrs[:id])
       end
 
-      it "sets a has_and_belongs_to_many relationship between two records" do
+      it 'sets a has_and_belongs_to_many relationship between two records' do
         create_primary(id: '8', active: true)
         create_secondary(id: '2')
 
@@ -734,7 +734,7 @@ describe Zermelo::Associations::Multiple do
         expect(redis.smembers("#{sk}:2:assocs:primaries_ids")).to eq(['8'])
       end
 
-      it "removes a has_and_belongs_to_many relationship between two records" do
+      it 'removes a has_and_belongs_to_many relationship between two records' do
         create_primary(id: '8', active: true)
         create_secondary(id: '2')
 
@@ -760,7 +760,7 @@ describe Zermelo::Associations::Multiple do
 
   context 'has_sorted_set' do
 
-    shared_examples "has_sorted_set functions work", has_sorted_set: true do
+    shared_examples 'has_sorted_set functions work', has_sorted_set: true do
 
       let(:time) { Time.now }
 
@@ -833,7 +833,7 @@ describe Zermelo::Associations::Multiple do
         parent_class.find_by_id('8')
       }
 
-      it "sets a parent/child has_sorted_set relationship between two records in redis" do
+      it 'sets a parent/child has_sorted_set relationship between two records in redis' do
         child = child_class.new(id: '4', emotion: 'indifferent',
                                 timestamp: time)
         expect(child.save).to be_truthy
@@ -875,7 +875,7 @@ describe Zermelo::Associations::Multiple do
         expect(child.timestamp).to be_within(1).of(time) # ignore fractional differences
       end
 
-      it "removes a parent/child has_sorted_set relationship between two records" do
+      it 'removes a parent/child has_sorted_set relationship between two records' do
         create_child(parent, id: '4', emotion: 'indifferent', timestamp: time)
         child = child_class.find_by_id('4')
 
@@ -888,7 +888,7 @@ describe Zermelo::Associations::Multiple do
         expect(redis.zrange("#{pk}:8:assocs:children_ids", 0, -1)).to eq([]) # but association is
       end
 
-      it "clears the belongs_to association when the parent record is deleted" do
+      it 'clears the belongs_to association when the parent record is deleted' do
         create_child(parent, id: '6', timestamp: time,
           emotion: 'upset')
 
@@ -990,7 +990,7 @@ describe Zermelo::Associations::Multiple do
                                 '10' => Zermelo::OrderedSet.new(['5']))
       end
 
-      it "deletes a record from the set" do
+      it 'deletes a record from the set' do
         create_child(parent, id: '3', timestamp: time - 20,
           emotion: 'ok')
         create_child(parent, id: '4', timestamp: time - 10,
@@ -1003,7 +1003,7 @@ describe Zermelo::Associations::Multiple do
         expect(parent.children.ids).to eq(Set.new(['4']))
       end
 
-      it "deletes a record from the set by id" do
+      it 'deletes a record from the set by id' do
         create_child(parent, id: '3', timestamp: time - 20,
           emotion: 'ok')
         create_child(parent, id: '4', timestamp: time - 10,
@@ -1015,7 +1015,7 @@ describe Zermelo::Associations::Multiple do
         expect(parent.children.ids).to eq(Zermelo::OrderedSet.new(['4']))
       end
 
-      it "clears all records from the set" do
+      it 'clears all records from the set' do
         create_child(parent, id: '3', timestamp: time - 20,
           emotion: 'ok')
         create_child(parent, id: '4', timestamp: time - 10,
@@ -1038,7 +1038,7 @@ describe Zermelo::Associations::Multiple do
             emotion: 'upset')
         end
 
-        it "by indexed attribute values" do
+        it 'by indexed attribute values' do
           upset_children = parent.children.intersect(emotion: 'upset').all
           expect(upset_children).not_to be_nil
           expect(upset_children).to be_a(Zermelo::OrderedSet)
@@ -1046,7 +1046,7 @@ describe Zermelo::Associations::Multiple do
           expect(upset_children.map(&:id)).to eq(['4', '6'])
         end
 
-        it "by indexed attribute values with a regex search" do
+        it 'by indexed attribute values with a regex search' do
           upset_children = parent.children.intersect(emotion: /^ups/).all
           expect(upset_children).not_to be_nil
           expect(upset_children).to be_a(Zermelo::OrderedSet)
@@ -1054,7 +1054,7 @@ describe Zermelo::Associations::Multiple do
           expect(upset_children.map(&:id)).to eq(['4', '6'])
         end
 
-        it "a subset of a sorted set by index" do
+        it 'a subset of a sorted set by index' do
           range = Zermelo::Filters::IndexRange.new(0, 1)
           children = parent.children.intersect(timestamp: range).all
           expect(children).not_to be_nil
@@ -1063,7 +1063,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['4', '5'])
         end
 
-        it "a reversed subset of a sorted set by index" do
+        it 'a reversed subset of a sorted set by index' do
           range = Zermelo::Filters::IndexRange.new(1, 2)
           children = parent.children.intersect(timestamp: range).sort(:id, desc: true).all
           expect(children).not_to be_nil
@@ -1072,7 +1072,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['6', '5'])
         end
 
-        it "a subset of a sorted set by score" do
+        it 'a subset of a sorted set by score' do
           range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, by_score: true)
           children = parent.children.intersect(timestamp: range).all
           expect(children).not_to be_nil
@@ -1081,7 +1081,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['4', '5'])
         end
 
-        it "a reversed subset of a sorted set by score" do
+        it 'a reversed subset of a sorted set by score' do
           range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, by_score: true)
           children = parent.children.intersect(timestamp: range).
                        sort(:timestamp, desc: true).all
@@ -1091,25 +1091,25 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['5', '4'])
         end
 
-        it "checks whether a record exists" do
+        it 'checks whether a record exists' do
           expect(parent.children.intersect(emotion: 'upset').exists?('4')).to be true
           expect(parent.children.intersect(emotion: 'upset').exists?('5')).to be false
         end
 
-        it "finds a record" do
+        it 'finds a record' do
           child = parent.children.intersect(emotion: 'upset').find_by_id('4')
           expect(child).not_to be_nil
           expect(child).to be_a(child_class)
           expect(child.id).to eq('4')
         end
 
-        it "the union of a sorted set by index"
-        it "a reversed union of a sorted set by index"
+        it 'the union of a sorted set by index'
+        it 'a reversed union of a sorted set by index'
 
-        it "the union of a sorted set by score"
-        it "a reversed union of a sorted set by score"
+        it 'the union of a sorted set by score'
+        it 'a reversed union of a sorted set by score'
 
-        it "ANDs multiple union arguments, not ORs them" do
+        it 'ANDs multiple union arguments, not ORs them' do
           children = parent.children.intersect(id: ['4']).
                        union(emotion: 'upset', id: ['4', '6']).all
           expect(children).not_to be_nil
@@ -1118,7 +1118,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['4', '6'])
         end
 
-        it "ANDs multiple diff arguments, not ORs them" do
+        it 'ANDs multiple diff arguments, not ORs them' do
           children = parent.children.diff(emotion: 'upset', id: ['4', '5']).all
           expect(children).not_to be_nil
           expect(children).to be_a(Zermelo::OrderedSet)
@@ -1126,7 +1126,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['5', '6'])
         end
 
-        it "the exclusion of a sorted set by index" do
+        it 'the exclusion of a sorted set by index' do
           range = Zermelo::Filters::IndexRange.new(0, 1)
           children = parent.children.diff(timestamp: range).all
           expect(children).not_to be_nil
@@ -1135,7 +1135,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['6'])
         end
 
-        it "a reversed exclusion of a sorted set by index" do
+        it 'a reversed exclusion of a sorted set by index' do
           range = Zermelo::Filters::IndexRange.new(2, 2)
           children = parent.children.diff(timestamp: range).sort(:id, desc: true).all
           expect(children).not_to be_nil
@@ -1144,7 +1144,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['5', '4'])
         end
 
-        it "the exclusion of a sorted set by score" do
+        it 'the exclusion of a sorted set by score' do
           range = Zermelo::Filters::IndexRange.new(time - 25, time - 5, by_score: true)
           children = parent.children.diff(timestamp: range).all
           expect(children).not_to be_nil
@@ -1153,7 +1153,7 @@ describe Zermelo::Associations::Multiple do
           expect(children.map(&:id)).to eq(['6'])
         end
 
-        it "a reversed exclusion of a sorted set by score" do
+        it 'a reversed exclusion of a sorted set by score' do
           range = Zermelo::Filters::IndexRange.new(time - 5, time, by_score: true)
           children = parent.children.diff(timestamp: range).sort(:timestamp, desc: true).all
           expect(children).not_to be_nil

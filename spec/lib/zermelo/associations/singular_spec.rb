@@ -6,7 +6,7 @@ describe Zermelo::Associations::Singular do
 
   context 'has_one' do
 
-    shared_examples "has_one functions work", has_one: true do
+    shared_examples 'has_one functions work', has_one: true do
 
       it 'returns associated ids for multiple parent ids' do
         create_parent(id: '8')
@@ -71,7 +71,7 @@ describe Zermelo::Associations::Singular do
         redis.sadd("#{ck}::attrs:ids", attrs[:id])
       end
 
-      it "sets and retrieves a record via a has_one association" do
+      it 'sets and retrieves a record via a has_one association' do
         create_parent(id: '8')
 
         child = child_class.new(id: '22')
@@ -87,9 +87,9 @@ describe Zermelo::Associations::Singular do
           "#{ck}:22:assocs:belongs_to"
         ])
 
-        expect(redis.hgetall("#{pk}:8:assocs:has_one")).to eq("child_id" => "22")
+        expect(redis.hgetall("#{pk}:8:assocs:has_one")).to eq('child_id' => '22')
 
-        expect(redis.smembers("#{ck}::attrs:ids")).to eq(["22"])
+        expect(redis.smembers("#{ck}::attrs:ids")).to eq(['22'])
 
         expect(redis.hgetall("#{ck}:22:assocs:belongs_to")).to eq(
           'parent_id' => '8'
@@ -123,7 +123,7 @@ describe Zermelo::Associations::Singular do
         ])
       end
 
-      it "clears the belongs_to association when the parent record is deleted" do
+      it 'clears the belongs_to association when the parent record is deleted' do
         create_parent(id: '8')
         parent = parent_class.find_by_id('8')
         create_child(parent, id: '3')
