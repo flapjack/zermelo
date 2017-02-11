@@ -3,9 +3,7 @@ require 'active_support/concern'
 require 'zermelo/locks/no_lock'
 
 module Zermelo
-
   module Backend
-
     extend ActiveSupport::Concern
 
     def escape_key_name(name)
@@ -23,12 +21,12 @@ module Zermelo
       when :float, :timestamp
         value.to_f
       when :boolean
-        (!!value).to_s
+        !value.nil?.to_s
       end
     end
 
-    def index_keys(type, value)
-      return ['null', 'null'] if value.nil?
+    def index_keys(type, value) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/MethodLength
+      return %w(null null) if value.nil?
 
       case type
       when :string
@@ -38,19 +36,9 @@ module Zermelo
       when :float
         ['float', escape_key_name(value.to_s)]
       when :timestamp
-        case value
-        when Integer
-          ['timestamp', escape_key_name(value.to_s)]
-        when Time, DateTime
-          ['timestamp', escape_key_name(value.to_f.to_s)]
-        end
+        index_keys_timestamp(value)
       when :boolean
-        case value
-        when TrueClass
-          ['boolean', 'true']
-        when FalseClass
-          ['boolean', 'false']
-        end
+        index_keys_boolean(value)
       end
     end
 
@@ -86,35 +74,56 @@ module Zermelo
     end
 
     def lock(*klasses, &block)
-      ret = nil
       # doesn't handle re-entrant case for influxdb, which has no locking yet
       locking = Thread.current[:zermelo_locking]
-      if locking.nil?
+      return really_lock(*klasses, &block) if locking.nil?
+
+      # accepts any subset of 'locking'
+      unless (klasses - locking).empty?
+        raise "Currently locking #{locking.map(&:name)}, cannot lock different set #{klasses.map(&:name)}"
+      end
+      yield
+    end
+
+    private
+
+      def really_lock(*klasses) # rubocop:disable Metrics/MethodLength
+        ret = nil
         lock_proc = proc do
           begin
             Thread.current[:zermelo_locking] = klasses
-            ret = block.call
+            ret = yield
           ensure
             Thread.current[:zermelo_locking] = nil
           end
         end
 
-        lock_klass = case self
-        when Zermelo::Backends::Redis
-          Zermelo::Locks::RedisLock
-        else
-          Zermelo::Locks::NoLock
-        end
+        lock_klass = if backend.const_defined?(:LOCK_CLASS)
+                       backend.const_get?(LOCK_CLASS)
+                     else
+                       Zermelo::Locks::NoLock
+                     end
 
         lock_klass.new.lock(*klasses, &lock_proc)
-      else
-        # accepts any subset of 'locking'
-        unless (klasses - locking).empty?
-          raise "Currently locking #{locking.map(&:name)}, cannot lock different set #{klasses.map(&:name)}"
-        end
-        ret = block.call
+        ret
       end
-      ret
-    end
+
+      def index_keys_timestamp(value)
+        case value
+        when Integer
+          ['timestamp', escape_key_name(value.to_s)]
+        when Time, DateTime
+          ['timestamp', escape_key_name(value.to_f.to_s)]
+        end
+      end
+
+      def index_keys_boolean(value)
+        case value
+        when TrueClass
+          %w(boolean true)
+        when FalseClass
+          %w(boolean false)
+        end
+      end
   end
 end

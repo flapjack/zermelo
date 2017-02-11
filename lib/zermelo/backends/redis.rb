@@ -17,6 +17,8 @@ module Zermelo
         @changes = nil
       end
 
+      LOCK_CLASS = Zermelo::Locks::RedisLock
+
       def key_to_backend_key(key)
         class_key = key.klass.send(:class_key)
 

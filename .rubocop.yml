@@ -2,3 +2,17 @@ inherit_from: .rubocop_todo.yml
 
 SignalException:
   EnforcedStyle: only_raise
+
+# Indent private and protected methods
+Style/IndentationConsistency:
+  Enabled: true
+  EnforcedStyle: rails
+
+Style/Documentation:
+  Enabled: false
+
+Metrics/LineLength:
+  Enabled: true
+  Max: 120
+  Exclude:
+    - "spec/**/*"
