@@ -66,14 +66,14 @@ module Zermelo
 
       def add(*records)
         raise 'No records to add' if records.empty?
-        raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
-        raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
+        raise 'Invalid record class' if records.any? { |r| !r.is_a?(@associated_class) }
+        raise 'Record(s) must have been saved' unless records.all? { |r| r.persisted? } # may need to be moved
         @parent_klass.lock(*@lock_klasses) do
           record_ids = case @type
           when :has_many, :has_and_belongs_to_many
             records.is_a?(Zermelo::Filter) ? records.ids : records.map(&:id)
           when :has_sorted_set
-            records.map {|r| [r.send(@sort_key.to_sym).to_f, r.id]}
+            records.map { |r| [r.send(@sort_key.to_sym).to_f, r.id] }
           end
           _add_ids({callbacks: true}, *record_ids)
         end
@@ -90,8 +90,8 @@ module Zermelo
       # TODO support dependent delete, for now just removes the association
       def remove(*records)
         raise 'No records to remove' if records.empty?
-        raise 'Invalid record class' if records.any? {|r| !r.is_a?(@associated_class)}
-        raise 'Record(s) must have been saved' unless records.all? {|r| r.persisted?} # may need to be moved
+        raise 'Invalid record class' if records.any? { |r| !r.is_a?(@associated_class) }
+        raise 'Record(s) must have been saved' unless records.all? { |r| r.persisted? } # may need to be moved
         @parent_klass.lock(*@lock_klasses) do
           _remove_ids({callbacks: true},
             *(records.is_a?(Zermelo::Filter) ? records.ids : records.map(&:id)))

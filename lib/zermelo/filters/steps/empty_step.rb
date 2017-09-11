@@ -6,7 +6,7 @@ module Zermelo
     class Steps
       class EmptyStep < Zermelo::Filters::Steps::BaseStep
         def self.accepted_types
-          [:set, :sorted_set, :list]
+          %i[set sorted_set list]
         end
 
         def self.returns_type

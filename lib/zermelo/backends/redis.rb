@@ -5,11 +5,8 @@ require 'zermelo/ordered_set'
 require 'zermelo/locks/redis_lock'
 
 module Zermelo
-
   module Backends
-
     class Redis
-
       include Zermelo::Backend
 
       def initialize
@@ -150,7 +147,7 @@ module Zermelo
           raise
         ensure
           unless temp_keys.empty?
-            Zermelo.redis.del(*temp_keys.collect {|tk| key_to_backend_key(tk)})
+            Zermelo.redis.del(*temp_keys.collect { |tk| key_to_backend_key(tk) })
             temp_keys.clear
           end
         end
@@ -181,7 +178,7 @@ module Zermelo
               object: :index
             ))
             candidates = Zermelo.redis.hgetall(index_key)
-            matching_ids = candidates.values_at(*candidates.keys.select {|k|
+            matching_ids = candidates.values_at(*candidates.keys.select { |k|
               (starts_with_string_re === k) &&
                 (value === unescape_key_name(k.sub(starts_with_string_re, '')))
             })
@@ -191,7 +188,7 @@ module Zermelo
               when :set
                 Zermelo.redis.sadd(idx_result, matching_ids)
               when :sorted_set
-                Zermelo.redis.zadd(idx_result, matching_ids.map {|m| [1, m]})
+                Zermelo.redis.zadd(idx_result, matching_ids.map { |m| [1, m] })
               end
             end
           when 'Zermelo::Associations::Index'
@@ -284,7 +281,7 @@ module Zermelo
           when :set
             Zermelo.redis.sadd(r_key, result)
           when :sorted_set
-            Zermelo.redis.zadd(r_key, result.map {|r| [r.last, r.first]})
+            Zermelo.redis.zadd(r_key, result.map { |r| [r.last, r.first] })
           end
         end
         ret_key
@@ -392,7 +389,14 @@ module Zermelo
                 when :float, :timestamp
                   value.to_f
                 when :boolean
-                  (!!value).to_s
+                  case value
+                  when false
+                    'false'
+                  when nil
+                    nil
+                  else
+                    'true'
+                  end
                 end
               end
             when :clear
@@ -417,11 +421,8 @@ module Zermelo
           end
         end
 
-        purges.each {|purge_key | Zermelo.redis.del(purge_key) }
+        purges.each { |purge_key | Zermelo.redis.del(purge_key) }
       end
-
     end
-
   end
-
 end

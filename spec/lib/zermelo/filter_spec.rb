@@ -74,17 +74,17 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(example).not_to be_nil
       expect(example).to be_a(Set)
       expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(%w(9))
+      expect(example.map(&:id)).to eq(%w[9])
     end
 
     it 'filters by multiple id attribute values' do
       create_example(id: '10', name: 'Jay Johns', active: true, created_at: (time - 50).to_f)
 
-      examples = example_class.intersect(id: %w(8 10)).all
+      examples = example_class.intersect(id: %w[8 10]).all
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(%w(8 10))
+      expect(examples.map(&:id)).to match_array(%w[8 10])
     end
 
     it 'supports sequential intersection and union operations' do
@@ -92,7 +92,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(%w(8 9))
+      expect(examples.map(&:id)).to match_array(%w[8 9])
     end
 
     it 'chains two intersect filters together' do
@@ -100,7 +100,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(example).not_to be_nil
       expect(example).to be_a(Set)
       expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(%w(8))
+      expect(example.map(&:id)).to eq(%w[8])
     end
 
     it 'allows multiple attributes in an intersect filter' do
@@ -108,7 +108,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(example).not_to be_nil
       expect(example).to be_a(Set)
       expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(%w(8))
+      expect(example.map(&:id)).to eq(%w[8])
     end
 
     it 'chains an intersect and a diff filter together' do
@@ -118,11 +118,11 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(example).not_to be_nil
       expect(example).to be_a(Set)
       expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(%w(8))
+      expect(example.map(&:id)).to eq(%w[8])
     end
 
     it "does not return a spurious record count when records don't exist" do
-      scope = example_class.intersect(id: %w(3000 5000))
+      scope = example_class.intersect(id: %w[3000 5000])
       expect(scope.all).to be_empty
       expect(scope.count).to eq 0
     end
@@ -144,43 +144,43 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
 
     it 'can append to a filter chain fragment more than once' do
       inter = example_class.intersect(active: true)
-      expect(inter.ids).to eq(Set.new(%w(8)))
+      expect(inter.ids).to eq(Set.new(%w[8]))
 
       union = inter.union(name: 'James Brown')
-      expect(union.ids).to eq(Set.new(%w(8 9)))
+      expect(union.ids).to eq(Set.new(%w[8 9]))
 
-      diff = inter.diff(id: %w(8))
+      diff = inter.diff(id: %w[8])
       expect(diff.ids).to eq(Set.new)
     end
 
     it 'ANDs multiple union arguments, not ORs them' do
       create_example(id: '10', name: 'Jay Johns', active: true)
-      examples = example_class.intersect(id: %w(8)).
-                 union(id: %w(9 10), active: true).all
+      examples = example_class.intersect(id: %w[8]).
+                 union(id: %w[9 10], active: true).all
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(%w(8 10))
+      expect(examples.map(&:id)).to match_array(%w[8 10])
     end
 
     it 'ANDs multiple diff arguments, not ORs them' do
       create_example(id: '10', name: 'Jay Johns', active: true)
-      examples = example_class.intersect(id: %w(8 9 10)).
-                 diff(id: %w(9 10), active: false).all
+      examples = example_class.intersect(id: %w[8 9 10]).
+                 diff(id: %w[9 10], active: false).all
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(%w(8 10))
+      expect(examples.map(&:id)).to match_array(%w[8 10])
     end
 
     it 'supports a regex as argument in union after intersect' do
       create_example(id: '10', name: 'Jay Johns', active: true)
-      examples = example_class.intersect(id: %w(8)).
-                 union(id: %w(9 10), name: [nil, /^Jam/]).all
+      examples = example_class.intersect(id: %w[8]).
+                 union(id: %w[9 10], name: [nil, /^Jam/]).all
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(%w(8 9))
+      expect(examples.map(&:id)).to match_array(%w[8 9])
     end
 
     it 'allows intersection operations across multiple values for an attribute' do
@@ -190,7 +190,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(examples).not_to be_nil
       expect(examples).to be_a(Set)
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(%w(9 10))
+      expect(examples.map(&:id)).to match_array(%w[9 10])
     end
 
     it 'allows union operations across multiple values for an attribute' do
@@ -202,7 +202,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(examples).to be_a(Set)
 
       expect(examples.size).to eq(2)
-      expect(examples.map(&:id)).to match_array(%w(9 10))
+      expect(examples.map(&:id)).to match_array(%w[9 10])
     end
 
     it 'excludes particular records' do
@@ -210,7 +210,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(example).not_to be_nil
       expect(example).to be_a(Set)
       expect(example.size).to eq(1)
-      expect(example.map(&:id)).to eq(%w(9))
+      expect(example.map(&:id)).to eq(%w[9])
     end
   end
 
@@ -253,7 +253,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       expect(example).not_to be_nil
       expect(example).to be_a(Set)
       expect(example.size).to eq(2)
-      expect(example.map(&:id)).to eq(%w(9 8))
+      expect(example.map(&:id)).to eq(%w[9 8])
     end
 
     it 'sorts by multiple fields' do
@@ -264,7 +264,7 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       create_example(data.merge(id: '4', name: 'def'))
 
       expect(example_class.sort(name: :asc, id: :desc).map(&:id)).to eq(
-        %w(9 8 3 1 4 2)
+        %w[9 8 3 1 4 2]
       )
     end
 
@@ -277,14 +277,14 @@ describe Zermelo::Filter do # rubocop:disable Metrics/BlockLength
       create_example(data.merge(id: '4', name: 'ghi'))
       create_example(data.merge(id: '5', name: 'def'))
 
-      expect(example_class.sort(:id).page(1, per_page: 3).map(&:id)).to eq(%w(1 2 3))
-      expect(example_class.sort(:id).page(2, per_page: 2).map(&:id)).to eq(%w(3 4))
-      expect(example_class.sort(:id).page(3, per_page: 2).map(&:id)).to eq(%w(5 8))
-      expect(example_class.sort(:id).page(3, per_page: 3).map(&:id)).to eq(%w(9))
+      expect(example_class.sort(:id).page(1, per_page: 3).map(&:id)).to eq(%w[1 2 3])
+      expect(example_class.sort(:id).page(2, per_page: 2).map(&:id)).to eq(%w[3 4])
+      expect(example_class.sort(:id).page(3, per_page: 2).map(&:id)).to eq(%w[5 8])
+      expect(example_class.sort(:id).page(3, per_page: 3).map(&:id)).to eq(%w[9])
 
-      expect(example_class.sort(:name).page(1, per_page: 3).map(&:id)).to eq(%w(9 8 2))
-      expect(example_class.sort(:name).page(2, per_page: 3).map(&:id)).to eq(%w(5 4 3))
-      expect(example_class.sort(:name).page(3, per_page: 3).map(&:id)).to eq(%w(1))
+      expect(example_class.sort(:name).page(1, per_page: 3).map(&:id)).to eq(%w[9 8 2])
+      expect(example_class.sort(:name).page(2, per_page: 3).map(&:id)).to eq(%w[5 4 3])
+      expect(example_class.sort(:name).page(3, per_page: 3).map(&:id)).to eq(%w[1])
       expect(example_class.sort(:name).page(4, per_page: 3).map(&:id)).to eq([])
     end
 

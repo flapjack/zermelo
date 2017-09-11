@@ -26,7 +26,7 @@ module Zermelo
     end
 
     def index_keys(type, value) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/MethodLength
-      return %w(null null) if value.nil?
+      return %w[null null] if value.nil?
 
       case type
       when :string
@@ -120,9 +120,9 @@ module Zermelo
       def index_keys_boolean(value)
         case value
         when TrueClass
-          %w(boolean true)
+          %w[boolean true]
         when FalseClass
-          %w(boolean false)
+          %w[boolean false]
         end
       end
   end

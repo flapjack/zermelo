@@ -10,7 +10,7 @@ module Zermelo
 
       # TODO: better validation of data, e.g. accessor valid for type, etc.
       def initialize(opts = {})
-        [:klass, :id, :name, :accessor, :type, :object].each do |iv|
+        %i[klass id name accessor type object].each do |iv|
           instance_variable_set("@#{iv}", opts[iv])
         end
       end

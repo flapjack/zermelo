@@ -16,7 +16,7 @@ class MockLogger
     @errors.clear
   end
 
-  %w(debug info warn).each do |level|
+  %w[debug info warn].each do |level|
     class_eval <<-RUBY
       def #{level}(msg = nil, &block)
         msg = yield if msg.nil? && block_given?
@@ -27,7 +27,7 @@ class MockLogger
     RUBY
   end
 
-  %w(error fatal).each do |level|
+  %w[error fatal].each do |level|
     class_eval <<-ERRORS
       def #{level}(msg = nil, &block)
         msg = yield if msg.nil? && block_given?
@@ -41,7 +41,7 @@ class MockLogger
     ERRORS
   end
 
-  %w(debug info warn error fatal).each do |level|
+  %w[debug info warn error fatal].each do |level|
     class_eval <<-LEVELS
       def #{level}?
         true

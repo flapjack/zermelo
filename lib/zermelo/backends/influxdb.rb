@@ -1,7 +1,5 @@
 require 'zermelo/backend'
-
 require 'zermelo/filters/influxdb'
-
 require 'zermelo/ordered_set'
 
 # NB influxdb doesn't support individually addressable deletes, so
@@ -10,11 +8,8 @@ require 'zermelo/ordered_set'
 #  but for the moment, YAGNI)
 
 module Zermelo
-
   module Backends
-
     class InfluxDB
-
       include Zermelo::Backend
 
       def key_to_backend_key(key)
@@ -150,7 +145,7 @@ module Zermelo
                 records[class_key][key.id] = {}
               else
                 records[class_key][key.id] = result.first
-                records[class_key][key.id].delete_if {|k,v| ['time', 'sequence_number'].include?(k) }
+                records[class_key][key.id].delete_if { |k,v| ['time', 'sequence_number'].include?(k) }
               end
             rescue ::InfluxDB::Error => ide
               raise unless
@@ -170,7 +165,14 @@ module Zermelo
             when :timestamp
               value.nil? ? nil : value.to_f
             when :boolean
-              value.nil? ? nil : (!!value).to_s
+              case value
+              when false
+                'false'
+              when nil
+                nil
+              else
+                'true'
+              end
             when :list, :hash
               value
             when :set
@@ -198,7 +200,7 @@ module Zermelo
                 records[class_key][key.id][key.name] += v
               end
             when :sorted_set
-              v = (1...value.size).step(2).collect {|i| value[i] }
+              v = (1...value.size).step(2).collect { |i| value[i] }
               if records[class_key][key.id][key.name].nil?
                 records[class_key][key.id][key.name] = v
               else
@@ -221,7 +223,7 @@ module Zermelo
               end
             when :sorted_set
               unless records[class_key][key.id][key.name].nil?
-                records[class_key][key.id][key.name] -= (1...value.size).step(2).collect {|i| value[i] }
+                records[class_key][key.id][key.name] -= (1...value.size).step(2).collect { |i| value[i] }
               end
             end
           when :purge
@@ -237,11 +239,8 @@ module Zermelo
           end
         end
 
-        purges.each {|purge| Zermelo.influxdb.query("DROP SERIES #{purge}") }
+        purges.each { |purge| Zermelo.influxdb.query("DROP SERIES #{purge}") }
       end
-
     end
-
   end
-
 end

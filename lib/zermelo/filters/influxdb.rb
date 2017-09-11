@@ -80,7 +80,7 @@ module Zermelo
             # make it impossible for the query to return anything
             query += '(1 = 0)'
           else
-            query += '((' + initial_ids.collect {|id|
+            query += '((' + initial_ids.collect { |id|
               "id = #{escaped_id(id)}"
             }.join(') OR (') + '))'
           end
@@ -94,7 +94,7 @@ module Zermelo
 
           attr_types = @associated_class.send(:attribute_types)
 
-          query += @steps.collect {|step|
+          query += @steps.collect { |step|
             step.resolve(backend, @associated_class, first: (step == first_step),
               attr_types: attr_types)
           }.join('')
@@ -109,11 +109,11 @@ module Zermelo
           result = {}
         end
 
-        data_keys = result.keys.select {|k| k =~ /^#{class_key}\// }
+        data_keys = result.keys.select { |k| k =~ /^#{class_key}\// }
 
         case result_type
         when :ids
-          data_keys.empty? ? Set.new : Set.new(data_keys.collect {|k| k =~ /^#{class_key}\/(.+)$/; $1 })
+          data_keys.empty? ? Set.new : Set.new(data_keys.collect { |k| k =~ /^#{class_key}\/(.+)$/; $1 })
         when :count
           data_keys.empty? ? 0 : data_keys.size
         end

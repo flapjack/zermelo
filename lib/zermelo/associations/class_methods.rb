@@ -157,9 +157,9 @@ module Zermelo
 
         callbacks = case klass.name
         when ::Zermelo::Associations::Multiple.name
-          [:before_add, :after_add, :before_remove, :after_remove, :before_read, :after_read]
+          %i[before_add after_add before_remove after_remove before_read after_read]
         when ::Zermelo::Associations::Singular.name
-          [:before_set, :after_set, :before_clear, :after_clear, :before_read, :after_read]
+          %i[before_set after_set before_clear after_clear before_read after_read]
         else
           []
         end
@@ -171,7 +171,7 @@ module Zermelo
           type_klass: klass,
           inverse: inverse,
           related_klass_names: args[:related_class_names],
-          callbacks: callbacks.each_with_object({}) {|c, memo|
+          callbacks: callbacks.each_with_object({}) { |c, memo|
                                     memo[c] = args[c]
                                   }
         )
@@ -195,11 +195,11 @@ module Zermelo
 
         assoc = case klass.name
         when ::Zermelo::Associations::Multiple.name
-          %Q{
+          %Q(
             def #{name}
               #{name}_proxy
             end
-          }
+          )
 
         when ::Zermelo::Associations::Singular.name
           %Q{

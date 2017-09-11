@@ -5,7 +5,7 @@ module Zermelo
     class Steps
       class SortStep < Zermelo::Filters::Steps::BaseStep
         def self.accepted_types
-          [:set, :sorted_set]
+          %i[set sorted_set]
         end
 
         def self.returns_type
@@ -76,7 +76,7 @@ module Zermelo
 
               order_parts = []
               sort_attr_type = attr_types[sort_attr.to_sym]
-              unless [:integer, :float, :timestamp].include?(sort_attr_type)
+              unless %i[integer float timestamp].include?(sort_attr_type)
                 order_parts << 'alpha'
               end
               order_parts << 'desc' if 'desc'.eql?(order.to_s)

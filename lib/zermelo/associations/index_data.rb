@@ -5,7 +5,7 @@ module Zermelo
       attr_accessor :name, :type, :index_klass
 
       def initialize(opts = {})
-        [:name, :type, :index_klass].each do |a|
+        %i[name type index_klass].each do |a|
           send("#{a}=".to_sym, opts[a])
         end
       end

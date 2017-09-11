@@ -16,27 +16,27 @@ module Zermelo
 
       SHORTCUTS = {
         list: {
-          ids: proc {|key|     Zermelo::OrderedSet.new(Zermelo.redis.lrange(key, 0, -1)) },
-          count: proc {|key|     Zermelo.redis.llen(key) },
-          exists?: proc {|key, id| Zermelo.redis.lrange(key, 0, -1).include?(id) },
-          first: proc {|key|     Zermelo.redis.lrange(key, 0, 0).first },
-          last: proc {|key|     Zermelo.redis.lrevrange(key, 0, 0).first }
+          ids: proc { |key|     Zermelo::OrderedSet.new(Zermelo.redis.lrange(key, 0, -1)) },
+          count: proc { |key|     Zermelo.redis.llen(key) },
+          exists?: proc { |key, id| Zermelo.redis.lrange(key, 0, -1).include?(id) },
+          first: proc { |key|     Zermelo.redis.lrange(key, 0, 0).first },
+          last: proc { |key|     Zermelo.redis.lrevrange(key, 0, 0).first }
         },
         set: {
-          ids: proc {|key|     Set.new(Zermelo.redis.smembers(key)) },
-          count: proc {|key|     Zermelo.redis.scard(key) },
-          exists?: proc {|key, id| Zermelo.redis.sismember(key, id) }
+          ids: proc { |key|     Set.new(Zermelo.redis.smembers(key)) },
+          count: proc { |key|     Zermelo.redis.scard(key) },
+          exists?: proc { |key, id| Zermelo.redis.sismember(key, id) }
         },
         sorted_set: {
-          ids: proc {|key, order|
+          ids: proc { |key, order|
             Zermelo::OrderedSet.new(Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, -1))
           },
-          count: proc {|key, order|     Zermelo.redis.zcard(key) },
-          exists?: proc {|key, order, id| !Zermelo.redis.zscore(key, id).nil? },
-          first: proc {|key, order|
+          count: proc { |key, order|     Zermelo.redis.zcard(key) },
+          exists?: proc { |key, order, id| !Zermelo.redis.zscore(key, id).nil? },
+          first: proc { |key, order|
             Zermelo.redis.send((:desc.eql?(order) ? :zrevrange : :zrange), key, 0, 0).first
           },
-          last: proc {|key, order|
+          last: proc { |key, order|
             Zermelo.redis.send((:desc.eql?(order) ? :zrange : :zrevrange), key, 0, 0).first
           }
         }

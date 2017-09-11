@@ -6,8 +6,8 @@ module Zermelo
         :sort_order, :callbacks
 
       def initialize(opts = {})
-        [:name, :type_klass, :data_type, :inverse, :sort_key, :sort_order,
-         :callbacks, :data_klass_name, :related_klass_names].each do |a|
+        %i[name type_klass data_type inverse sort_key sort_order 
+callbacks data_klass_name related_klass_names].each do |a|
 
           send("#{a}=".to_sym, opts[a])
         end

@@ -6,7 +6,7 @@ module Zermelo
     class Steps
       class SetStep < Zermelo::Filters::Steps::BaseStep
         def self.accepted_types
-          [:set, :sorted_set] # TODO should allow :list as well?
+          %i[set sorted_set] # TODO should allow :list as well?
         end
 
         def self.returns_type
@@ -36,14 +36,14 @@ module Zermelo
                 end
               end
 
-              if [Set, Array].any? {|t| value.is_a?(t) }
+              if [Set, Array].any? { |t| value.is_a?(t) }
                 conditions_set = associated_class.send(:temp_key, source.type)
                 temp_keys << conditions_set
                 r_conditions_set = backend.key_to_backend_key(conditions_set)
 
                 backend.temp_key_wrap do |conditions_temp_keys|
                   if use_sort_attr
-                    range_keys = value.collect {|v|
+                    range_keys = value.collect { |v|
                       rl = backend.range_lookup(associated_class.ids_key, v,
                         source_type, attr_types[att], associated_class, conditions_temp_keys)
                       backend.key_to_backend_key(rl)
@@ -58,7 +58,7 @@ module Zermelo
                   elsif idx_class.nil?
                     # query against the :id field
                     cond_objects, cond_ids = value.partition do |v|
-                      [Zermelo::Filter, Zermelo::Associations::Multiple].any? {|c| v.is_a?(c)}
+                      [Zermelo::Filter, Zermelo::Associations::Multiple].any? { |c| v.is_a?(c) }
                     end
 
                     unless cond_objects.empty?
@@ -82,7 +82,7 @@ module Zermelo
                     unless cond_ids.empty?
                       case source.type
                       when :set
-                        s_ids = cond_ids.map {|ci| ci.is_a?(Zermelo::Associations::Singular) ? ci.id : ci }
+                        s_ids = cond_ids.map { |ci| ci.is_a?(Zermelo::Associations::Singular) ? ci.id : ci }
                         Zermelo.redis.sadd(r_conditions_set, s_ids)
                       when :sorted_set
                         z_ids = cond_ids.map do |ci|
@@ -97,7 +97,7 @@ module Zermelo
                       end
                     end
                   else
-                    index_keys = value.collect {|v|
+                    index_keys = value.collect { |v|
                       il = backend.index_lookup(att, associated_class, source.type,
                         idx_class, v, attr_types[att], conditions_temp_keys)
                       backend.key_to_backend_key(il)
@@ -145,7 +145,7 @@ module Zermelo
             end
 
             r_source_key  = backend.key_to_backend_key(source)
-            r_source_keys = source_keys.collect {|sk| backend.key_to_backend_key(sk) }
+            r_source_keys = source_keys.collect { |sk| backend.key_to_backend_key(sk) }
 
             op = @options[:op]
             shortcut = opts[:shortcut]
@@ -238,7 +238,7 @@ module Zermelo
 
             case @options[:op]
             when :intersect, :union
-              query += @attributes.collect {|k, v|
+              query += @attributes.collect { |k, v|
 
                 attr_type = attr_types[k]
 
@@ -271,7 +271,7 @@ module Zermelo
               }.join(' AND ')
 
             when :diff
-              query += @attributes.collect {|k, v|
+              query += @attributes.collect { |k, v|
                 if v.is_a?(Enumerable)
                   qq = v.each_with_object([]) do |vv, memo|
                     ov = case vv

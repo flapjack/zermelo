@@ -2,8 +2,7 @@ require 'spec_helper'
 require 'zermelo/locks/redis_lock'
 require 'zermelo/records/redis'
 
-describe Zermelo::Locks::RedisLock, redis: true do
-
+describe Zermelo::Locks::RedisLock, redis: true do # rubocop:disable Metrics/BlockLength
   let(:redis) { Zermelo.redis }
 
   module Zermelo
@@ -46,8 +45,12 @@ describe Zermelo::Locks::RedisLock, redis: true do
     locked = slock.lock(Zermelo::RedisLockExample, Zermelo::AnotherExample)
     expect(locked).to be_truthy
 
-    lock_keys = ['another_example::lock:owner', 'another_example::lock:expiry',
-      'redis_lock_example::lock:owner', 'redis_lock_example::lock:expiry']
+    lock_keys = [
+      'another_example::lock:owner',
+      'another_example::lock:expiry',
+      'redis_lock_example::lock:owner',
+      'redis_lock_example::lock:expiry'
+    ]
     expect(redis.keys('*')).to match_array(lock_keys)
 
     redis_lock_example = Zermelo::RedisLockExample.new(name: 'temporary')
@@ -56,8 +59,12 @@ describe Zermelo::Locks::RedisLock, redis: true do
     another_example = Zermelo::AnotherExample.new(age: 36)
     another_example.save
 
-    example_keys = ['redis_lock_example::attrs:ids', "redis_lock_example:#{redis_lock_example.id}:attrs",
-      'another_example::attrs:ids', "another_example:#{another_example.id}:attrs"]
+    example_keys = [
+      'redis_lock_example::attrs:ids',
+      "redis_lock_example:#{redis_lock_example.id}:attrs",
+      'another_example::attrs:ids',
+      "another_example:#{another_example.id}:attrs"
+    ]
     expect(redis.keys('*')).to match_array(lock_keys + example_keys)
 
     unlocked = slock.unlock
@@ -73,6 +80,7 @@ describe Zermelo::Locks::RedisLock, redis: true do
     Timecop.freeze(time)
 
     locked = slock.lock(Zermelo::RedisLockExample)
+    expect(locked).to be_truthy
 
     expiry_time = redis.get('redis_lock_example::lock:expiry')
     expect(expiry_time.to_i).to eq(time.to_i + 60)
@@ -166,5 +174,4 @@ describe Zermelo::Locks::RedisLock, redis: true do
 
     expect(times['thread'] - times['main']).to be >= 0.25
   end
-
 end

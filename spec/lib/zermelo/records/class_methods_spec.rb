@@ -2,21 +2,20 @@ require 'spec_helper'
 require 'zermelo/records/redis'
 require 'zermelo/records/influxdb'
 
-describe Zermelo::Records::ClassMethods do
-
+describe Zermelo::Records::ClassMethods do # rubocop:disable Metrics/BlockLength
   context 'redis', redis: true, class_methods: true do
     module ZermeloExamples
       class ClassMethodsRedis
         include Zermelo::Records::RedisSet
 
-        # NOTE not currently used
+        # NB: not currently used
         define_attributes name: :string
         validates :name, presence: true
 
-        # NOTE not currently used
+        # NB: not currently used
         before_create :fail_if_not_saving
-        def fail_if_not_saving; 
-          !'not_saving'.eql?(name); 
+        def fail_if_not_saving
+          !'not_saving'.eql?(name)
         end
       end
     end
@@ -30,7 +29,6 @@ describe Zermelo::Records::ClassMethods do
     # SMELL These should probably be in a shared set of specs, if this spec
     # file is ever extended
     context 'class_key' do
-
       it 'returns correct class_key' do
         class_key = ZermeloExamples::ClassMethodsRedis.send(:class_key)
         expect(class_key).to eq('class_methods_redis')
@@ -42,7 +40,6 @@ describe Zermelo::Records::ClassMethods do
         class_key = SubClassMethodsRedis.send(:class_key)
         expect(class_key).to eq('sub_class_methods_redis')
       end
-
     end
   end
 end

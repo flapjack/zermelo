@@ -9,11 +9,11 @@ end
 require 'bundler'
 Bundler.require(:default, :test)
 
-$:.unshift(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(File.dirname(__FILE__) + '/../lib')
 
 # Requires supporting files with custom matchers and macros, etc,
 # in ./support/ and its subdirectories.
-Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
+Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each { |f| require f }
 
 # silence deprecation warning
 require 'i18n'
@@ -28,7 +28,7 @@ require 'influxdb'
 # loaded once.
 #
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
-RSpec.configure do |config|
+RSpec.configure do |config| # rubocop:disable Metrics/BlockLength
   config.run_all_when_everything_filtered = true
   config.filter_run :focus
 
@@ -60,8 +60,9 @@ RSpec.configure do |config|
   end
 
   config.before(:all, influxdb: true) do
-    Zermelo.influxdb = InfluxDB::Client.new('zermelo_test',
-      username: 'zermelo', password: 'zermelo', retry: false)
+    Zermelo.influxdb = InfluxDB::Client.new('zermelo_test', username: 'zermelo',
+                                                            password: 'zermelo',
+                                                            retry: false)
   end
 
   config.before(:each, influxdb: true) do
@@ -73,5 +74,4 @@ RSpec.configure do |config|
   config.after(:each, time: true) do
     Timecop.return
   end
-
 end
