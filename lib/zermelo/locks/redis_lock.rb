@@ -34,7 +34,7 @@ module Zermelo
       end
 
       def extend_life(new_life)
-        do_extend(new_life) || raise(Zermelo::LockNotAcquired.new(@keys.join(', ')))
+        do_extend(new_life) || raise(Zermelo::LockNotAcquired, @keys.join(', '))
       end
 
       def unlock
@@ -60,7 +60,7 @@ module Zermelo
           @keys = record_klasses.map { |k| k.send(:class_key) }.sort.map { |k| "#{k}::lock" }
           with_timeout(timeout) { locked = do_lock }
           return if locked
-          raise Zermelo::LockNotAcquired.new(@keys.join(', '))
+          raise(Zermelo::LockNotAcquired, @keys.join(', '))
         end
 
         # @returns true if locked, false otherwise
