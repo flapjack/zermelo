@@ -10,7 +10,7 @@ module Zermelo
         @parent_klass   = parent_klass
         @attribute_name = name
 
-        @backend   = parent_klass.send(:backend)
+        @backend = parent_klass.send(:backend)
 
         @indexers = {}
 

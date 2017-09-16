@@ -53,7 +53,7 @@ module Zermelo
 
               l = (Zermelo.redis.llen(r_source) - o) if (l < 1)
 
-              sort_opts = {by: 'no_sort', limit: [o, l]}
+              sort_opts = { by: 'no_sort', limit: [o, l] }
 
               # https://github.com/antirez/redis/issues/2079, fixed in redis 2.8.19
               result, r_result = if (Zermelo.redis_version.split('.') <=> ['2', '8', '18']) == 1

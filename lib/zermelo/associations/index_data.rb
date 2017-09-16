@@ -1,7 +1,7 @@
 module Zermelo
   module Associations
     class IndexData
-      attr_writer  :data_klass_name
+      attr_writer :data_klass_name
       attr_accessor :name, :type, :index_klass
 
       def initialize(opts = {})

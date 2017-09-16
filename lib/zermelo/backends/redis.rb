@@ -259,14 +259,14 @@ module Zermelo
         when :set
           {}
         when :sorted_set
-          {with_scores: true}
+          { with_scores: true }
         end
         result = if range.by_score
           range_start  = range.start.nil?  ? '-inf' : safe_value(attr_type, range.start)
           range_finish = range.finish.nil? ? '+inf' : safe_value(attr_type, range.finish)
           Zermelo.redis.zrangebyscore(r_key, range_start, range_finish, opts)
         else
-          range_start  = range.start  ||  0
+          range_start  = range.start  || 0
           range_finish = range.finish || -1
           Zermelo.redis.zrange(r_key, range_start, range_finish, opts)
         end
@@ -299,7 +299,7 @@ module Zermelo
       end
 
       def apply_changes(changes)
-        simple_attrs  = {}
+        simple_attrs = {}
 
         purges = []
 

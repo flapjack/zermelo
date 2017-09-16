@@ -136,7 +136,7 @@ module Zermelo
 
           class_key = key.klass.send(:class_key)
 
-          records[class_key]         ||= {}
+          records[class_key] ||= {}
 
           if records[class_key][key.id].nil?
             begin
