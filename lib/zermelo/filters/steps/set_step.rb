@@ -247,9 +247,9 @@ module Zermelo
                     ov = case vv
                     when Regexp
                       raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                      "=~ /#{vv.source.gsub(/\\\\/, "\\")}/"
+                      "=~ /" + vv.source.gsub(/\\/, "\\") + "/"
                     when String
-                      "=~ /^#{Regexp.escape(vv).gsub(/\\\\/, "\\")}$/"
+                      "=~ /^" + Regexp.escape(vv).gsub(/\\/, "\\") + "$/"
                     else
                       "= '#{vv}'"
                     end
@@ -260,9 +260,9 @@ module Zermelo
                   op_value = case v
                   when Regexp
                     raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                    "=~ /#{v.source.gsub(/\\\\/, "\\")}/"
+                    "=~ /" + v.source.gsub(/\\/, "\\") + "/"
                   when String
-                    "=~ /^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"
+                    "=~ /^" + Regexp.escape(v).gsub(/\\/, "\\") + "$/"
                   else
                     "= '#{v}'"
                   end
@@ -277,9 +277,9 @@ module Zermelo
                     ov = case vv
                     when Regexp
                       raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                      "!~ /#{vv.source.gsub(/\\\\/, "\\")}/"
+                      "!~ /" + vv.source.gsub(/\\/, "\\") + "/"
                     when String
-                      "!~ /^#{Regexp.escape(vv).gsub(/\\\\/, "\\")}$/"
+                      "!~ /^" + Regexp.escape(vv).gsub(/\\/, "\\") + "$/"
                     else
                       "<> '#{vv}'"
                     end
@@ -290,9 +290,9 @@ module Zermelo
                   op_value = case v
                   when Regexp
                     raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                    "!~ /#{v.source.gsub(/\\\\/, "\\")}/"
+                    "!~ /" + v.source.gsub(/\\/, "\\") + "/"
                   when String
-                    "!~ /^#{Regexp.escape(v).gsub(/\\\\/, "\\")}$/"
+                    "!~ /^" + Regexp.escape(v).gsub(/\\/, "\\") + "$/"
                   else
                     "<> '#{v}'"
                   end
