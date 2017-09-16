@@ -41,11 +41,11 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.5.0)
     rspec-support (3.5.0)
-    simplecov (0.10.0)
+    simplecov (0.15.1)
       docile (~> 1.1.0)
-      json (~> 1.8)
+      json (>= 1.8, < 3)
       simplecov-html (~> 0.10.0)
-    simplecov-html (0.10.0)
+    simplecov-html (0.10.2)
     thread_safe (0.3.6)
     timecop (0.8.0)
     tzinfo (1.2.2)
@@ -65,4 +65,4 @@ DEPENDENCIES
   zermelo!
 
 BUNDLED WITH
-   1.15.1
+   1.16.0.pre.2
