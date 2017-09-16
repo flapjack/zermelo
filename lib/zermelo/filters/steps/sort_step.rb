@@ -24,20 +24,21 @@ module Zermelo
             temp_keys << dest_list
             r_dest_list = backend.key_to_backend_key(dest_list)
 
-            # TODO raise error in step construction if keys not
+            # TODO: raise error in step construction if keys not
             # passed as expected below
-            sort_attrs_and_orders = case options[:keys]
-            when String, Symbol
-              {options[:keys].to_s => options[:desc].is_a?(TrueClass) ? :desc : :asc}
-            when Array
-              options[:keys].each_with_object({}) do |k, memo|
-                memo[k.to_sym] = (options[:desc].is_a?(TrueClass) ? :desc : :asc)
+            sort_attrs_and_orders =
+              case options[:keys]
+              when String, Symbol
+                { options[:keys].to_s => options[:desc].is_a?(TrueClass) ? :desc : :asc }
+              when Array
+                options[:keys].each_with_object({}) do |k, memo|
+                  memo[k.to_sym] = (options[:desc].is_a?(TrueClass) ? :desc : :asc)
+                end
+              when Hash
+                options[:keys]
               end
-            when Hash
-              options[:keys]
-            end
 
-            # TODO check if complex attribute types or associations
+            # TODO: check if complex attribute types or associations
             # can be used for sorting
 
             r_source = backend.key_to_backend_key(source)
@@ -53,7 +54,6 @@ module Zermelo
             class_key = associated_class.send(:class_key)
 
             sort_attrs_and_orders.keys.reverse.each_with_index do |sort_attr, idx|
-
               order = sort_attrs_and_orders[sort_attr]
 
               sort_opts = {}
@@ -69,7 +69,7 @@ module Zermelo
 
                 if !(l.nil? && o.nil?)
                   o = o.nil? ? 0 : o.to_i
-                  l = (l.nil? || (l.to_i < 1)) ? (Zermelo.redis.llen(dest_list) - o) : l
+                  l = l.nil? || (l.to_i < 1) ? (Zermelo.redis.llen(dest_list) - o) : l
                   sort_opts.update(limit: [o, l])
                 end
               end

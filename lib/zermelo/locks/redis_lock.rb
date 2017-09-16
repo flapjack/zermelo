@@ -6,7 +6,7 @@ module Zermelo
     # TODO: move to separate file
   end
   module Locks
-    class RedisLock
+    class RedisLock # rubocop:disable Metrics/ClassLength
       attr_accessor :expires_at, :life, :sleep_in_ms
 
       def initialize
@@ -17,12 +17,11 @@ module Zermelo
       end
 
       def lock(*record_klasses, &block)
-        @keys = record_klasses.map { |k| k.send(:class_key) }.sort.map { |k| "#{k}::lock" }
-        do_lock_with_timeout(@timeout) or raise Zermelo::LockNotAcquired.new(@keys.join(', '))
+        do_lock_with_timeout(@timeout, *record_klasses)
         result = true
         if block
           begin
-            result = (block.arity == 1) ? block.call(self) : block.call
+            result = block.arity == 1 ? yield(self) : yield
           # rescue Exception => e
           #   puts e.message
           #   puts e.backtrace.join("\n")
@@ -34,7 +33,7 @@ module Zermelo
         result
       end
 
-      def extend_life( new_life )
+      def extend_life(new_life)
         do_extend(new_life) || raise(Zermelo::LockNotAcquired.new(@keys.join(', ')))
       end
 
@@ -56,10 +55,12 @@ module Zermelo
           @expiry_keys ||= @keys.map { |k| "#{k}:expiry" }
         end
 
-        def do_lock_with_timeout(timeout)
+        def do_lock_with_timeout(timeout, *record_klasses)
           locked = false
+          @keys = record_klasses.map { |k| k.send(:class_key) }.sort.map { |k| "#{k}::lock" }
           with_timeout(timeout) { locked = do_lock }
-          locked
+          return if locked
+          raise Zermelo::LockNotAcquired.new(@keys.join(', '))
         end
 
         # @returns true if locked, false otherwise

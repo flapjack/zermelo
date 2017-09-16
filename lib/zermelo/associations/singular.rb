@@ -1,7 +1,6 @@
 module Zermelo
   module Associations
     class Singular
-
       def initialize(type, parent_klass, parent_id, name)
         @type = type
         @parent_klass = parent_klass
@@ -42,7 +41,7 @@ module Zermelo
             if :sorted_set.eql?(_inverse.type)
               opts[:score] = @parent_klass.find_by_id!(@parent_id).send(@inverse_sort_key.to_sym).to_f
             end
-            _set(opts, record.id)
+            _set(record.id, opts)
           end
         end
       end
@@ -66,6 +65,31 @@ module Zermelo
         [@backend.key_to_backend_key(@record_id_key), @record_id_key]
       end
 
+      class << self
+        private
+          def associated_ids_for(backend, type, klass, name, inversed, *these_ids)
+            these_ids.each_with_object({}) do |this_id, memo|
+              key = Zermelo::Records::Key.new(
+                klass: klass,
+                id: this_id,
+                name: type.to_s,
+                type: :hash,
+                object: :association
+              )
+
+              assoc_id = backend.get(key)["#{name}_id"]
+              # assoc_id = backend.get_hash_value(key, "#{name}_id")
+
+              if inversed
+                memo[assoc_id] ||= []
+                memo[assoc_id] << this_id
+              else
+                memo[this_id] = assoc_id
+              end
+            end
+          end
+      end
+
       private
 
       # on_remove already runs inside a lock & transaction
@@ -76,34 +100,36 @@ module Zermelo
       def _inverse
         return @inverse_obj unless @inverse_obj.nil?
         @associated_class.send(:with_association_data, @inverse.to_sym) do |data|
-          @inverse_obj = case @type
-          when :belongs_to
-            key_name, key_type = case data.data_type
-            when :has_many
-              ["#{@inverse}_ids", :set]
-            when :has_sorted_set
-              ["#{@inverse}_ids", :sorted_set]
+          @inverse_obj =
+            case @type
+            when :belongs_to
+              key_name, key_type =
+                case data.data_type
+                when :has_many
+                  ["#{@inverse}_ids", :set]
+                when :has_sorted_set
+                  ["#{@inverse}_ids", :sorted_set]
+                when :has_one
+                  ['has_one', :hash]
+                end
+
+              @inverse_sort_key = data.sort_key
+
+              Zermelo::Records::Key.new(
+                klass: @associated_class,
+                name: key_name,
+                type: key_type,
+                object: :association
+              )
             when :has_one
-              ['has_one', :hash]
+              # inverse is belongs_to
+              Zermelo::Records::Key.new(
+                klass: @associated_class,
+                name: 'belongs_to',
+                type: :hash,
+                object: :association
+              )
             end
-
-            @inverse_sort_key = data.sort_key
-
-            Zermelo::Records::Key.new(
-              klass: @associated_class,
-              name: key_name,
-              type: key_type,
-              object: :association
-            )
-          when :has_one
-            # inverse is belongs_to
-            Zermelo::Records::Key.new(
-              klass: @associated_class,
-              name: 'belongs_to',
-              type: :hash,
-              object: :association
-            )
-          end
         end
         @inverse_obj
       end
@@ -120,7 +146,7 @@ module Zermelo
 
           case @type
           when :belongs_to, :has_one
-            # FIXME can we access the assoc type instead?
+            # FIXME: can we access the assoc type instead?
             case _inverse.type
             when :set, :sorted_set
               @backend.delete(_inverse, @parent_id)
@@ -140,16 +166,16 @@ module Zermelo
         end
       end
 
-      def _set(opts = {}, record_id)
+      def _set(record_id, opts = {})
         bs = @callbacks[:before_set]
         if bs.nil? || !opts[:callbacks] || !@parent_klass.respond_to?(bs) ||
-          !@parent_klass.send(bs, @parent_id, record_id).is_a?(FalseClass)
+           !@parent_klass.send(bs, @parent_id, record_id).is_a?(FalseClass)
 
           _inverse.id = record_id
 
           new_txn = @backend.begin_transaction
 
-          # FIXME can we access the assoc type instead?
+          # FIXME: can we access the assoc type instead?
           case _inverse.type
           when :set
             @backend.add(_inverse, @parent_id)
@@ -169,29 +195,6 @@ module Zermelo
           end
         end
       end
-
-      def self.associated_ids_for(backend, type, klass, name, inversed, *these_ids)
-        these_ids.each_with_object({}) do |this_id, memo|
-          key = Zermelo::Records::Key.new(
-            klass: klass,
-            id: this_id,
-            name: type.to_s,
-            type: :hash,
-            object: :association
-          )
-
-          assoc_id = backend.get(key)["#{name}_id"]
-          # assoc_id = backend.get_hash_value(key, "#{name}_id")
-
-          if inversed
-            memo[assoc_id] ||= []
-            memo[assoc_id] << this_id
-          else
-            memo[this_id] = assoc_id
-          end
-        end
-      end
-
     end
   end
 end

@@ -46,7 +46,7 @@ module Zermelo
                 r_source, o, (o + l), with_scores: true
               )
 
-              Zermelo.redis.zadd(r_limited, lim.collect { |li| [li[1], li[0]] } )
+              Zermelo.redis.zadd(r_limited, lim.collect { |li| [li[1], li[0]] })
 
               [limited, r_limited]
             when :list

@@ -5,19 +5,18 @@ require 'zermelo/records/key'
 module Zermelo
   module Associations
     class UniqueIndex
-
       def initialize(parent_klass, name)
         @parent_klass   = parent_klass
         @attribute_name = name
 
-        @backend   = parent_klass.send(:backend)
+        @backend = parent_klass.send(:backend)
 
         parent_klass.send(:with_index_data, name.to_sym) do |data|
           @attribute_type = data.type
         end
       end
 
-      def delete_id(id, value)
+      def delete_id(_id, value)
         @backend.delete(key, @backend.index_keys(@attribute_type, value).join(':'))
       end
 
@@ -26,8 +25,8 @@ module Zermelo
       end
 
       def move_id(id, value_from, indexer_to, value_to)
-        @backend.move(key, {@backend.index_keys(@attribute_type, value_from).join(':') => id},
-          indexer_to.key, {@backend.index_keys(@attribute_type, value_to).join(':') => id})
+        @backend.move(key, { @backend.index_keys(@attribute_type, value_from).join(':') => id },
+                      indexer_to.key, @backend.index_keys(@attribute_type, value_to).join(':') => id)
       end
 
       def key

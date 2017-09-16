@@ -1,17 +1,12 @@
 require 'zermelo/filter'
-
 require 'zermelo/filters/index_range'
-
 require 'zermelo/ordered_set'
 
 # TODO check escaping of ids and index_keys -- shouldn't allow bare :
 
 module Zermelo
-
   module Filters
-
     class Redis
-
       include Zermelo::Filter
 
       SHORTCUTS = {

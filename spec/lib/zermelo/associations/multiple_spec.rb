@@ -161,11 +161,11 @@ describe Zermelo::Associations::Multiple do # rubocop:disable Metrics/BlockLengt
 
           assoc_ids = parent_class.intersect(id: %w[8 9 10]).
                       associated_ids_for(:children)
-          expect(assoc_ids).to eq('8'  => Set.new(%w(3 4 5)),
+          expect(assoc_ids).to eq('8'  => Set.new(%w[3 4 5]),
                                   '9'  => Set.new(['6']),
                                   '10' => Set.new)
 
-          assoc_parent_ids = child_class.intersect(id: %w(3 4 5 6)).
+          assoc_parent_ids = child_class.intersect(id: %w[3 4 5 6]).
                              associated_ids_for(:parent)
           expect(assoc_parent_ids).to eq('3' => '8',
                                          '4' => '8',

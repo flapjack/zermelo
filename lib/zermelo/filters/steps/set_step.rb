@@ -14,9 +14,17 @@ module Zermelo
         end
 
         def resolve(backend, associated_class, opts = {})
-
           case backend
           when Zermelo::Backends::Redis
+            resolve_redis(backend, associated_class, opts)
+          when Zermelo::Backends::InfluxDB
+            resolve_influxdb(backend, associated_class, opts)
+          end
+        end
+
+        private
+
+          def resolve_redis(backend, associated_class, opts = {})
             initial_key = opts[:initial_key]
             source      = opts[:source]
             idx_attrs   = opts[:index_attrs]
@@ -45,7 +53,8 @@ module Zermelo
                   if use_sort_attr
                     range_keys = value.collect { |v|
                       rl = backend.range_lookup(associated_class.ids_key, v,
-                        source_type, attr_types[att], associated_class, conditions_temp_keys)
+                                                source_type, attr_types[att],
+                                                associated_class, conditions_temp_keys)
                       backend.key_to_backend_key(rl)
                     }
 
@@ -99,7 +108,7 @@ module Zermelo
                   else
                     index_keys = value.collect { |v|
                       il = backend.index_lookup(att, associated_class, source.type,
-                        idx_class, v, attr_types[att], conditions_temp_keys)
+                                                idx_class, v, attr_types[att], conditions_temp_keys)
                       backend.key_to_backend_key(il)
                     }
 
@@ -114,7 +123,7 @@ module Zermelo
                 memo << conditions_set
               elsif use_sort_attr
                 memo << backend.range_lookup(associated_class.ids_key, value,
-                  source.type, attr_types[att], associated_class, temp_keys)
+                                             source.type, attr_types[att], associated_class, temp_keys)
               elsif idx_class.nil?
                 case value
                 when Zermelo::Filter
@@ -140,7 +149,7 @@ module Zermelo
                 end
               else
                 memo << backend.index_lookup(att, associated_class, source.type,
-                          idx_class, value, attr_types[att], temp_keys)
+                                             idx_class, value, attr_types[att], temp_keys)
               end
             end
 
@@ -183,9 +192,12 @@ module Zermelo
                 r_initial_key = backend.key_to_backend_key(initial_key)
 
                 if source.type == :sorted_set
-                  Zermelo.redis.zinterstore(r_dest_set,
+                  Zermelo.redis.zinterstore(
+                    r_dest_set,
                     [r_initial_key] + r_source_keys,
-                    weights: [1.0] + ([0.0] * source_keys.length), aggregate: 'max')
+                    weights: [1.0] + ([0.0] * source_keys.length),
+                    aggregate: 'max'
+                  )
 
                   Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], aggregate: 'max')
                 else
@@ -201,7 +213,12 @@ module Zermelo
               when :diff
                 if source.type == :sorted_set
                   Zermelo.redis.zinterstore(r_dest_set, r_source_keys, aggregate: 'max')
-                  Zermelo.redis.zunionstore(r_dest_set, [r_source_key, r_dest_set], weights: [1.0, 0.0], aggregate: 'min')
+                  Zermelo.redis.zunionstore(
+                    r_dest_set,
+                    [r_source_key, r_dest_set],
+                    weights: [1.0, 0.0],
+                    aggregate: 'min'
+                  )
                   Zermelo.redis.zremrangebyscore(r_dest_set, '0', '0')
                 else
                   Zermelo.redis.sinterstore(r_dest_set, *r_source_keys)
@@ -212,17 +229,18 @@ module Zermelo
               return dest_set if shortcut.nil?
 
               shortcut_params = case source.type
-              when :sorted_set
-                [r_dest_set, order] + opts[:shortcut_args]
-              else
-                [r_dest_set] + opts[:shortcut_args]
-              end
+                                when :sorted_set
+                                  [r_dest_set, order] + opts[:shortcut_args]
+                                else
+                                  [r_dest_set] + opts[:shortcut_args]
+                                end
 
               Zermelo::Filters::Redis::SHORTCUTS[source.type][shortcut].
                 call(*shortcut_params)
             end
+          end
 
-          when Zermelo::Backends::InfluxDB
+          def resolve_influxdb(_backend, _associated_class, opts = {})
             query = ''
 
             attr_types = opts[:attr_types]
@@ -238,68 +256,67 @@ module Zermelo
 
             case @options[:op]
             when :intersect, :union
-              query += @attributes.collect { |k, v|
-
+              query += @attributes.collect do |k, v|
                 attr_type = attr_types[k]
 
                 if v.is_a?(Enumerable)
                   qq = v.each_with_object([]) do |vv, memo|
                     ov = case vv
-                    when Regexp
-                      raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                      "=~ /" + vv.source.gsub(/\\/, "\\") + "/"
-                    when String
-                      "=~ /^" + Regexp.escape(vv).gsub(/\\/, "\\") + "$/"
-                    else
-                      "= '#{vv}'"
-                    end
+                         when Regexp
+                           raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                           '=~ /' + vv.source + '/'
+                         when String
+                           '=~ /^' + Regexp.escape(vv) + '$/'
+                         else
+                           "= '#{vv}'"
+                         end
                     memo << "#{k} #{ov}"
                   end
                   "((#{qq.join(') OR (')}))"
                 else
                   op_value = case v
-                  when Regexp
-                    raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                    "=~ /" + v.source.gsub(/\\/, "\\") + "/"
-                  when String
-                    "=~ /^" + Regexp.escape(v).gsub(/\\/, "\\") + "$/"
-                  else
-                    "= '#{v}'"
-                  end
+                             when Regexp
+                               raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                               '=~ /' + v.source + '/'
+                             when String
+                               '=~ /^' + Regexp.escape(v) + '$/'
+                             else
+                               "= '#{v}'"
+                             end
                   "(#{k} #{op_value})"
                 end
-              }.join(' AND ')
+              end.join(' AND ')
 
             when :diff
-              query += @attributes.collect { |k, v|
+              query += @attributes.collect do |k, v|
                 if v.is_a?(Enumerable)
                   qq = v.each_with_object([]) do |vv, memo|
                     ov = case vv
-                    when Regexp
-                      raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                      "!~ /" + vv.source.gsub(/\\/, "\\") + "/"
-                    when String
-                      "!~ /^" + Regexp.escape(vv).gsub(/\\/, "\\") + "$/"
-                    else
-                      "<> '#{vv}'"
-                    end
+                         when Regexp
+                           raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                           '!~ /' + vv.source + '/'
+                         when String
+                           '!~ /^' + Regexp.escape(vv) + '$/'
+                         else
+                           "<> '#{vv}'"
+                         end
                     memo << "#{k} #{ov}"
                   end
                   "((#{qq.join(') OR (')}))"
                 else
                   op_value = case v
-                  when Regexp
-                    raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
-                    "!~ /" + v.source.gsub(/\\/, "\\") + "/"
-                  when String
-                    "!~ /^" + Regexp.escape(v).gsub(/\\/, "\\") + "$/"
-                  else
-                    "<> '#{v}'"
-                  end
+                             when Regexp
+                               raise "Can't query non-string values via regexp" unless :string.eql?(attr_type)
+                               '!~ /' + v.source + '/'
+                             when String
+                               '!~ /^' + Regexp.escape(v) + '$/'
+                             else
+                               "<> '#{v}'"
+                             end
 
                   "(#{k} #{op_value})"
                 end
-              }.join(' AND ')
+              end.join(' AND ')
 
             else
               raise "Unhandled filter operation '#{@options[:op]}'"
@@ -309,8 +326,6 @@ module Zermelo
 
             query
           end
-        end
-
       end
     end
   end

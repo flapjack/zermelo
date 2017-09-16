@@ -62,7 +62,7 @@ module Zermelo
               end
             when :set
               if attr_key.accessor.nil?
-                Set.new( Zermelo.redis.smembers(redis_attr_key) )
+                Set.new(Zermelo.redis.smembers(redis_attr_key))
               else
                 # TODO
               end
