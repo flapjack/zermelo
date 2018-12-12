@@ -42,6 +42,23 @@ module Zermelo
       ALL_TYPES.keys.include?(type)
     end
 
+    def activemodel_type_for(type)
+      case type
+      when :string
+        ActiveModel::Type::String.new
+      when :integer
+        ActiveModel::Type::Integer.new
+      when :float
+        ActiveModel::Type::Float.new
+      when :id
+        ActiveModel::Type::String.new
+      when :timestamp
+        ActiveModel::Type::DateTime.new
+      when :boolean
+        ActiveModel::Type::Boolean.new
+      end
+    end
+
     # Thread and fiber-local
     [:redis, :influxdb].each do |backend|
       define_method(backend) do

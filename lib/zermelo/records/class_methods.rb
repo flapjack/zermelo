@@ -92,7 +92,7 @@ module Zermelo
       def class_key
         class_key_cache[self.name] ||= self.name.demodulize.underscore
       end
-      
+
       def class_key_cache
         Thread.current[:class_keys_cache] ||= {}
       end

@@ -1,3 +1,5 @@
+require 'active_model/attribute_set'
+
 require 'zermelo/records/key'
 
 module Zermelo
@@ -9,8 +11,8 @@ module Zermelo
 
       def initialize(attrs = {})
         @is_new = true
-        @attributes = self.class.attribute_types.keys.inject({}) do |memo, ak|
-          memo[ak.to_s] = attrs[ak]
+        @attributes = self.class.attribute_types.inject(::ActiveModel::AttributeSet.new({})) do |memo, (k, v)|
+          memo[k.to_s] = ::ActiveModel::Attribute.from_user(k, attrs[k], Zermelo.activemodel_type_for(v))
           memo
         end
       end
@@ -38,7 +40,7 @@ module Zermelo
 
         attr_types = self.class.attribute_types
 
-        @attributes = {'id' => self.id}
+        @attributes['id'] = @attributes['id'].with_value_from_user(self.id)
 
         attrs = nil
 
@@ -60,15 +62,23 @@ module Zermelo
           attrs = result[class_key][self.id] unless result.empty?
         end
 
-        @attributes.update(attrs) unless attrs.nil? || attrs.empty?
+        unless attrs.nil?
+          attrs.each_pair do |k, v|
+            @attributes[k] = ::ActiveModel::Attribute.from_user(k, v,
+              Zermelo.activemodel_type_for(self.class.attribute_types[k.to_sym]))
+          end
+        end
+
+        # @attributes.update(attrs)
         true
       end
 
       # TODO limit to only those attribute names defined in define_attributes
       def update_attributes(attributes = {})
         attributes.each_pair do |att, v|
-          unless value == @attributes[att.to_s]
-            @attributes[att.to_s] = v
+          unless v == @attributes[att.to_s].value
+            @attributes[att.to_s] = ::ActiveModel::Attribute.from_user(att, v,
+              Zermelo.activemodel_type_for(self.class.attribute_types[att.to_sym]))
             send("#{att}_will_change!")
           end
         end
@@ -108,9 +118,9 @@ module Zermelo
               if idx_attrs.has_key?(att)
                 # update indices
                 if creating
-                  self.class.send("#{att}_index").add_id( @attributes['id'], old_new.last)
+                  self.class.send("#{att}_index").add_id( @attributes['id'].value, old_new.last)
                 else
-                  self.class.send("#{att}_index").move_id( @attributes['id'], old_new.first,
+                  self.class.send("#{att}_index").move_id( @attributes['id'].value, old_new.first,
                                   self.class.send("#{att}_index"), old_new.last)
                 end
               end
@@ -120,7 +130,7 @@ module Zermelo
 
             if creating
               attr_keys.each_pair do |att, attr_key|
-                apply_attribute.call(att, attr_key, [nil, @attributes[att]])
+                apply_attribute.call(att, attr_key, [nil, @attributes[att].value])
               end
             else
               self.changes.each_pair do |att, old_new|
@@ -134,9 +144,9 @@ module Zermelo
             # FIXME distinguish between this in the class methods?
             case self
             when Zermelo::Records::Ordered
-              self.class.add_id(@attributes['id'], sort_val)
+              self.class.add_id(@attributes['id'].value, sort_val)
             when Zermelo::Records::Unordered
-              self.class.add_id(@attributes['id'])
+              self.class.add_id(@attributes['id'].value)
             end
           end
 
@@ -159,7 +169,7 @@ module Zermelo
 
       def save
         save!
-      rescue Zermelo::Records::Errors::RecordInvalid, Zermelo::Records::Errors::RecordNotSaved
+      rescue Zermelo::Records::Errors::RecordInvalid, Zermelo::Records::Errors::RecordNotSaved => e
         false
       end
 
@@ -232,31 +242,31 @@ module Zermelo
       #
       # Simulate attribute writers from method_missing
       def attribute=(att, value)
-        return if value == @attributes[att.to_s]
+        return if value == @attributes[att.to_s].value
         if att.to_s == 'id'
-          raise "Cannot reassign id" unless @attributes['id'].nil?
+          raise "Cannot reassign id" unless @attributes['id'].value.nil?
           send("id_will_change!")
-          @attributes['id'] = value.to_s
+          @attributes['id'] = @attributes['id'].with_value_from_user(value.to_s)
         else
           send("#{att}_will_change!")
           if (self.class.attribute_types[att.to_sym] == :set) && !value.is_a?(Set)
-            @attributes[att.to_s] = Set.new(value)
+            @attributes[att.to_s] = @attributes[att.to_s].with_value_from_user(Set.new(value))
           else
-            @attributes[att.to_s] = value
+            @attributes[att.to_s] = @attributes[att.to_s].with_value_from_user(value)
           end
         end
       end
 
       # Simulate attribute readers from method_missing
       def attribute(att)
-        value = @attributes[att.to_s]
+        value = @attributes[att.to_s].value
         return value unless (self.class.attribute_types[att.to_sym] == :timestamp)
         value.is_a?(Integer) ? Time.at(value) : value
       end
 
       # Used by ActiveModel to lookup attributes during validations.
       def read_attribute_for_validation(att)
-        @attributes[att.to_s]
+        @attributes[att.to_s].value
       end
 
     end
