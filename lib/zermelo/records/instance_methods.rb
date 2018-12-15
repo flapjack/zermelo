@@ -98,7 +98,7 @@ module Zermelo
         when Zermelo::Records::Ordered
           sort_attr = self.class.instance_variable_get('@sort_attribute')
           raise 'Ordered record types must define_sort_attribute' if sort_attr.nil?
-          sort_val = @attributes[sort_attr.to_s]
+          sort_val = @attributes[sort_attr.to_s].value
           raise "Value required for sort_attribute #{sort_attr}" if sort_val.nil?
         end
 
@@ -187,10 +187,10 @@ module Zermelo
             end
 
             self.class.transaction do
-              self.class.delete_id(@attributes['id'])
+              self.class.delete_id(@attributes['id'].value)
               index_attrs.each do |att|
                 idx = self.class.send("#{att}_index")
-                idx.delete_id( @attributes['id'], @attributes[att.to_s])
+                idx.delete_id( @attributes['id'].value, @attributes[att.to_s].value)
               end
 
               self.class.attribute_types.each_pair {|name, type|
